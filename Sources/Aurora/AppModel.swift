@@ -1,12 +1,13 @@
 import AppKit
 import AuroraCore
+import AuroraFixtureLib
 import AuroraModel
 import AuroraUI
 import Combine
 import Foundation
 import SwiftUI
 
-/// Owns the live show session, workspace layout, and document path.
+/// Owns the live show session, workspace layout, fixture library, and document path.
 @MainActor
 final class AppModel: ObservableObject {
     @Published private(set) var session: DocumentSession
@@ -16,10 +17,19 @@ final class AppModel: ObservableObject {
     @Published private(set) var revision: UInt64 = 0
 
     private var eventToken: EventSubscriptionToken?
+    private let fixtureLibrary: FixtureLibrary?
 
     init(project: ShowProject = .empty(name: "Untitled Show")) {
         self.session = DocumentSession(project: project)
         self.layout = WorkspaceLayoutStore.load()
+        do {
+            let library = try FixtureLibrary.loadBundledSeed()
+            self.fixtureLibrary = library
+            self.statusMessage = "Loaded \(library.definitions.count) seed personalities"
+        } catch {
+            self.fixtureLibrary = nil
+            self.statusMessage = "Fixture library failed: \(error.localizedDescription)"
+        }
         wireEvents()
     }
 
@@ -27,8 +37,14 @@ final class AppModel: ObservableObject {
         WorkspacePanelContext(session: session, fixtureLibrary: fixtureLibraryBox)
     }
 
-    /// Set by PR8 when the seed library loads; nil until then.
-    var fixtureLibraryBox: FixtureLibraryBox?
+    var fixtureLibraryBox: FixtureLibraryBox? {
+        guard let fixtureLibrary else { return nil }
+        return FixtureLibraryBox(
+            definitions: fixtureLibrary.definitions,
+            search: { fixtureLibrary.search($0) },
+            makeEmbeddableCopy: { fixtureLibrary.makeEmbeddableCopy($0) }
+        )
+    }
 
     var windowTitle: String {
         let name = session.project.metadata.name

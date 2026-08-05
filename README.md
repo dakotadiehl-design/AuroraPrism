@@ -4,7 +4,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 ## Status
 
-**PR7 app shell** is in tree: multi-pane workspace, document open/save, undo menus, plus foundation through patch commands. Output layer (PR9) and polished patch browser (PR8) next.
+**PR7–PR9 workspace path** is in tree: multi-pane shell, fixture browser + patch UI, DMX output buffers/drivers. Engine loop (PR10) is next.
 
 | Doc | Description |
 |-----|-------------|
@@ -16,6 +16,9 @@ Professional-grade **lighting control** for macOS — live performance show cont
 | [`docs/design/pr4-events-selection.md`](./docs/design/pr4-events-selection.md) | **PR4** event bus & selection |
 | [`docs/design/pr5-fixture-library.md`](./docs/design/pr5-fixture-library.md) | **PR5** fixture library seed |
 | [`docs/design/pr6-patch-management.md`](./docs/design/pr6-patch-management.md) | **PR6** patch management |
+| [`docs/design/pr7-app-shell.md`](./docs/design/pr7-app-shell.md) | **PR7** app shell |
+| [`docs/design/pr8-patch-fixture-browser.md`](./docs/design/pr8-patch-fixture-browser.md) | **PR8** patch + fixture browser |
+| [`docs/design/pr9-output-layer.md`](./docs/design/pr9-output-layer.md) | **PR9** output / DMX |
 | [`docs/design/remote-companion.md`](./docs/design/remote-companion.md) | Stage iPad remote (web first, native later) |
 | [`docs/development-workflow.md`](./docs/development-workflow.md) | Mac toolchain & dual-host notes |
 
@@ -65,4 +68,4 @@ Dependency rules are documented in [PR1 scaffold](./docs/design/pr1-project-scaf
 
 ## Next
 
-See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR7** adds the app shell and dockable workspace.
+See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR10** adds the playback engine and scheduler.

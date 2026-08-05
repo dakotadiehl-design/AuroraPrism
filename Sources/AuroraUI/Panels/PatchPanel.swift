@@ -91,7 +91,18 @@ public struct PatchPanel: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                .onTapGesture {} // selection via table
+                .contextMenu {
+                    Button("Repatch…") {
+                        if let id = context.session.selection.snapshot.fixtureIDs.first,
+                           let fixture = context.project.fixtures.first(where: { $0.id == id }) {
+                            repatchAddress = String(fixture.address)
+                            repatchFixtureID = id
+                        }
+                    }
+                    .disabled(context.session.selection.snapshot.fixtureIDs.count != 1)
+                    Button("Clone") { cloneSelected() }
+                    Button("Remove", role: .destructive) { removeSelected() }
+                }
             }
 
             if !context.project.patchConflicts().isEmpty {
