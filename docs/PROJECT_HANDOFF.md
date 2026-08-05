@@ -1,26 +1,35 @@
 # Aurora — Project Handoff / Compressed-Session Memory
 
-**Purpose:** Survive chat-memory compression. Read this file first in any new session before changing code.
+**Purpose:** Survive chat-memory compression. **Read this file first** in any new session before changing code.
 
-**Last updated:** 2026-08-05  
-**Workspace:** `/Users/dakota/code/Aurora`  
-**Branch:** `main` (local only when last written; no remote assumed)  
-**HEAD (at write time):** see `git log -1` — roadmap PRs through PR34 scaffold
+| Field | Value |
+|-------|--------|
+| **Last updated** | 2026-08-05 (post code-review fixes) |
+| **Workspace** | `/Users/dakota/code/Aurora` |
+| **Branch** | `main` (local only; no remote assumed) |
+| **HEAD (at write)** | `2b37f34` — *Document code-review fix status in project handoff* |
+| **Tests** | **173** passing (`swift test`) |
+| **Approx size** | ~10.6k lines production Swift; ~13.3k with tests |
+
+**Also read:** `Aurora_Deep_Code_Review_Fixes.md` (review that drove P0–P2 fixes).
 
 ---
 
 ## 1. What Aurora is
 
-**Aurora** is a **macOS-native professional lighting control** application for live performance:
+**Aurora** is a **macOS-native professional lighting control** app for live performance:
 
 - Patch fixtures, program looks, run cues with timing/tracking  
-- MIDI control, song orchestration, Art-Net DMX output  
-- Goal: modern creative-app UX (Logic/FCP-class docking), not a console clone  
-- Future: **stage iPad remote** (web first, then native) — designed, not fully built  
+- MIDI / RTP-MIDI / OSC control, song orchestration  
+- Art-Net + sACN DMX output  
+- Live effects (pulse/chase/wave/rainbow)  
+- Stage **web remote** (iPad Safari) on LAN + PIN  
 
-**Stack:** Swift 5.9+ / Swift 6.x toolchain, SwiftUI + AppKit, SPM monorepo, CoreMIDI, Network.framework (Art-Net), macOS 14+ only (`platforms: [.macOS(.v14)]`).
+**Stack:** Swift 5.9+ / 6.x, SwiftUI + AppKit, SPM monorepo, CoreMIDI, Network.framework, **macOS 14+ only**.
 
-**Not Linux:** Planning docs can be edited anywhere; **build/test/run require macOS + full Xcode** (not Command Line Tools alone).
+**Not Linux for build:** docs OK anywhere; **build/test/run require Mac + full Xcode** (not CLT alone).
+
+**Language decision:** all Swift — no Rust engine planned.
 
 ---
 
@@ -28,35 +37,27 @@
 
 | Item | Value |
 |------|--------|
-| OS | macOS (arm64); was ~26.x in session |
-| Xcode | `/Applications/Xcode.app` — **must** be active developer dir |
-| `xcode-select -p` | Should be `/Applications/Xcode.app/Contents/Developer` |
-| Swift | From Xcode (session used 6.1–6.3 range) |
-| Host | Development moved from Linux plan machine → Mac for native work |
+| OS | macOS arm64 |
+| Xcode | `/Applications/Xcode.app` **must** be active developer dir |
+| `xcode-select -p` | `/Applications/Xcode.app/Contents/Developer` |
+| Swift | From Xcode (session saw 6.x) |
 
-**If build fails with `#Preview` / `XCTest` missing:** CLT is selected; fix:
+**If `#Preview` / `XCTest` missing:**
 
 ```bash
 sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-# or GUI: osascript admin prompt was used successfully once
 ```
 
-**Run app:**
+**Build / test / run:**
 
 ```bash
 cd /Users/dakota/code/Aurora
 swift build && swift test
 swift run Aurora
-# or: open .build/arm64-apple-macosx/debug/Aurora
 # or: open Package.swift in Xcode → scheme Aurora
 ```
 
-SPM produces a **bare executable**, not a `.app` bundle. App forces:
-
-- `NSApp.setActivationPolicy(.regular)`  
-- `NSApp.activate(ignoringOtherApps: true)`  
-
-in `Sources/Aurora/AuroraApp.swift` so a window/Dock icon appear.
+SPM product is a **bare executable**, not `.app`. App sets regular activation policy + activates so a window/Dock icon appear (`AuroraApp.swift`).
 
 ---
 
@@ -64,42 +65,31 @@ in `Sources/Aurora/AuroraApp.swift` so a window/Dock icon appear.
 
 ```
 Aurora/
-├── Package.swift                 # SPM monorepo — single package
+├── Package.swift
 ├── README.md
-├── .gitignore                    # .build/, session tarballs, etc.
-├── Aurora Lighting Control System.pdf          # original product overview
-├── Aurora PR20-PR21 Architectural Guidance.pdf # critical for palettes/songs
-├── aurora-grok-session.tgz       # gitignored session archive (if present)
+├── Aurora_Deep_Code_Review_Fixes.md   # deep review + required fixes (authoritative for P0–P2)
+├── Aurora Lighting Control System.pdf
+├── Aurora PR20-PR21 Architectural Guidance.pdf  # palette/song LAW
 ├── docs/
-│   ├── PROJECT_HANDOFF.md        # THIS FILE
-│   ├── development-workflow.md   # Mac toolchain / dual-host
+│   ├── PROJECT_HANDOFF.md             # THIS FILE
+│   ├── development-workflow.md
 │   └── design/
-│       ├── aurora-system-design.md   # master design + PR1–34 plan
-│       ├── remote-companion.md       # iPad remote design (KD16)
-│       └── pr*.md                    # per-PR notes (many)
+│       ├── aurora-system-design.md    # master design + PR plan
+│       ├── remote-companion.md
+│       └── pr*.md
 ├── Sources/
-│   ├── Aurora/                   # @main executable (design name AuroraApp)
-│   ├── AuroraModel/              # pure data + package I/O
-│   ├── AuroraCore/               # commands, session, undo, selection, events
-│   ├── AuroraEngine/             # scheduler, cues, programmer, merge
-│   ├── AuroraOutput/             # DMX buffers, drivers, Art-Net
-│   ├── AuroraMIDI/               # CoreMIDI + learn/resolver
-│   ├── AuroraFixtureLib/         # seed personalities (Resources/Seed/)
-│   ├── AuroraUI/                 # workspace + panels
-│   ├── AuroraDiagnostics/        # still thin / stub-ish
-│   └── AuroraRemote/             # stage remote protocol + web host
-└── Tests/
-    ├── AuroraModelTests/
-    ├── AuroraCoreTests/
-    ├── AuroraEngineTests/
-    ├── AuroraOutputTests/
-    ├── AuroraMIDITests/
-    ├── AuroraFixtureLibTests/
-    ├── AuroraUITests/
-    └── AuroraPackageSmokeTests/
+│   ├── Aurora/                 # @main app, AppModel, ControlActionRouter, SongDirector
+│   ├── AuroraModel/            # pure data + ProjectPackage I/O
+│   ├── AuroraCore/             # commands, DocumentSession, undo, selection, PluginHost
+│   ├── AuroraEngine/           # scheduler, cues, programmer, effects, merge
+│   ├── AuroraOutput/           # DMX buffers, Null/Mock/Art-Net/sACN
+│   ├── AuroraMIDI/             # CoreMIDI, learn, OSC, RTP-MIDI
+│   ├── AuroraFixtureLib/       # seed + FixtureImporter
+│   ├── AuroraUI/               # workspace + panels
+│   ├── AuroraDiagnostics/      # PerformanceBudget, DiagnosticsStore
+│   └── AuroraRemote/           # protocol, TCP host, web server, client scaffold
+└── Tests/                      # *Tests per module + AuroraRemoteTests + smoke
 ```
-
-Swift sources under `Sources/` (incl. `AuroraRemote`). **~157 tests** passing at last full run.
 
 ---
 
@@ -108,278 +98,247 @@ Swift sources under `Sources/` (incl. `AuroraRemote`). **~157 tests** passing at
 ### Control path (never bypass)
 
 ```
-User (UI / MIDI / future remote)
-  → Commands / intents
-  → DocumentSession (model mutations + undo)
-  → LightingEngine (playback + programmer merge)
+User (UI / MIDI / OSC / remote)
+  → Commands (document) or live intents
+  → DocumentSession (mutations + undo)  and/or  LightingEngine (playback/programmer/effects)
   → OutputManager → OutputDriver(s) → hardware
 ```
 
-- **UI must not import Output/MIDI drivers** for hot path (panels get engine/session via AppModel).  
-- **UI must not own palette semantics** — resolution is Model/Engine (`PaletteResolver` → `CueResolver`).  
-- **Remote (future)** is a Core client, not a second engine (`docs/design/remote-companion.md`).
+- **Live MIDI** goes through **`ControlActionRouter`** (non-MainActor) → engine; UI log on MainActor.  
+- **MIDI Learn** stays MainActor + commands.  
+- **Remote** is a Core/app client — **no second engine**, no raw DMX from remote.  
+- **UI must not** own palette resolve math (`PaletteResolver` / `CueResolver` in Engine).  
+- **Literals win** over palette refs; missing refs → `ResolutionIssue`, never crash.
 
-### Module dependency graph (SPM)
+### Layer order (engine frame)
+
+```
+Playback look
+  → Effects (EffectRunner)
+  → Programmer (unless blind) + highlight
+  → MergeStub → DMX buffers → drivers
+```
+
+### Module deps (SPM)
 
 ```
 AuroraModel          → (none)
-AuroraFixtureLib     → AuroraModel (+ Resources seed JSON)
-AuroraOutput         → Network.framework
-AuroraEngine         → AuroraModel, AuroraOutput
-AuroraCore           → AuroraModel, AuroraEngine
-AuroraMIDI           → AuroraModel, CoreMIDI
-AuroraUI             → AuroraCore, AuroraModel, AuroraEngine
-Aurora (app)         → UI, Core, Model, FixtureLib, Engine, Output, MIDI
+AuroraFixtureLib     → Model
+AuroraOutput         → Network
+AuroraEngine         → Model, Output
+AuroraCore           → Model, Engine
+AuroraMIDI           → Model, CoreMIDI, Network
+AuroraDiagnostics    → (none)
+AuroraUI             → Core, Model, Engine
+AuroraRemote         → Core, Model, Network
+Aurora (app)         → UI, Core, Model, FixtureLib, Engine, Output, MIDI, Remote, Diagnostics
 ```
 
-### App ownership (`AppModel`)
+### App ownership (`AppModel` @MainActor)
 
-Single `@MainActor` `AppModel` owns:
+Still a large coordinator (review P1-8 deferred full split):
 
-- `DocumentSession` (show + undo + selection + events)  
-- `LightingEngine` + `OutputManager`  
-- `NullOutputDriver` always; `ArtNetOutputDriver` when enabled  
-- `MIDIInputManager` + `MIDILearnSession`  
-- `SongDirector`  
-- Fixture library box for UI  
-- Workspace layout (UserDefaults)  
-- Status: engine / MIDI / Art-Net / console + MIDI logs  
+- `DocumentSession`, workspace layout  
+- `LightingEngine`, `OutputManager`, Null + Art-Net + sACN drivers  
+- `MIDIInputManager`, `MIDILearnSession`, `ControlActionRouter`, `RTPMIDISession`, OSC server  
+- `SongDirector`, `PluginHost`, `DiagnosticsStore`  
+- `RemoteHost` + `RemoteWebServer`  
+- Status strings / console + MIDI logs  
 
 ---
 
 ## 5. Key domain concepts
 
-### Show document
+### Show package `.aurora`
 
-- Type: directory package **`.aurora`**  
-- API: `ProjectPackage.save/load`  
-- Schema: `ProjectPackage.currentSchemaVersion` (v1; additive fields preferred)  
-- Root: `ShowProject` (universes, fixtures, definitions, cues, songs, palettes, groups, midiMappings, …)
+- Directory bundle via `ProjectPackage.save/load`  
+- **Atomic save (P0):** write temp package → validate load → swap; original survives failure  
+- **Media preserve (P0):** copies `media/` and `layouts/` from existing package on resave  
+- Schema v1; prefer additive Codable  
+- Load enforces max JSON file size (`ProjectPackage.maxJSONFileBytes`)
 
-### Attributes
+### Dirty / save-point (P0)
 
-- Normalized **0.0…1.0** in looks/programmer/cues  
-- Merge to DMX 0…255 via `MergeStub` / channel `defaultValue` when missing  
+- `DocumentSession.documentGeneration` / `savedGeneration`  
+- `isDirty` ⇔ generations differ  
+- `markSaved()` after successful save/open  
+- Undo can return to clean if stack matches saved generation  
 
-### Palettes / presets / groups (PDF is law)
+### Unsaved guards (P0)
 
-**Read:** `Aurora PR20-PR21 Architectural Guidance.pdf`
+- New / Open / Quit call `confirmDiscardIfDirty` (Save / Don’t Save / Cancel)
 
-- **First-class UUID entities**, not UI-only copy buttons  
-- Cues store **literals** and/or **`paletteRefs`** on `FixtureCueLevels`  
-- Change palette once → all **referencing** cues update on resolve  
-- Literals on same attr **win** after ref expand  
-- Missing palette: `ResolutionIssue`, skip attrs, **never crash**  
-- **Palette** = attribute family (color/position/…); **Preset** = larger multi-fixture look  
-- **Song** orchestrates cue lists/cues by UUID — **not** a second cue engine  
+### Cue tracking (P0-6)
 
-### Playback
+- **Track:** accumulate tracking cues; intermediate **cue-only** skipped for history  
+- **Cue-only target:** prior stage look ⊕ sparse cue attrs (does **not** wipe unspecified attrs to home)  
+- `PlaybackController` passes `currentLook` as `priorLook` into `CueResolver`
 
-- One active cue list (v1)  
-- `PlaybackController`: delay → linear fade → active; follow afterTime/afterGo  
-- Tracking via `CueResolver` (with project for palette expand)  
-- Programmer layered on top (`Programmer.apply`); blind suppresses programmer contribution  
+### Palettes / presets
 
-### Art-Net (PR25)
+- PDF law: `Aurora PR20-PR21 Architectural Guidance.pdf`  
+- `paletteRefs` + `PaletteResolver`; type/slot compatibility checked (P1-10)  
+- Presets: create from programmer / apply / delete in Palettes panel (P1-9)  
+- Record Ref: session cue selection + fixtures; fallback first cue of first list  
 
-- UDP **6454**, ArtDmx encode in `ArtNetPacket`  
-- Show universe **N** → Art-Net **N + universeOffset** (default offset **−1** → show 1 = Art-Net 0)  
-- Config: `ArtNetConfig` UserDefaults `aurora.output.artnet.v1`  
-- Menu: **Output → Enable Art-Net / Destination…**  
-- Keep Null driver when Art-Net off  
+### Output
+
+- **Art-Net:** UDP 6454; show U N → Art-Net N+offset (default −1)  
+- **sACN:** E1.31 DATA; default show U N → sACN N; multicast or unicast  
+- **`reconcileUniverses`:** removed universes blackout then drop buffer (P0-5)  
+- `startAll()` rolls back partially started drivers on failure  
+
+### Effects
+
+- Runtime `EffectRunner` on `engine.effects` (not persisted in show yet — P1-12 follow-up)  
+- UI: Effects panel  
+
+### MIDI / OSC / RTP
+
+- CoreMIDI + source unique IDs (`uid:…`) for mappings  
+- RTP-MIDI: `MIDINetworkSession` wrapper, MIDI menu  
+- OSC: UDP 9000 → `ShowAction`  
+
+### Remote
+
+- TCP protocol port **8742** (newline JSON)  
+- Web UI **http://\<mac\>:8743**  
+- **Enable Remote** generates **random 6-digit PIN** (not 0000); shown in status/console  
+- Auth failure rate limit; tokens owned by `RemoteSessionManager`  
+- Cleartext LAN still intentional v1 limitation  
 
 ---
 
-## 6. PR implementation status
+## 6. PR / work status
 
-### Done (in tree)
+### Feature PRs (1–34) — in tree
 
-| PR | Topic |
-|----|--------|
-| 1 | SPM scaffold, modules, smoke tests |
-| 2 | Domain model + `.aurora` package I/O |
-| 3 | Command + DocumentSession + undo/groups/coalesce |
-| 4 | EventBus + SelectionManager |
-| 5 | FixtureLibrary seed JSON (dimmer, RGB, RGBW, mover) |
-| 6 | Patch addressing + patch/universe/clone/batch commands |
-| 7 | Workspace multi-pane shell, open/save, menus |
-| 8 | Fixture browser + patch table + inspector |
-| 9 | DMX buffers, Null/Mock drivers, OutputManager |
-| 10 | Engine scheduler ~40 Hz, merge stub, snapshots |
-| 11 | Cue resolve, fade/delay/follow playback |
-| 12 | Cue list UI + cue commands |
-| 13 | Programmer core (blind/highlight/locate/home) |
-| 14 | Programmer panel + fan/align |
-| 15 | ColorMath + HSV in programmer |
-| 16 | CoreMIDI input + parser |
-| 17 | MIDI learn + mapping → actions |
-| 19 | Live transport panel + keyboard GO/STOP/BACK |
-| 20 | Groups/palettes (refs + resolver) — core model/UI present |
-| 21 | SongDirector + Song panel |
-| 18 | RTP-MIDI via CoreMIDI `MIDINetworkSession` |
-| 22 | Effect engine (pulse/chase/wave/rainbow) |
-| 23 | Effects panel UI |
-| 24 | Universe monitor + console/MIDI log (subset) |
-| 25 | Art-Net output driver |
-| 26 | sACN/E1.31 output driver |
-| 27 | OSC input → ShowAction |
-| 28 | Fixture import (native + OFL-lite; not full GDTF) |
-| 29 | In-process plugin host skeleton |
-| 30 | Frame metrics + scale budget tests |
-| 31 | AuroraRemote protocol + TCP host |
-| 32 | Web live-ops companion (HTTP :8743) |
-| 33 | Remote hardening (rate limit, kick, lock) |
-| 34 | RemoteProtocolClient scaffold (no iOS app target) |
+Scaffold → model → core → fixtures/patch → UI shell → engine/cues/programmer → MIDI → live → palettes/songs → effects → Art-Net/sACN/OSC/RTP → import → plugins → perf → remote TCP/web/harden → Pad client scaffold.
 
-### Code-review fixes (2026-08-05)
+### Code-review fix commits (most recent arc)
 
-See `Aurora_Deep_Code_Review_Fixes.md`. Landed:
+| Commit | Content |
+|--------|---------|
+| `ef8ce0e` | P0: atomic save, dirty, guards, universe blackout, cue-only |
+| `52e4eac` | P1: ControlActionRouter, MIDI source IDs, client cleanup |
+| `cd90f80` | P1/P2: remote PIN/auth/tokens, presets, palette checks, diagnostics |
+| `2b37f34` | Handoff note for review status |
 
-- **P0:** atomic package save + media preserve; dirty generation/`markSaved`; New/Open/Quit guard; universe blackout on remove; cue-only preserves prior look  
-- **P1:** MIDI off-MainActor router + source IDs; remote random PIN/auth rate limit/tokens; presets UI; palette type checks; resolution issues on snapshot  
-- **P2 (partial):** DiagnosticsStore; HTTP body limits; lifetime max metric naming; `startAll` rollback; remove global `.id(revision)`  
-
-### Intentionally incomplete / follow-ups
+### Intentionally incomplete
 
 | Item | Notes |
 |------|--------|
-| Full GDTF import | Deferred (zip/XML); OFL-lite only in PR28 |
-| Full DAW effect timeline | PR23 is live list, not multi-track timeline |
-| Native iPad app binary | PR34 is protocol client only; package stays macOS-only |
-| TLS for remote | LAN HTTP/TCP cleartext; venue network assumed |
-| Dynamic plugin dylibs | PR29 in-process only |
-| AppModel full split (P1-8) | Still a coordinator; extract controllers in UI phase |
-| 2k-fixture scale bench (P2-3) | Smoke scale remains 200 fixtures |
-| Persistent effect definitions (P1-12) | Runtime-only effects still |
-
-### Known gaps / incomplete polish
-
-- **Record palette ref UI** (improved Phase 1): uses **session cue selection** + selected fixtures; falls back to first cue of first list; multi-cue if multiple cue IDs selected  
-- Palette delete: **confirmation dialog** lists referencing cues/presets (broken refs remain until fixed; no auto break→literals yet)  
-- Universe monitor: **universe picker + full channelCount** (typically 512), scrollable grid  
-- Art-Net not fully validated on user’s physical node yet  
-- No true AppKit docking framework — SwiftUI `HSplitView`/`VSplitView` “docking lite”  
-- No committed `.xcodeproj` — open `Package.swift`  
-- Some PR docs are thin notes; **system design + PDFs** are authoritative  
-- Full GDTF; native iPad app; TLS remote; dynamic plugins — see incomplete table
+| Full GDTF | OFL-lite + native JSON only |
+| DAW effect timeline | List UI only |
+| Persistent effect defs | Runtime-only |
+| Native iPad app | `RemoteProtocolClient` only; package macOS-only |
+| TLS remote | Cleartext LAN |
+| Dynamic plugins | In-process register only |
+| AppModel split (P1-8) | Still god-object-ish |
+| 2k fixture bench | Smoke ~200 fixtures |
+| Hardware Art-Net/sACN validation | Not proven on user’s node in-session |
+| True AppKit docking | SwiftUI splits “docking lite” |
+| Break palette refs → literals on delete | Confirm only |
 
 ---
 
-## 7. Important types & entry points
+## 7. Entry points
 
-| Concern | Where |
-|---------|--------|
+| Concern | Path |
+|---------|------|
 | App entry | `Sources/Aurora/AuroraApp.swift` |
-| Session / document | `Sources/Aurora/AppModel.swift`, `Sources/AuroraCore/DocumentSession.swift` |
-| Commands | `Sources/AuroraCore/Commands/*`, `GroupCommands.swift` |
+| Integration hub | `Sources/Aurora/AppModel.swift` |
+| Live MIDI router | `Sources/Aurora/ControlActionRouter.swift` |
+| Document session | `Sources/AuroraCore/DocumentSession.swift` |
 | Package I/O | `Sources/AuroraModel/ProjectPackage.swift` |
 | Engine | `Sources/AuroraEngine/LightingEngine.swift` |
-| Live effects | `Sources/AuroraEngine/EffectRunner.swift` (`engine.effects`) |
-| Playback | `Sources/AuroraEngine/PlaybackController.swift` |
-| Palette resolve | `Sources/AuroraEngine/PaletteResolver.swift` |
 | Cue resolve | `Sources/AuroraEngine/CueResolver.swift` |
-| Programmer | `Sources/AuroraEngine/Programmer.swift` |
-| Merge → DMX | `Sources/AuroraEngine/MergeStub.swift` |
-| Output | `Sources/AuroraOutput/OutputManager.swift` |
-| Art-Net | `Sources/AuroraOutput/ArtNet*.swift` |
-| MIDI | `Sources/AuroraMIDI/*` |
-| Panels | `Sources/AuroraUI/Panels/*` |
-| Workspace | `Sources/AuroraUI/Workspace/*` |
-| Panel wiring | `Sources/Aurora/PanelRegistry.swift` |
+| Effects | `Sources/AuroraEngine/EffectRunner.swift` |
+| Output reconcile | `Sources/AuroraOutput/OutputManager.swift` |
+| Remote | `Sources/AuroraRemote/*` |
+| Panels | `Sources/AuroraUI/Panels/*`, `PanelRegistry.swift` |
+| Review backlog | `Aurora_Deep_Code_Review_Fixes.md` |
 
 ---
 
-## 8. Conventions established in this project
+## 8. Conventions
 
-1. **Mutations through commands** when show document changes; programmer values are engine-ephemeral  
-2. **`@MainActor`** for session/UI; engine/output/MIDI use locks / background queues  
-3. **Version strings** on modules like `0.x.0-prN` (not always perfectly synced)  
-4. **Design docs** under `docs/design/prN-*.md` for major PRs  
-5. **Prefer additive Codable** over hard schema bumps when possible  
-6. **Do not** put exploit/network abuse helpers; Art-Net is show LAN only  
-7. **Git:** commits on `main`; identity may be auto `Dakota Diehl <dakota@…>`  
-8. **Session tarballs** gitignored (`aurora-grok-session.tgz`)  
+1. Document mutations via **commands** + undo; programmer is engine-ephemeral  
+2. `@MainActor` session/UI; engine/output/MIDI/remote use locks / background queues  
+3. Live show actions (GO/fire) must not wait on MainActor when avoidable  
+4. Additive Codable preferred  
+5. Network: fail soft; never block 40 Hz engine tick  
+6. Tests: `stepForTesting` / `ManualEngineClock` for engine; packet goldens for Art-Net/sACN  
+7. Commits on `main`; update this handoff after major work  
+8. One PR / fix cluster at a time preferred for quality (user rule)
 
 ---
 
-## 9. How a human uses the app today (smoke path)
+## 9. Smoke path (human)
 
 1. `swift run Aurora`  
-2. Patch: Add Universe → Fixture Browser → Patch Selected  
-3. Select fixture → Programmer (intensity/HSV)  
-4. Cue List: Add List → + Cue → set timing → Live panel **GO**  
-5. Optional: MIDI panel Learn Go; send note  
-6. Optional: Palettes “New Color from Prog”; select cue in Cue List + fixtures → “Record Ref to Cue”  
-7. Optional: Output → Art-Net destination + Enable  
-8. Universe Monitor (pick universe, full channels) / Console for diagnostics  
-9. File → Save `.aurora` package  
+2. Patch universe + fixture  
+3. Programmer → Cue List → Live **GO**  
+4. Optional: Effects on selection  
+5. Optional: Output Art-Net / sACN  
+6. Optional: **Remote → Enable** → note PIN → browser `http://<mac-ip>:8743`  
+7. File → Save (atomic; dirty clears)  
+8. Dirty New/Open/Quit prompts  
 
 ---
 
-## 10. Roadmap choices already made
+## 10. Sensible next work
 
-| Decision | Choice |
-|----------|--------|
-| Language | **All Swift** (no Rust engine planned) |
-| Remote | **Web first**, native iPad later; LAN + PIN; live-ops v1 (`remote-companion.md`) |
-| Next product lane (user chose) | **Lane A — real light**: Art-Net (done) → validate on node → sACN/effects/remote as needed |
-| Dual host | Plan on any OS; implement on Mac only (KD15) |
+1. **Hardware validate** Art-Net and/or sACN on a real node  
+2. **UI redesign** (now safer post-P0): fine-grained state, AppModel split (P1-8)  
+3. Remaining review P2: richer scale tests, driver health UI, silent `try?` cleanup, command file split  
+4. Product: persistent effects, GDTF, TLS remote, native Pad  
 
-### Sensible next work (post roadmap)
-
-1. **Hardware validate** Art-Net / sACN on real nodes  
-2. Demo remote: **Remote → Enable**, open `http://<mac-lan-ip>:8743` on iPad Safari (PIN `0000` default)  
-3. Full GDTF importer or shipping iOS AuroraPad if product requires  
-4. Optional: break-refs-to-literals on palette delete; multi-select cue list UI  
+Do **not** re-open palette/song semantics without the PR20–21 PDF.
 
 ---
 
-## 11. Git history (high level)
+## 11. Git arc (high level)
 
-Chronological feature arc on `main`:
-
-1. PR1 scaffold → PR2 model → PR3–4 core → PR5–6 fixture/patch  
-2. PR7–8 UI shell/patch → PR9–11 engine/cues → PR12–14 programmer  
-3. PR16–17 MIDI → PR19 live → PR15/20/21 color/groups/songs (often batched commits)  
-4. PR24–25 diagnostics + Art-Net (Lane A)  
-5. PR22–23 effects → PR18/26/27 protocols → PR28–30 polish → PR31–34 remote  
-
-Some commits batch multiple PR numbers earlier in history; later roadmap PRs are one commit each.
+1. PR1–21 core desk + MIDI + palettes/songs  
+2. Lane A Art-Net + diagnostics  
+3. Phase 1 polish (palette ref UI, universe monitor)  
+4. Roadmap PR18/22–34 (effects, protocols, remote)  
+5. Deep code review P0–P2 fixes (`ef8ce0e` … `cd90f80`)  
 
 ---
 
-## 12. Files to open first after compression
+## 12. Open first after compression
 
 1. **`docs/PROJECT_HANDOFF.md`** (this file)  
-2. **`docs/design/aurora-system-design.md`** — full PR plan + KD table  
-3. **`Aurora PR20-PR21 Architectural Guidance.pdf`** — palette/song law  
-4. **`docs/design/remote-companion.md`** — if remote work  
-5. **`Package.swift`** + **`Sources/Aurora/AppModel.swift`** — living integration hub  
-6. **`README.md`** — status one-liner + build commands  
+2. **`Aurora_Deep_Code_Review_Fixes.md`** if continuing review backlog  
+3. **`docs/design/aurora-system-design.md`**  
+4. **`Aurora PR20-PR21 Architectural Guidance.pdf`** if palettes/songs  
+5. **`Package.swift`** + **`Sources/Aurora/AppModel.swift`**  
+6. **`README.md`**  
 
 ---
 
-## 13. Agent instructions for future sessions
+## 13. Agent instructions
 
-- Prefer **existing modules and dependency rules** over new top-level packages  
-- Extend **commands + tests** for show mutations  
-- Engine changes: keep **deterministic `stepForTesting` / ManualEngineClock** coverage  
-- Art-Net: fail soft; never block engine loop on network  
-- Do not reintroduce Linux-only build expectations  
-- When unsure about palettes/songs, **prefer reference + resolve** over bake-only  
-- Update this handoff when major PR status or architecture changes  
-
----
-
-## 14. Checklist: “I am oriented”
-
-- [ ] Can build/test/run on this Mac with Xcode selected  
-- [ ] Know control path UI → session → engine → output  
-- [ ] Know palette refs resolve in engine, not UI  
-- [ ] Know Art-Net enable path and universe offset  
-- [ ] Know next lane options (hardware validate / sACN / effects / remote)  
-- [ ] Read PDF guidance before changing PR20/21 semantics  
+- Read this handoff before edits  
+- Preserve control path and module dependency direction  
+- Prefer existing modules over new packages  
+- Engine: keep deterministic tests  
+- Update handoff when architecture or PR status changes  
+- User prefers: implement + test + commit per PR/cluster; **correctness over finishing everything**  
 
 ---
 
-*End of handoff. Compress chat freely after this file is committed if desired.*
+## 14. Orientation checklist
+
+- [ ] Xcode selected; `swift test` green (~173)  
+- [ ] Control path + MIDI router + remote-as-client understood  
+- [ ] Atomic save / dirty / cue-only / universe reconcile known  
+- [ ] Palette refs resolve in engine; type slots matter  
+- [ ] Remote PIN is random on enable  
+- [ ] Next work chosen by user (hardware / UI / remaining P2)  
+
+---
+
+*End of handoff. Compact chat freely after this file is committed.*

@@ -4,7 +4,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 ## Status
 
-**Roadmap PRs through PR34 scaffold are in tree** (effects, sACN, OSC, RTP-MIDI, remote web, etc.). Validate Art-Net/sACN on hardware and exercise remote at `http://<mac>:8743` when enabled.
+**Roadmap through PR34 + code-review P0/P1 fixes are in tree.** See [`docs/PROJECT_HANDOFF.md`](./docs/PROJECT_HANDOFF.md) before new work. Remote: Enable Remote (random PIN) → `http://<mac>:8743`.
 
 | Doc | Description |
 |-----|-------------|
