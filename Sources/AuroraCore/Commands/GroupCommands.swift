@@ -7,10 +7,18 @@ public final class AddGroupCommand: Command {
     private let group: Group
     public init(group: Group) { self.group = group }
     public func perform(context: CommandContext) throws {
-        context.updateProject { $0.groups.append(group); $0.metadata.modifiedAt = Date() }
+        context.updateProject {
+            $0.groups.append(group)
+            GroupMembership.syncFixtureGroupIds(&$0)
+            $0.metadata.modifiedAt = Date()
+        }
     }
     public func undo(context: CommandContext) throws {
-        context.updateProject { $0.groups.removeAll { $0.id == group.id }; $0.metadata.modifiedAt = Date() }
+        context.updateProject {
+            $0.groups.removeAll { $0.id == group.id }
+            GroupMembership.syncFixtureGroupIds(&$0)
+            $0.metadata.modifiedAt = Date()
+        }
     }
 }
 
@@ -25,11 +33,19 @@ public final class RemoveGroupCommand: Command {
             throw CommandError.message("Group not found")
         }
         removed = g
-        context.updateProject { $0.groups.removeAll { $0.id == groupID }; $0.metadata.modifiedAt = Date() }
+        context.updateProject {
+            $0.groups.removeAll { $0.id == groupID }
+            GroupMembership.syncFixtureGroupIds(&$0)
+            $0.metadata.modifiedAt = Date()
+        }
     }
     public func undo(context: CommandContext) throws {
         guard let removed else { return }
-        context.updateProject { $0.groups.append(removed); $0.metadata.modifiedAt = Date() }
+        context.updateProject {
+            $0.groups.append(removed)
+            GroupMembership.syncFixtureGroupIds(&$0)
+            $0.metadata.modifiedAt = Date()
+        }
     }
 }
 
@@ -44,11 +60,19 @@ public final class UpdateGroupCommand: Command {
             throw CommandError.message("Group not found")
         }
         previous = context.project.groups[i]
-        context.updateProject { $0.groups[i] = group; $0.metadata.modifiedAt = Date() }
+        context.updateProject {
+            $0.groups[i] = group
+            GroupMembership.syncFixtureGroupIds(&$0)
+            $0.metadata.modifiedAt = Date()
+        }
     }
     public func undo(context: CommandContext) throws {
         guard let previous, let i = context.project.groups.firstIndex(where: { $0.id == previous.id }) else { return }
-        context.updateProject { $0.groups[i] = previous; $0.metadata.modifiedAt = Date() }
+        context.updateProject {
+            $0.groups[i] = previous
+            GroupMembership.syncFixtureGroupIds(&$0)
+            $0.metadata.modifiedAt = Date()
+        }
     }
 }
 
