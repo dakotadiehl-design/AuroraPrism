@@ -1,7 +1,7 @@
 import CoreMIDI
 import Foundation
 
-/// Enumerates and connects CoreMIDI sources; delivers parsed `MIDIEvent`s.
+/// Enumerates and connects CoreMIDI sources; delivers parsed `MIDIEvent`s with stable source IDs.
 public final class MIDIInputManager: @unchecked Sendable {
     private var client = MIDIClientRef()
     private var inputPort = MIDIPortRef()
@@ -9,6 +9,8 @@ public final class MIDIInputManager: @unchecked Sendable {
     private var connected: [MIDIEndpointRef: String] = [:]
     private var _sources: [MIDIDeviceInfo] = []
     private var handler: (@Sendable ([MIDIEvent]) -> Void)?
+    /// Keeps source ID strings alive for CoreMIDI refCon pointers.
+    private var sourceIDStorage: [String: NSString] = [:]
 
     public init() {}
 
@@ -31,18 +33,33 @@ public final class MIDIInputManager: @unchecked Sendable {
     }
 
     public func start() throws {
+        lock.lock()
+        let alreadyStarted = client != 0 && inputPort != 0
+        lock.unlock()
+        if alreadyStarted {
+            try connectAllSources()
+            return
+        }
+
         let name = "AuroraMIDI" as CFString
         var status = MIDIClientCreateWithBlock(name, &client) { [weak self] notification in
             self?.handleNotification(notification)
         }
         guard status == noErr else {
+            client = 0
             throw MIDIError.coreMIDI("MIDIClientCreate failed: \(status)")
         }
 
-        status = MIDIInputPortCreateWithBlock(client, "AuroraInput" as CFString, &inputPort) { [weak self] packetList, _ in
-            self?.handlePacketList(packetList)
+        status = MIDIInputPortCreateWithBlock(client, "AuroraInput" as CFString, &inputPort) { [weak self] packetList, srcConnRefCon in
+            self?.handlePacketList(packetList, srcConnRefCon: srcConnRefCon)
         }
         guard status == noErr else {
+            // P1-3: dispose client created above.
+            if client != 0 {
+                MIDIClientDispose(client)
+                client = 0
+            }
+            inputPort = 0
             throw MIDIError.coreMIDI("MIDIInputPortCreate failed: \(status)")
         }
 
@@ -56,6 +73,7 @@ public final class MIDIInputManager: @unchecked Sendable {
             MIDIPortDisconnectSource(inputPort, endpoint)
         }
         connected.removeAll()
+        sourceIDStorage.removeAll()
         lock.unlock()
         if inputPort != 0 {
             MIDIPortDispose(inputPort)
@@ -72,7 +90,7 @@ public final class MIDIInputManager: @unchecked Sendable {
         let count = MIDIGetNumberOfSources()
         for i in 0..<count {
             let endpoint = MIDIGetSource(i)
-            let id = String(endpoint)
+            let id = stableSourceID(endpoint)
             let name = stringProperty(endpoint, kMIDIPropertyName) ?? "Source \(i)"
             let mfg = stringProperty(endpoint, kMIDIPropertyManufacturer) ?? ""
             list.append(MIDIDeviceInfo(id: id, name: name, manufacturer: mfg))
@@ -91,13 +109,35 @@ public final class MIDIInputManager: @unchecked Sendable {
             let already = connected[endpoint] != nil
             lock.unlock()
             if already { continue }
-            let status = MIDIPortConnectSource(inputPort, endpoint, nil)
+
+            let sourceID = stableSourceID(endpoint)
+            let retained = sourceID as NSString
+            lock.lock()
+            sourceIDStorage[sourceID] = retained
+            lock.unlock()
+
+            let refCon = Unmanaged.passUnretained(retained).toOpaque()
+            let status = MIDIPortConnectSource(inputPort, endpoint, refCon)
             if status == noErr {
                 lock.lock()
-                connected[endpoint] = String(endpoint)
+                connected[endpoint] = sourceID
                 lock.unlock()
             }
         }
+    }
+
+    /// Stable CoreMIDI unique ID when available (P1-2).
+    public static func stableSourceID(for endpoint: MIDIEndpointRef) -> String {
+        var unique: Int32 = 0
+        let status = MIDIObjectGetIntegerProperty(endpoint, kMIDIPropertyUniqueID, &unique)
+        if status == noErr {
+            return "uid:\(unique)"
+        }
+        return "ep:\(endpoint)"
+    }
+
+    private func stableSourceID(_ endpoint: MIDIEndpointRef) -> String {
+        Self.stableSourceID(for: endpoint)
     }
 
     private func handleNotification(_ notification: UnsafePointer<MIDINotification>) {
@@ -108,7 +148,17 @@ public final class MIDIInputManager: @unchecked Sendable {
         }
     }
 
-    private func handlePacketList(_ packetList: UnsafePointer<MIDIPacketList>) {
+    private func handlePacketList(
+        _ packetList: UnsafePointer<MIDIPacketList>,
+        srcConnRefCon: UnsafeMutableRawPointer?
+    ) {
+        let sourceID: String
+        if let srcConnRefCon {
+            sourceID = Unmanaged<NSString>.fromOpaque(srcConnRefCon).takeUnretainedValue() as String
+        } else {
+            sourceID = "coremidi"
+        }
+
         var packet = packetList.pointee.packet
         var events: [MIDIEvent] = []
         for _ in 0..<packetList.pointee.numPackets {
@@ -118,7 +168,7 @@ public final class MIDIInputManager: @unchecked Sendable {
                 let buf = raw.bindMemory(to: UInt8.self)
                 bytes = Array(buf.prefix(length))
             }
-            events.append(contentsOf: MIDIMessageParser.parse(bytes: bytes, sourceID: "coremidi"))
+            events.append(contentsOf: MIDIMessageParser.parse(bytes: bytes, sourceID: sourceID))
             packet = MIDIPacketNext(&packet).pointee
         }
         emit(events)

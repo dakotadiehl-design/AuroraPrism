@@ -36,3 +36,16 @@ final class MIDIActionResolverTests: XCTestCase {
         XCTAssertFalse(session.isLearning)
     }
 }
+
+// MARK: - Device ID filter (P1-2)
+extension MIDIActionResolverTests {
+    func testDeviceIDFilter() {
+        let event = MIDIEvent.noteOn(channel: 0, note: 36, velocity: 100, sourceID: "uid:1")
+        let any = MIDIMapping(deviceID: nil, messageType: "noteOn", data1: 36, action: "go")
+        let match = MIDIMapping(deviceID: "uid:1", messageType: "noteOn", data1: 36, action: "go")
+        let other = MIDIMapping(deviceID: "uid:2", messageType: "noteOn", data1: 36, action: "go")
+        XCTAssertTrue(MIDIActionResolver.matches(event: event, mapping: any))
+        XCTAssertTrue(MIDIActionResolver.matches(event: event, mapping: match))
+        XCTAssertFalse(MIDIActionResolver.matches(event: event, mapping: other))
+    }
+}

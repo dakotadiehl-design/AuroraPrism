@@ -39,14 +39,30 @@ public enum MIDIActionResolver {
         guard mapping.messageType == type else { return false }
         if let mappedCh = mapping.channel, mappedCh != channel { return false }
         if let mappedD1 = mapping.data1, mappedD1 != data1 { return false }
+        // Optional device filter (nil / empty / "coremidi" = any source) — P1-2.
+        if let deviceID = mapping.deviceID, !deviceID.isEmpty, deviceID != "coremidi" {
+            if deviceID != eventSourceID(event) { return false }
+        }
         return true
     }
 
+    private static func eventSourceID(_ event: MIDIEvent) -> String {
+        switch event {
+        case .noteOn(_, _, _, let s),
+             .noteOff(_, _, _, let s),
+             .controlChange(_, _, _, let s),
+             .programChange(_, _, let s):
+            return s
+        }
+    }
+
     public static func mapping(from event: MIDIEvent, action: ShowAction, name: String = "") -> MIDIMapping {
+        let source = eventSourceID(event)
         switch event {
         case .noteOn(let ch, let n, _, _):
             return MIDIMapping(
                 name: name.isEmpty ? "Learn \(action.storageKey)" : name,
+                deviceID: source,
                 channel: ch,
                 messageType: "noteOn",
                 data1: n,
@@ -56,6 +72,7 @@ public enum MIDIActionResolver {
         case .noteOff(let ch, let n, _, _):
             return MIDIMapping(
                 name: name.isEmpty ? "Learn \(action.storageKey)" : name,
+                deviceID: source,
                 channel: ch,
                 messageType: "noteOff",
                 data1: n,
@@ -65,6 +82,7 @@ public enum MIDIActionResolver {
         case .controlChange(let ch, let c, _, _):
             return MIDIMapping(
                 name: name.isEmpty ? "Learn \(action.storageKey)" : name,
+                deviceID: source,
                 channel: ch,
                 messageType: "cc",
                 data1: c,
@@ -74,6 +92,7 @@ public enum MIDIActionResolver {
         case .programChange(let ch, let p, _):
             return MIDIMapping(
                 name: name.isEmpty ? "Learn \(action.storageKey)" : name,
+                deviceID: source,
                 channel: ch,
                 messageType: "programChange",
                 data1: p,

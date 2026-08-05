@@ -40,6 +40,8 @@ final class AppModel: ObservableObject {
     let engine: LightingEngine
     private let midi = MIDIInputManager()
     let midiLearn = MIDILearnSession()
+    private var controlRouter: ControlActionRouter!
+    private let midiLearnFlag = MIDILearnFlag()
     let rtpMIDI = RTPMIDISession()
     private let oscServer = OSCInputServer(port: 9000)
     @Published private(set) var oscStatus: String = "OSC: off"
@@ -63,6 +65,7 @@ final class AppModel: ObservableObject {
         self.sacnConfig = sacn
         self.sacnDriver = SACNOutputDriver(config: sacn)
         self.engine = LightingEngine(output: outputManager)
+        self.controlRouter = ControlActionRouter(engine: engine)
         outputManager.register(nullDriver)
         if artConfig.enabled {
             outputManager.register(artNetDriver)
@@ -280,6 +283,8 @@ final class AppModel: ObservableObject {
         if let list = session.project.cueLists.first {
             engine.loadCueList(list)
         }
+        controlRouter.updateMappings(session.project.midiMappings, project: session.project)
+        controlRouter.updateSelection(session.selection.snapshot.fixtureIDs)
     }
 
     func go() {
@@ -319,10 +324,29 @@ final class AppModel: ObservableObject {
     }
 
     private func startMIDI() {
-        midi.setHandler { [weak self] events in
+        let router = controlRouter!
+        let learnFlag = midiLearnFlag
+        controlRouter.setUINotify { [weak self] action, summary in
             Task { @MainActor in
-                self?.handleMIDI(events)
+                self?.appendMIDILog(summary)
+                self?.lastMIDIEvent = summary
+                self?.midiStatus = "MIDI: \(self?.midi.connectedCount ?? 0) src · \(summary)"
+                self?.refreshEngineStatus()
+                if case .programmerAttribute = action {
+                    self?.bump()
+                }
             }
+        }
+        controlRouter.updateMappings(session.project.midiMappings, project: session.project)
+        midi.setHandler { [weak self] events in
+            if learnFlag.isArmed {
+                Task { @MainActor in
+                    self?.handleMIDILearnOnly(events)
+                }
+                return
+            }
+            // Hot path: no MainActor (P1-1).
+            router.handleMIDIEvents(events)
         }
         do {
             try midi.start()
@@ -394,6 +418,7 @@ final class AppModel: ObservableObject {
     func armMIDILearn(_ action: ShowAction) {
         midiLearn.arm(action)
         isMIDILearning = true
+        midiLearnFlag.isArmed = true
         statusMessage = "MIDI Learn: \(action.storageKey) — send a message…"
         bump()
     }
@@ -401,28 +426,27 @@ final class AppModel: ObservableObject {
     func cancelMIDILearn() {
         midiLearn.cancel()
         isMIDILearning = false
+        midiLearnFlag.isArmed = false
         statusMessage = "MIDI Learn cancelled"
         bump()
     }
 
-    private func handleMIDI(_ events: [MIDIEvent]) {
+    private func handleMIDILearnOnly(_ events: [MIDIEvent]) {
         for event in events {
             lastMIDIEvent = event.summary
             appendMIDILog(event.summary)
             if let learned = midiLearn.completeIfArmed(event: event) {
                 isMIDILearning = false
+                midiLearnFlag.isArmed = false
                 do {
                     try session.perform(AddMIDIMappingCommand(mapping: learned.mapping))
+                    controlRouter.updateMappings(session.project.midiMappings, project: session.project)
                     statusMessage = "Learned \(learned.action.storageKey) ← \(event.summary)"
                     log("MIDI learned \(learned.action.storageKey)")
                 } catch {
                     statusMessage = "Learn failed: \(error.localizedDescription)"
                 }
                 bump()
-                continue
-            }
-            if let action = MIDIActionResolver.match(event: event, mappings: session.project.midiMappings) {
-                perform(action: action, midiValue: ccValue(event))
             }
         }
         midiStatus = "MIDI: \(midi.connectedCount) src · \(lastMIDIEvent)"
@@ -588,6 +612,7 @@ final class AppModel: ObservableObject {
                 self.reloadEngine()
             case .selectionChanged(let snap):
                 self.engine.programmer.setHighlightSelection(snap.fixtureIDs)
+                self.controlRouter.updateSelection(snap.fixtureIDs)
             }
         }
     }
