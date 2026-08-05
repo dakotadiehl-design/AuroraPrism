@@ -1,7 +1,18 @@
 import AuroraModel
 import Foundation
 
-/// Single-list cue playback: delay, linear fade, follow, stop/back.
+/// Single-list cue playback: delay, linear fade (fadeIn/fadeOut), follow, loop, stop/back.
+///
+/// **Fade semantics (v1 / P1-1):**
+/// - Incoming `fadeIn` and outgoing `fadeOut` set the crossfade duration to
+///   `max(outgoing.fadeOut, incoming.fadeIn)` (whole-look linear lerp).
+/// - Zero duration snaps immediately.
+///
+/// **Loop semantics (v1 / P1-1):**
+/// - `LoopSpec` on a cue: after the cue becomes active, automatic Follow re-enters
+///   the same cue until the count is exhausted (or forever if `infinite`).
+/// - Manual **GO** always advances to the next cue and clears loop state.
+/// - **Back** clears loop state and moves to the previous cue.
 public final class PlaybackController: @unchecked Sendable {
     private let lock = NSLock()
 
@@ -18,6 +29,9 @@ public final class PlaybackController: @unchecked Sendable {
     private var pendingFollowAt: TimeInterval?
     private var pendingFollowIsGo = false
     private var frozen = false
+    /// Remaining automatic re-entries after the current play of a looped cue.
+    private var loopRemaining: Int?
+    private var loopInfinite = false
 
     public init() {}
 
@@ -37,6 +51,7 @@ public final class PlaybackController: @unchecked Sendable {
         delayDuration = 0
         pendingFollowAt = nil
         frozen = false
+        clearLoopStateLocked()
         lock.unlock()
     }
 
@@ -53,10 +68,9 @@ public final class PlaybackController: @unchecked Sendable {
                 if index < 0 {
                     phase = .idle
                     pendingFollowAt = nil
+                    clearLoopStateLocked()
                 }
             }
-            // Refresh toLook from the still-active cue when active/idle-with-cue so
-            // later fades use current cue data; keep currentLook (live stage) intact.
             if index >= 0, index < updated.cues.count, phase == .active {
                 toLook = CueResolver.resolveLook(
                     cues: updated.cues,
@@ -64,12 +78,11 @@ public final class PlaybackController: @unchecked Sendable {
                     project: project,
                     priorLook: currentLook
                 )
-                // Stay on the live look; do not snap to re-resolved target mid-show.
             }
         } else if list != nil {
-            // Active list removed from project — keep stage look, drop list binding.
             self.list = nil
             pendingFollowAt = nil
+            clearLoopStateLocked()
         }
     }
 
@@ -80,7 +93,6 @@ public final class PlaybackController: @unchecked Sendable {
         let progress: Double
         switch phase {
         case .fade where fadeDuration > 0:
-            // approximate — real progress needs now; store last progress
             progress = lastFadeProgress
         case .fade:
             progress = 1
@@ -112,13 +124,14 @@ public final class PlaybackController: @unchecked Sendable {
         guard let list, !list.cues.isEmpty else { return }
         frozen = false
         pendingFollowAt = nil
+        // Manual GO always leaves a loop and advances.
+        clearLoopStateLocked()
 
         let nextIndex = index + 1
         guard nextIndex < list.cues.count else {
-            // Stay on last cue.
             return
         }
-        beginTransition(to: nextIndex, at: now, list: list)
+        beginTransition(to: nextIndex, at: now, list: list, isLoopReentry: false)
     }
 
     public func back(at now: TimeInterval) {
@@ -127,11 +140,12 @@ public final class PlaybackController: @unchecked Sendable {
         guard let list, !list.cues.isEmpty else { return }
         frozen = false
         pendingFollowAt = nil
+        clearLoopStateLocked()
         let prev = max(0, index - 1)
         if index < 0 {
-            beginTransition(to: 0, at: now, list: list)
+            beginTransition(to: 0, at: now, list: list, isLoopReentry: false)
         } else {
-            beginTransition(to: prev, at: now, list: list)
+            beginTransition(to: prev, at: now, list: list, isLoopReentry: false)
         }
     }
 
@@ -143,6 +157,7 @@ public final class PlaybackController: @unchecked Sendable {
         pendingFollowAt = nil
         phase = .idle
         lastFadeProgress = 0
+        clearLoopStateLocked()
     }
 
     public func fire(cueID: UUID, at now: TimeInterval) {
@@ -151,13 +166,19 @@ public final class PlaybackController: @unchecked Sendable {
         guard let list, let idx = list.cues.firstIndex(where: { $0.id == cueID }) else { return }
         frozen = false
         pendingFollowAt = nil
-        beginTransition(to: idx, at: now, list: list)
+        clearLoopStateLocked()
+        beginTransition(to: idx, at: now, list: list, isLoopReentry: false)
     }
 
-    private func beginTransition(to newIndex: Int, at now: TimeInterval, list: CueList) {
+    private func clearLoopStateLocked() {
+        loopRemaining = nil
+        loopInfinite = false
+    }
+
+    private func beginTransition(to newIndex: Int, at now: TimeInterval, list: CueList, isLoopReentry: Bool) {
+        let outgoingIndex = index
         let cue = list.cues[newIndex]
         fromLook = currentLook
-        // Pass live stage look so cue-only preserves unspecified attributes (P0-6).
         toLook = CueResolver.resolveLook(
             cues: list.cues,
             index: newIndex,
@@ -166,7 +187,34 @@ public final class PlaybackController: @unchecked Sendable {
         )
         index = newIndex
         delayDuration = max(0, cue.delay)
-        fadeDuration = max(0, cue.fadeIn)
+
+        // Crossfade length: max(outgoing fadeOut, incoming fadeIn).
+        let outgoingFadeOut: TimeInterval
+        if outgoingIndex >= 0, outgoingIndex < list.cues.count, !isLoopReentry {
+            outgoingFadeOut = max(0, list.cues[outgoingIndex].fadeOut)
+        } else {
+            outgoingFadeOut = 0
+        }
+        let incomingFadeIn = max(0, cue.fadeIn)
+        fadeDuration = max(outgoingFadeOut, incomingFadeIn)
+
+        if !isLoopReentry {
+            // Arm loop for this entry into the cue (not mid-loop re-fire accounting — already set).
+            if let loop = cue.loop {
+                if loop.infinite {
+                    loopInfinite = true
+                    loopRemaining = nil
+                } else if let count = loop.count, count > 0 {
+                    loopInfinite = false
+                    // Current play counts as 1; remaining automatic re-entries = count - 1.
+                    loopRemaining = max(0, count - 1)
+                } else {
+                    clearLoopStateLocked()
+                }
+            } else {
+                clearLoopStateLocked()
+            }
+        }
 
         if delayDuration > 0 {
             phase = .delay
@@ -195,7 +243,6 @@ public final class PlaybackController: @unchecked Sendable {
                 pendingFollowIsGo = true
             }
         case .afterGo:
-            // Auto-advance immediately after becoming active (link-style).
             pendingFollowAt = now
             pendingFollowIsGo = true
         case .none, .manual:
@@ -203,18 +250,41 @@ public final class PlaybackController: @unchecked Sendable {
         }
     }
 
+    /// Whether automatic advance should re-enter the current cue (loop).
+    private func shouldLoopReenterLocked() -> Bool {
+        if loopInfinite { return true }
+        if let remaining = loopRemaining, remaining > 0 { return true }
+        return false
+    }
+
+    private func consumeLoopReentryLocked() {
+        if loopInfinite { return }
+        if let remaining = loopRemaining, remaining > 0 {
+            loopRemaining = remaining - 1
+        }
+    }
+
+    private func advanceFromFollowLocked(at now: TimeInterval, list: CueList) {
+        if shouldLoopReenterLocked() {
+            consumeLoopReentryLocked()
+            beginTransition(to: index, at: now, list: list, isLoopReentry: true)
+            return
+        }
+        clearLoopStateLocked()
+        let nextIndex = index + 1
+        if nextIndex < list.cues.count {
+            beginTransition(to: nextIndex, at: now, list: list, isLoopReentry: false)
+        }
+    }
+
     private func tickLocked(now: TimeInterval) {
         if frozen { return }
         guard let list else { return }
 
-        // Follow timer.
         if let followAt = pendingFollowAt, now >= followAt {
             pendingFollowAt = nil
             if pendingFollowIsGo {
-                let nextIndex = index + 1
-                if nextIndex < list.cues.count {
-                    beginTransition(to: nextIndex, at: now, list: list)
-                }
+                advanceFromFollowLocked(at: now, list: list)
             }
         }
 
