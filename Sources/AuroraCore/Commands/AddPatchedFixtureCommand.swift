@@ -14,26 +14,7 @@ public final class AddPatchedFixtureCommand: Command {
     }
 
     public func perform(context: CommandContext) throws {
-        guard context.project.universes.contains(where: { $0.id == fixture.universeId }) else {
-            throw CommandError.universeNotFound(fixture.universeId)
-        }
-        if !context.project.fixtureDefinitions.isEmpty {
-            guard context.project.fixtureDefinitions.contains(where: { $0.id == fixture.definitionId }) else {
-                throw CommandError.definitionNotFound(fixture.definitionId)
-            }
-        }
-        if fixture.address == 0 {
-            throw CommandError.invalidAddress(fixture.address)
-        }
-
-        // Build a temporary project view to reuse overlap detection.
-        var trial = context.project
-        trial.fixtures.append(fixture)
-        let overlaps = trial.overlappingPatchRanges()
-        if let hit = overlaps.first(where: { $0.first == fixture.id || $0.second == fixture.id }) {
-            let other = hit.first == fixture.id ? hit.second : hit.first
-            throw CommandError.patchOverlap(fixtureID: fixture.id, otherFixtureID: other)
-        }
+        try PatchValidator.validatePlacement(fixture: fixture, in: context.project)
 
         context.updateProject { project in
             project.fixtures.append(fixture)

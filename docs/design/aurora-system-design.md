@@ -810,9 +810,16 @@ Fixture library seed:
 - **Spec:** [`pr5-fixture-library.md`](./pr5-fixture-library.md)  
 - Bundled Generic personalities; `FixtureLibrary` load/lookup/search  
 
-### After PR4–PR5
+### PR6 (done — see dedicated doc)
 
-PR6 patch commands; wire document UI when the app shell lands (PR7). Engine, MIDI, and docking remain stubs until their PRs.
+Patch management:
+
+- **Spec:** [`pr6-patch-management.md`](./pr6-patch-management.md)  
+- Addressing helpers; universe/embed/patch/repatch/clone/batch commands  
+
+### After PR4–PR6
+
+Wire document UI when the app shell lands (PR7); Patch View (PR8). Engine and MIDI remain stubs until their PRs.
 
 ---
 
@@ -828,3 +835,4 @@ PR6 patch commands; wire document UI when the app shell lands (PR7). Engine, MID
 | 0.6 | 2026-08-04 | PR3 command system & undo; link to `pr3-command-undo.md` |
 | 0.7 | 2026-08-04 | PR4 event bus & selection; link to `pr4-events-selection.md` |
 | 0.8 | 2026-08-04 | PR5 fixture library seed; link to `pr5-fixture-library.md` |
+| 0.9 | 2026-08-04 | PR6 patch management; link to `pr6-patch-management.md` |

@@ -6,7 +6,7 @@ final class AuroraCoreTests: XCTestCase {
     func testModuleIdentity() {
         XCTAssertEqual(AuroraCoreModule.name, "AuroraCore")
         XCTAssertFalse(AuroraCoreModule.version.isEmpty)
-        XCTAssertTrue(AuroraCoreModule.version.contains("pr4"))
+        XCTAssertTrue(AuroraCoreModule.version.contains("pr6"))
     }
 
     func testDependsOnModel() {
