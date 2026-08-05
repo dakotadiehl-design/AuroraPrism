@@ -75,6 +75,13 @@ struct AuroraApp: App {
                     }
                 }
             }
+
+            CommandMenu("Playback") {
+                Button("Go") { appModel.go() }
+                    .keyboardShortcut(.space, modifiers: [])
+                Button("Stop") { appModel.stopPlayback() }
+                Button("Back") { appModel.back() }
+            }
         }
     }
 }

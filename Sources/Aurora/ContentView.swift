@@ -10,7 +10,9 @@ struct ContentView: View {
             WorkspaceView(
                 layout: $appModel.layout,
                 context: appModel.panelContext,
-                panelBuilder: PanelRegistry.view
+                panelBuilder: { id, ctx in
+                    PanelRegistry.view(id: id, context: ctx, appModel: appModel)
+                }
             )
             Divider()
             HStack {

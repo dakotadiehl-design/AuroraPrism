@@ -44,7 +44,7 @@ final class LightingEngineOutputTests: XCTestCase {
 
         var look = ActiveLook()
         look.set(fixtureID: fixtureID, attribute: "intensity", value: 1.0)
-        engine.setLook(look)
+        engine.setLook(look) // manual override for unit test
 
         engine.stepForTesting()
         XCTAssertEqual(engine.currentSnapshot().frameIndex, 1)
@@ -66,6 +66,34 @@ final class LightingEngineOutputTests: XCTestCase {
         engine.setLook(look)
         engine.stepForTesting()
         XCTAssertEqual(engine.currentSnapshot().universeLevels[1]?[0], 128)
+    }
+
+    func testPlaybackGoDrivesOutput() throws {
+        let output = OutputManager()
+        let mock = MockOutputDriver()
+        output.register(mock)
+        try output.startAll()
+        let clock = ManualEngineClock()
+        let engine = LightingEngine(output: output, clock: clock)
+        var (project, fixtureID) = makeShow()
+        project.cueLists = [
+            CueList(name: "Main", cues: [
+                Cue(
+                    number: 1,
+                    name: "Full",
+                    fadeIn: 0,
+                    levels: CueLevelData(fixtures: [
+                        FixtureCueLevels(fixtureId: fixtureID, attributes: ["intensity": 1])
+                    ])
+                )
+            ])
+        ]
+        engine.load(project: project)
+        engine.setLook(nil)
+        engine.go()
+        engine.stepForTesting()
+        XCTAssertEqual(mock.frames(for: 1).last?.data[0], 255)
+        XCTAssertEqual(engine.currentSnapshot().playback.cueIndex, 0)
     }
 
     func testStartAndStopScheduler() throws {

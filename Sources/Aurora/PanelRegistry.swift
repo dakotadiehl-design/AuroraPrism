@@ -1,10 +1,10 @@
 import AuroraUI
 import SwiftUI
 
-/// Maps panel IDs to concrete views (PR8 replaces patch/browser placeholders).
+/// Maps panel IDs to concrete views.
 enum PanelRegistry {
     @MainActor
-    static func view(id: WorkspacePanelID, context: WorkspacePanelContext) -> AnyView {
+    static func view(id: WorkspacePanelID, context: WorkspacePanelContext, appModel: AppModel) -> AnyView {
         switch id {
         case .fixtureBrowser:
             return AnyView(FixtureBrowserPanel(context: context))
@@ -12,6 +12,21 @@ enum PanelRegistry {
             return AnyView(PatchPanel(context: context))
         case .inspector:
             return AnyView(InspectorPanel(context: context))
+        case .cueList:
+            return AnyView(
+                CueListPanel(
+                    context: context,
+                    playbackCueIndex: appModel.engine.currentSnapshot().playback.cueIndex,
+                    onGo: { appModel.go() },
+                    onStop: { appModel.stopPlayback() },
+                    onBack: { appModel.back() },
+                    onFire: { appModel.fireCue(id: $0) },
+                    onProjectChanged: {
+                        appModel.reloadEngineFromSession()
+                        appModel.bump()
+                    }
+                )
+            )
         default:
             return WorkspaceView.defaultPanel(id: id, context: context)
         }

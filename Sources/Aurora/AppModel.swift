@@ -172,14 +172,40 @@ final class AppModel: ObservableObject {
 
     // MARK: - Engine
 
+    func reloadEngineFromSession() {
+        reloadEngine()
+    }
+
     private func reloadEngine() {
+        engine.setLook(nil) // use cue playback, not a static override
         engine.load(project: session.project)
-        // Demo look: intensity 1.0 on all patched fixtures (until cue engine PR11).
-        var look = ActiveLook()
-        for fixture in session.project.fixtures {
-            look.set(fixtureID: fixture.id, attribute: "intensity", value: 1.0)
+        if let list = session.project.cueLists.first {
+            engine.loadCueList(list)
         }
-        engine.setLook(look)
+    }
+
+    func go() {
+        engine.go()
+        refreshEngineStatus()
+        bump()
+    }
+
+    func back() {
+        engine.back()
+        refreshEngineStatus()
+        bump()
+    }
+
+    func stopPlayback() {
+        engine.stopPlayback()
+        refreshEngineStatus()
+        bump()
+    }
+
+    func fireCue(id: UUID) {
+        engine.fire(cueID: id)
+        refreshEngineStatus()
+        bump()
     }
 
     private func startEngineIfPossible() {
@@ -205,11 +231,19 @@ final class AppModel: ObservableObject {
 
     private func refreshEngineStatus() {
         let snap = engine.currentSnapshot()
+        let pb = snap.playback
+        let cueLabel: String
+        if pb.cueIndex >= 0 {
+            cueLabel = " · cue \(pb.cueIndex + 1) \(pb.phase.rawValue)"
+        } else {
+            cueLabel = " · idle"
+        }
         if snap.isRunning || engine.isRunning {
             engineStatus = String(
-                format: "Engine %.0f Hz · frame %llu",
+                format: "Engine %.0f Hz · frame %llu%@",
                 snap.frameRateHz,
-                snap.frameIndex
+                snap.frameIndex,
+                cueLabel
             )
         } else {
             engineStatus = "Engine stopped"

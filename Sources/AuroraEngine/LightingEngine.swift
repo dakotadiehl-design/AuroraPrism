@@ -2,7 +2,7 @@ import AuroraModel
 import AuroraOutput
 import Foundation
 
-/// Real-time lighting engine: fixed-rate tick, merge stub, output flush, UI snapshots.
+/// Real-time lighting engine: fixed-rate tick, cue playback, merge, output flush, snapshots.
 public final class LightingEngine: @unchecked Sendable {
     private let output: OutputManager
     private let clock: EngineClock
@@ -11,11 +11,13 @@ public final class LightingEngine: @unchecked Sendable {
 
     private var configuration: EngineConfiguration
     private var project: ShowProject = .empty(name: "Engine")
-    private var look: ActiveLook = .empty
+    private var manualLook: ActiveLook?
     private var frameIndex: UInt64 = 0
     private var snapshot = EngineFrameSnapshot.idle
     private var lastSnapshotPublishTime: TimeInterval = 0
     private var startedOutput = false
+
+    public let playback = PlaybackController()
 
     public init(
         output: OutputManager,
@@ -54,12 +56,43 @@ public final class LightingEngine: @unchecked Sendable {
         for universe in project.universes {
             output.ensureUniverse(universe.number, channelCount: Int(universe.channelCount))
         }
+
+        // Keep playback list content in sync when possible.
+        if let current = playback.snapshot().listID,
+           let list = project.cueLists.first(where: { $0.id == current }) {
+            playback.load(list: list)
+        } else if let first = project.cueLists.first {
+            playback.load(list: first)
+        } else {
+            playback.load(list: nil)
+        }
     }
 
-    public func setLook(_ look: ActiveLook) {
+    /// Optional override look (tests). When set, ignores playback until cleared.
+    public func setLook(_ look: ActiveLook?) {
         lock.lock()
-        self.look = look
+        self.manualLook = look
         lock.unlock()
+    }
+
+    public func go() {
+        playback.go(at: clock.now())
+    }
+
+    public func back() {
+        playback.back(at: clock.now())
+    }
+
+    public func stopPlayback() {
+        playback.stop(at: clock.now())
+    }
+
+    public func fire(cueID: UUID) {
+        playback.fire(cueID: cueID, at: clock.now())
+    }
+
+    public func loadCueList(_ list: CueList?) {
+        playback.load(list: list)
     }
 
     public func currentSnapshot() -> EngineFrameSnapshot {
@@ -78,7 +111,6 @@ public final class LightingEngine: @unchecked Sendable {
             self?.processFrame(publishSnapshotAlways: false)
         }
 
-        // Publish an initial frame immediately.
         processFrame(publishSnapshotAlways: true)
     }
 
@@ -93,7 +125,7 @@ public final class LightingEngine: @unchecked Sendable {
         lock.unlock()
     }
 
-    /// Synchronous single frame for unit tests (does not require `start()`).
+    /// Synchronous single frame for unit tests.
     public func stepForTesting() {
         processFrame(publishSnapshotAlways: true)
     }
@@ -101,13 +133,21 @@ public final class LightingEngine: @unchecked Sendable {
     private func processFrame(publishSnapshotAlways: Bool) {
         lock.lock()
         let project = self.project
-        let look = self.look
+        let manual = self.manualLook
         let config = self.configuration
         frameIndex &+= 1
         let index = frameIndex
         let time = clock.now()
         let running = scheduler.isRunning
         lock.unlock()
+
+        let look: ActiveLook
+        if let manual {
+            look = manual
+        } else {
+            look = playback.look(at: time)
+        }
+        let playbackSnap = playback.snapshot()
 
         let levels = MergeStub.merge(project: project, look: look, channelCount: config.channelCount)
 
@@ -137,7 +177,8 @@ public final class LightingEngine: @unchecked Sendable {
                 time: time,
                 frameRateHz: config.frameRateHz,
                 universeLevels: levels,
-                isRunning: running || publishSnapshotAlways
+                isRunning: running || publishSnapshotAlways,
+                playback: playbackSnap
             )
             lock.lock()
             snapshot = snap
