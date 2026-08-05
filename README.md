@@ -1,0 +1,59 @@
+# Aurora
+
+Professional-grade **lighting control** for macOS — live performance show control with low latency, deterministic cue timing, and a modern dockable workspace.
+
+## Status
+
+**PR1 scaffold** is in tree: multi-module Swift package, minimal macOS app shell, smoke tests. No show/document features yet.
+
+| Doc | Description |
+|-----|-------------|
+| [`Aurora Lighting Control System.pdf`](./Aurora%20Lighting%20Control%20System.pdf) | Original high-level overview |
+| [`docs/design/aurora-system-design.md`](./docs/design/aurora-system-design.md) | System architecture & full PR plan |
+| [`docs/design/pr1-project-scaffold.md`](./docs/design/pr1-project-scaffold.md) | **PR1** module layout, dependencies, acceptance |
+
+## Development environments
+
+| Role | Machine |
+|------|---------|
+| **Planning / design docs** | Linux (or any OS) is fine |
+| **Build, test, run, hardware** | **macOS 14+** only |
+
+Details (including how to move a Grok session to another machine): [`docs/development-workflow.md`](./docs/development-workflow.md).
+
+## Prerequisites
+
+- **macOS 14.0+** (for compile and run)
+- **Xcode 15+** / Swift 5.9+
+
+The package declares `platforms: [.macOS(.v14)]` only. Do not expect `swift test` to work on Linux.
+
+## Build / test / run
+
+```bash
+swift build
+swift test
+swift run Aurora
+```
+
+Or open `Package.swift` in Xcode and run the **Aurora** scheme. You should see a window titled scaffold listing linked modules (`AuroraModel`, `AuroraCore`, `AuroraEngine`, `AuroraUI`).
+
+## Modules
+
+| Module | Role |
+|--------|------|
+| `AuroraModel` | Pure show data types |
+| `AuroraCore` | Commands, undo, project manager, events |
+| `AuroraEngine` | Cue / playback / programmer / scheduler |
+| `AuroraMIDI` | CoreMIDI, RTP-MIDI, learn |
+| `AuroraOutput` | DMX buffers & drivers |
+| `AuroraFixtureLib` | Fixture personalities |
+| `AuroraDiagnostics` | Logging, monitors, metrics |
+| `AuroraUI` | Panels & workspace views |
+| `Aurora` (executable) | App entry (design name: **AuroraApp**) |
+
+Dependency rules are documented in [PR1 scaffold](./docs/design/pr1-project-scaffold.md#6-dependency-graph). UI must not depend on Output or MIDI.
+
+## Next
+
+See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR2** adds the domain model and portable project document format.
