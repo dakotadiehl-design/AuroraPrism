@@ -4,17 +4,22 @@
 
 | Field | Value |
 |-------|--------|
-| **Last updated** | 2026-08-05 (Stage A P0 post-remediation) |
+| **Last updated** | 2026-08-05 (post Xcode app project + full P0–P3 program) |
 | **Workspace** | `/Users/dakota/code/Aurora` |
 | **Branch** | `main` (local only; no remote assumed) |
-| **HEAD (at write)** | see `git log -1` after Stage A commits |
-| **Tests** | **190+** passing (`swift test`) |
-| **Approx size** | ~10.6k lines production Swift; ~13.3k with tests |
+| **HEAD** | `36e5015` — *Add production macOS Xcode app project composing SPM modules* |
+| **Tests** | **241** passing (`swift test`) |
+| **Xcode app** | `Aurora.xcodeproj` — Debug + Release `xcodebuild` verified green |
 
-**Authoritative reviews (read in order for backlog):**
+**Open first after compression:**
 
-1. **`Aurora_Post_Remediation_Deep_Review_UI_Readiness.md`** — current backlog: P0 → UI Gate P1 → AppModel split → then visual UI  
-2. `Aurora_Deep_Code_Review_Fixes.md` — first audit (many P0–P2 already fixed in tree)
+1. **`docs/PROJECT_HANDOFF.md`** (this file)  
+2. **`docs/STAGE_C_UI_STATE_HANDOFF.md`** — controller ownership for UI work  
+3. **`docs/xcode-project.md`** — Xcode app, entitlements, schemes  
+4. **`Aurora_Post_Remediation_Deep_Review_UI_Readiness.md`** — historical review (P0–P3 largely **done**)  
+5. **`Package.swift`** + **`Sources/Aurora/AppModel.swift`**  
+
+**Do not invent new PR work without an explicit user request.**
 
 ---
 
@@ -24,378 +29,246 @@
 
 - Patch fixtures, program looks, run cues with timing/tracking  
 - MIDI / RTP-MIDI / OSC control, song orchestration  
-- Art-Net + sACN DMX output  
-- Live effects (pulse/chase/wave/rainbow)  
-- Stage **web remote** (iPad Safari) on LAN + PIN  
+- Art-Net + sACN DMX output; ENTTEC USB framing driver (mock transport + protocol)  
+- Live effects (pulse/chase/wave/rainbow), persistent in show package  
+- Stage **web remote** (iPad Safari) on LAN + random PIN  
 
-**Stack:** Swift 5.9+ / 6.x, SwiftUI + AppKit, SPM monorepo, CoreMIDI, Network.framework, **macOS 14+ only**.
+**Stack:** Swift 5.9+ / 6.x, SwiftUI + AppKit, SPM monorepo libraries, **Xcode app target** for `Aurora.app`, CoreMIDI, Network.framework, **macOS 14+ only**.
 
-**Not Linux for build:** docs OK anywhere; **build/test/run require Mac + full Xcode** (not CLT alone).
-
-**Language decision:** all Swift — no Rust engine planned.
+**Language:** all Swift — no Rust engine.
 
 ---
 
-## 2. Environment (this machine)
+## 2. Environment
 
 | Item | Value |
 |------|--------|
 | OS | macOS arm64 |
-| Xcode | `/Applications/Xcode.app` **must** be active developer dir |
-| `xcode-select -p` | `/Applications/Xcode.app/Contents/Developer` |
-| Swift | From Xcode (session saw 6.x) |
-
-**If `#Preview` / `XCTest` missing:**
-
-```bash
-sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-```
-
-**Build / test / run:**
+| Xcode | `/Applications/Xcode.app` (must be active developer dir) |
+| Build app | `open Aurora.xcodeproj` → scheme **Aurora** |
+| Build CLI | `swift build && swift test && swift run Aurora` |
+| CI | `.github/workflows/macos-ci.yml` |
 
 ```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer   # if needed
 cd /Users/dakota/code/Aurora
-swift build && swift test
-swift run Aurora
-# or: open Package.swift in Xcode → scheme Aurora
+swift test
+xcodebuild -project Aurora.xcodeproj -scheme Aurora -destination 'platform=macOS' \
+  -configuration Debug CODE_SIGN_IDENTITY="-" build
 ```
 
-SPM product is a **bare executable**, not `.app`. App sets regular activation policy + activates so a window/Dock icon appear (`AuroraApp.swift`).
+Regenerate Xcode project: `./Scripts/generate-xcodeproj.sh` (needs `brew install xcodegen`).
 
 ---
 
-## 3. Repository layout
+## 3. Repository layout (high level)
 
 ```
 Aurora/
-├── Package.swift
-├── README.md
-├── Aurora_Deep_Code_Review_Fixes.md   # deep review + required fixes (authoritative for P0–P2)
-├── Aurora Lighting Control System.pdf
-├── Aurora PR20-PR21 Architectural Guidance.pdf  # palette/song LAW
-├── docs/
-│   ├── PROJECT_HANDOFF.md             # THIS FILE
-│   ├── development-workflow.md
-│   └── design/
-│       ├── aurora-system-design.md    # master design + PR plan
-│       ├── remote-companion.md
-│       └── pr*.md
+├── Package.swift              # library graph + CLI executable product
+├── project.yml                # XcodeGen source of truth
+├── Aurora.xcodeproj/          # macOS App target (composes SPM libraries)
+├── App/                       # Info.plist, entitlements, Assets, Preview Content
+├── Scripts/generate-xcodeproj.sh
 ├── Sources/
-│   ├── Aurora/                 # @main app, AppModel, ControlActionRouter, SongDirector
-│   ├── AuroraModel/            # pure data + ProjectPackage I/O
-│   ├── AuroraCore/             # commands, DocumentSession, undo, selection, PluginHost
-│   ├── AuroraEngine/           # scheduler, cues, programmer, effects, merge
-│   ├── AuroraOutput/           # DMX buffers, Null/Mock/Art-Net/sACN
-│   ├── AuroraMIDI/             # CoreMIDI, learn, OSC, RTP-MIDI
-│   ├── AuroraFixtureLib/       # seed + FixtureImporter
-│   ├── AuroraUI/               # workspace + panels
-│   ├── AuroraDiagnostics/      # PerformanceBudget, DiagnosticsStore
-│   └── AuroraRemote/           # protocol, TCP host, web server, client scaffold
-└── Tests/                      # *Tests per module + AuroraRemoteTests + smoke
+│   ├── Aurora/                # @main shell, AppModel, Controllers/, PanelRegistry
+│   ├── AuroraModel/           # pure data, package I/O, validator, migration
+│   ├── AuroraCore/            # commands, session, selection, plugins protocols
+│   ├── AuroraEngine/          # playback, merge, effects, CompiledShow
+│   ├── AuroraOutput/          # DMX, Art-Net, sACN, ENTTEC, health
+│   ├── AuroraMIDI/            # CoreMIDI, OSC, resolver, ShowAction
+│   ├── AuroraFixtureLib/      # seed + importer
+│   ├── AuroraUI/              # panels + workspace (imports MIDI for mappings UI)
+│   ├── AuroraRemote/          # TCP/web remote
+│   └── AuroraDiagnostics/     # events + store
+└── Tests/                     # per-module + smoke
 ```
+
+**App target** links library products only (not SPM executable product). Shell sources under `Sources/Aurora` are shared with `swift run Aurora`.
 
 ---
 
 ## 4. Architecture (must not break)
 
-### Control path (never bypass)
+### Control path
 
 ```
-User (UI / MIDI / OSC / remote)
-  → Commands (document) or live intents
-  → DocumentSession (mutations + undo)  and/or  LightingEngine (playback/programmer/effects)
-  → OutputManager → OutputDriver(s) → hardware
+UI / MIDI / OSC / remote
+  → ControlActionRouter / ShowAction (unified dispatcher)
+  → DocumentSession (commands) and/or LightingEngine / SongDirector
+  → OutputManager (protocol-routed) → drivers → hardware
 ```
 
-- **Live MIDI** goes through **`ControlActionRouter`** (non-MainActor) → engine; UI log on MainActor.  
-- **MIDI Learn** stays MainActor + commands.  
-- **Remote** is a Core/app client — **no second engine**, no raw DMX from remote.  
-- **UI must not** own palette resolve math (`PaletteResolver` / `CueResolver` in Engine).  
-- **Literals win** over palette refs; missing refs → `ResolutionIssue`, never crash.
-
-### Layer order (engine frame)
-
-```
-Playback look
-  → Effects (EffectRunner)
-  → Programmer (unless blind) + highlight
-  → MergeStub → DMX buffers → drivers
-```
+- Live MIDI off MainActor via `ControlActionRouter`  
+- Remote is a client — **no second engine**  
+- Palette resolve in Engine; **literals win** over refs  
+- Layer: playback → effects → programmer → merge → DMX  
+- **`updateProject`** preserves playback; **`load`** is destructive (New/Open)  
 
 ### Module deps (SPM)
 
 ```
 AuroraModel          → (none)
 AuroraFixtureLib     → Model
-AuroraOutput         → Network
+AuroraOutput         → Model, Network
 AuroraEngine         → Model, Output
 AuroraCore           → Model, Engine
 AuroraMIDI           → Model, CoreMIDI, Network
 AuroraDiagnostics    → (none)
-AuroraUI             → Core, Model, Engine
+AuroraUI             → Core, Model, Engine, MIDI   # MIDIMappingsPanel needs ShowAction
 AuroraRemote         → Core, Model, Network
-Aurora (app)         → UI, Core, Model, FixtureLib, Engine, Output, MIDI, Remote, Diagnostics
+Aurora (app / CLI)   → UI, Core, Model, FixtureLib, Engine, Output, MIDI, Remote, Diagnostics
 ```
 
-### App ownership (`AppModel` @MainActor)
+### Stage C ownership (`AppModel` = composition root)
 
-Still a large coordinator (review P1-8 deferred full split):
+| Controller | Owns |
+|------------|------|
+| `ProjectController` | session, URL, dirty, save/open |
+| `ShowControlController` | engine, router, song, `PerformanceSnapshot` |
+| `InputController` | MIDI/OSC/RTP/learn |
+| `OutputController` | drivers, Art-Net/sACN config, health line |
+| `RemoteController` | remote host/web |
+| `DiagnosticsController` | console + DiagnosticsStore |
+| `WorkspaceController` | layout, Build/Perform mode |
+| `AppSettingsStore` | app-global prefs |
+| `AutosaveController` | timed save when URL set |
 
-- `DocumentSession`, workspace layout  
-- `LightingEngine`, `OutputManager`, Null + Art-Net + sACN drivers  
-- `MIDIInputManager`, `MIDILearnSession`, `ControlActionRouter`, `RTPMIDISession`, OSC server  
-- `SongDirector`, `PluginHost`, `DiagnosticsStore`  
-- `RemoteHost` + `RemoteWebServer`  
-- Status strings / console + MIDI logs  
-
----
-
-## 5. Key domain concepts
-
-### Show package `.aurora`
-
-- Directory bundle via `ProjectPackage.save/load`  
-- **Atomic save (P0):** write temp package → validate load → swap; original survives failure  
-- **Media preserve (P0):** copies `media/` and `layouts/` from existing package on resave  
-- Schema v1; prefer additive Codable  
-- Load enforces max JSON file size (`ProjectPackage.maxJSONFileBytes`)
-
-### Dirty / save-point (P0)
-
-- `DocumentSession.documentGeneration` / `savedGeneration`  
-- `isDirty` ⇔ generations differ  
-- `markSaved()` after successful save/open  
-- Undo can return to clean if stack matches saved generation  
-
-### Unsaved guards (P0)
-
-- New / Open / Quit call `confirmDiscardIfDirty` (Save / Don’t Save / Cancel)
-
-### Cue tracking (P0-6)
-
-- **Track:** accumulate tracking cues; intermediate **cue-only** skipped for history  
-- **Cue-only target:** prior stage look ⊕ sparse cue attrs (does **not** wipe unspecified attrs to home)  
-- `PlaybackController` passes `currentLook` as `priorLook` into `CueResolver`
-
-### Palettes / presets
-
-- PDF law: `Aurora PR20-PR21 Architectural Guidance.pdf`  
-- `paletteRefs` + `PaletteResolver`; type/slot compatibility checked (P1-10)  
-- Presets: create from programmer / apply / delete in Palettes panel (P1-9)  
-- Record Ref: session cue selection + fixtures; fallback first cue of first list  
-
-### Output
-
-- **Art-Net:** UDP 6454; show U N → Art-Net N+offset (default −1)  
-- **sACN:** E1.31 DATA; default show U N → sACN N; multicast or unicast  
-- **`reconcileUniverses`:** removed universes blackout then drop buffer (P0-5)  
-- `startAll()` rolls back partially started drivers on failure  
-
-### Effects
-
-- Runtime `EffectRunner` on `engine.effects` (not persisted in show yet — P1-12 follow-up)  
-- UI: Effects panel  
-
-### MIDI / OSC / RTP
-
-- CoreMIDI + source unique IDs (`uid:…`) for mappings  
-- RTP-MIDI: `MIDINetworkSession` wrapper, MIDI menu  
-- OSC: UDP 9000 → `ShowAction`  
-
-### Remote
-
-- TCP protocol port **8742** (newline JSON)  
-- Web UI **http://\<mac\>:8743**  
-- **Enable Remote** generates **random 6-digit PIN** (not 0000); shown in status/console  
-- Auth failure rate limit; tokens owned by `RemoteSessionManager`  
-- Cleartext LAN still intentional v1 limitation  
+Full map: **`docs/STAGE_C_UI_STATE_HANDOFF.md`**.
 
 ---
 
-## 6. PR / work status
+## 5. Key domain rules (post-review)
 
-### Feature PRs (1–34) — in tree
+| Topic | Behavior |
+|-------|----------|
+| Dirty state | Unique monotonic state IDs; no coalesce across save-point; branch after undo stays dirty |
+| Save As | `preservingAssetsFrom:` copies media/layouts from **open** package |
+| Playback edits | `.projectModified` → `updateProject` (keep look); New/Open → `load` |
+| 16-bit DMX | Coarse/fine pairs → single UInt16 MSB/LSB |
+| Package load | Required v1 JSON files fail if missing; `effects.json` optional for old packages |
+| Cue fade/loop | Crossfade = max(out fadeOut, in fadeIn); Follow re-enters loop; GO/Back break loop |
+| Effects | `EffectDefinition` on project; explicit `order`; selection order for phase |
+| Selection | `orderedFixtureIDs` + membership set |
+| MIDI | Velocity/CC → scalar; `matchAll`; data2 exact filter; fireCueIndex = **active** list |
+| Output | `protocolHint` routes to matching drivers; health snapshots |
+| Validation | `ProjectValidator` on load/update; cached off 40 Hz path |
+| Groups | `Group.fixtureIds` authoritative; sync to `fixture.groupIds` |
+| Palettes | Record common values only; report mixed |
+| Song | `SongPerformanceSnapshot`; reset on New/Open |
 
-Scaffold → model → core → fixtures/patch → UI shell → engine/cues/programmer → MIDI → live → palettes/songs → effects → Art-Net/sACN/OSC/RTP → import → plugins → perf → remote TCP/web/harden → Pad client scaffold.
+---
 
-### Code-review fix commits (most recent arc)
+## 6. Work completed (this long arc)
 
-| Commit | Content |
+### Stage A — P0 (data/stage safety)
+Dirty state IDs · Save As assets · playback preserve · 16-bit · required package files  
+
+### Stage B — UI Gate domain (P1-1…14)
+CompiledShow · personality · fadeOut/loop · persistent effects · ordered selection · MIDI/dispatcher · routing · validator · groups · palette record · Song snapshot  
+
+### Stage C — UI state architecture (P1-15)
+Controller split · `PerformanceSnapshot` · `notifyUI()` · Build/Perform mode · handoff doc  
+
+### Stage E — P2/P3 hardening
+MIDI hotplug + running status · per-universe Art-Net/sACN seq · output health · buffer tails · package recovery · schema migration · patch Int math · remote bind/TTL/limits · frame p95/p99 · ENTTEC driver · soak tests · Info.plist/autosave · plugin protocols  
+
+### Xcode production packaging
+`Aurora.xcodeproj` + sandbox entitlements + AppIcon + document UTType + CI + `docs/xcode-project.md`  
+
+### Recent commits (newest first)
+
+| Commit | Summary |
 |--------|---------|
-| `ef8ce0e` | P0: atomic save, dirty, guards, universe blackout, cue-only |
-| `52e4eac` | P1: ControlActionRouter, MIDI source IDs, client cleanup |
-| `cd90f80` | P1/P2: remote PIN/auth/tokens, presets, palette checks, diagnostics |
-| `2b37f34` | Handoff note for review status |
-| `7f8f87c` | Post-remediation UI-readiness review in tree |
-| `1718e35` | P0: unique document state IDs (dirty branch collision) |
-| `ac1e154` | P0: Save As preserves source media/layouts |
-| `eba6370` | P0: preserve playback on non-destructive project updates |
-| `2ff023d` | P0: 16-bit coarse/fine DMX compilation |
-| `acd97a7` | P0: required schema v1 package files on load |
+| `36e5015` | Xcode app project composing SPM modules |
+| `17c8d37` | P2/P3 hardening (MIDI/output/remote/package/ENTTEC) |
+| `6c83ba3` | Stage C AppModel split + PerformanceSnapshot |
+| `08c9255`…`1718e35` | Stage B then Stage A review fixes |
 
-### Stage A (post-remediation P0) — complete
+---
 
-1. Dirty state-ID / save-point identity  
-2. True Save As asset preservation  
-3. Playback preserved across ordinary edits  
-4. 16-bit coarse/fine output  
-5. Required package files fail load  
-
-### Stage B (UI Gate domain) — complete
-
-| Wave | Items |
-|------|--------|
-| B1 | CompiledShow, personality, fadeOut/loop, effects, ordered selection |
-| B2 | MIDI velocity/scalars, multi-map, data2 filter, ShowActionCatalog + unified ControlActionRouter |
-| B3 | Output routing, ProjectValidator (cached), group SoT, palette record, Song snapshot |
-
-### Stage C (UI state architecture) — complete
-
-- Controllers under `Sources/Aurora/Controllers/` (Project, ShowControl, Input, Output, Remote, Diagnostics, Workspace, Settings)
-- `AppModel` is composition root + facade; `notifyUI()` replaces global revision bump
-- Shared `PerformanceSnapshot` + Build/Perform workspace mode
-- Ownership map: **`docs/STAGE_C_UI_STATE_HANDOFF.md`**
-
-### Stage E (P2/P3 hardening) — complete
-
-| Area | Delivered |
-|------|-----------|
-| MIDI | Hotplug reconcile, per-source running status |
-| Output | Per-universe sequences, health snapshots, buffer tail clear, ENTTEC driver |
-| Package | Orphan bak/tmp recovery, schema migration pipeline, modifiedAt ownership |
-| Remote | Bind policy, session TTL/reuse, pre-delimiter limits |
-| Metrics | p95/p99/overrun frame metrics |
-| Plugins | Stable protocol surfaces (no dylib yet) |
-| Packaging | App/Info.plist, autosave, packaging notes |
-
-### Xcode app packaging
-
-- `Aurora.xcodeproj` + `project.yml` — macOS app composes SPM library products
-- Entitlements & schemes: `docs/xcode-project.md`
-- CI: `.github/workflows/macos-ci.yml` (SPM test + xcodebuild Debug/Release)
-
-**Next:** Visual UI redesign against Stage C contracts. Real Art-Net/sACN hardware soak on desk hardware still recommended before live shows.
-
-### Intentionally incomplete
+## 7. Intentionally incomplete / next (user-driven only)
 
 | Item | Notes |
 |------|--------|
-| Full GDTF | OFL-lite + native JSON only |
-| DAW effect timeline | List UI only |
-| Persistent effect defs | Runtime-only |
-| Native iPad app | `RemoteProtocolClient` only; package macOS-only |
-| TLS remote | Cleartext LAN |
-| Dynamic plugins | In-process register only |
-| AppModel split (P1-8) | Still god-object-ish |
-| 2k fixture bench | Smoke ~200 fixtures |
-| Hardware Art-Net/sACN validation | Not proven on user’s node in-session |
-| True AppKit docking | SwiftUI splits “docking lite” |
-| Break palette refs → literals on delete | Confirm only |
+| **Visual UI redesign** | Ready to start against Stage C contracts; not started |
+| Real Art-Net/sACN hardware soak | Mock soak tests exist; desk node not proven in-session |
+| Physical ENTTEC USB | Protocol + mock transport; real serial transport TBD |
+| Notarization / Developer Team signing | Ad-hoc local/CI signing only |
+| Dynamic dylib plugins | Protocols only; in-process register remains |
+| Full GDTF / TLS remote / native iPad app | Roadmap |
+| Full `NSDocument` | Intentionally **not** used — custom session preserves live engine |
+
+**Sensible next user goals:**
+
+1. Visual UI redesign (consume `STAGE_C_UI_STATE_HANDOFF.md`)  
+2. Hardware validate Art-Net/sACN/ENTTEC on real devices  
+3. Notarization / Team signing when ready to distribute  
 
 ---
 
-## 7. Entry points
+## 8. Entry points
 
 | Concern | Path |
 |---------|------|
 | App entry | `Sources/Aurora/AuroraApp.swift` |
-| Integration hub | `Sources/Aurora/AppModel.swift` (composition root) |
-| UI state controllers | `Sources/Aurora/Controllers/*` |
-| Stage C ownership | `docs/STAGE_C_UI_STATE_HANDOFF.md` |
+| Composition root | `Sources/Aurora/AppModel.swift` |
+| Controllers | `Sources/Aurora/Controllers/*` |
 | Live MIDI router | `Sources/Aurora/ControlActionRouter.swift` |
 | Document session | `Sources/AuroraCore/DocumentSession.swift` |
 | Package I/O | `Sources/AuroraModel/ProjectPackage.swift` |
 | Engine | `Sources/AuroraEngine/LightingEngine.swift` |
-| Cue resolve | `Sources/AuroraEngine/CueResolver.swift` |
-| Effects | `Sources/AuroraEngine/EffectRunner.swift` |
-| Output reconcile | `Sources/AuroraOutput/OutputManager.swift` |
-| Remote | `Sources/AuroraRemote/*` |
-| Panels | `Sources/AuroraUI/Panels/*`, `PanelRegistry.swift` |
-| Review backlog (current) | `Aurora_Post_Remediation_Deep_Review_UI_Readiness.md` |
-| Review backlog (prior) | `Aurora_Deep_Code_Review_Fixes.md` |
+| Compiled show | `Sources/AuroraEngine/CompiledShow.swift` |
+| Output / health | `Sources/AuroraOutput/*` |
+| Xcode | `Aurora.xcodeproj`, `project.yml`, `App/*` |
+| UI state handoff | `docs/STAGE_C_UI_STATE_HANDOFF.md` |
+| Xcode/entitlements | `docs/xcode-project.md` |
 
 ---
 
-## 8. Conventions
+## 9. Conventions
 
 1. Document mutations via **commands** + undo; programmer is engine-ephemeral  
-2. `@MainActor` session/UI; engine/output/MIDI/remote use locks / background queues  
-3. Live show actions (GO/fire) must not wait on MainActor when avoidable  
+2. `@MainActor` session/UI; engine/output/MIDI/remote use locks / queues  
+3. Live GO/fire must not wait on MainActor when avoidable  
 4. Additive Codable preferred  
-5. Network: fail soft; never block 40 Hz engine tick  
-6. Tests: `stepForTesting` / `ManualEngineClock` for engine; packet goldens for Art-Net/sACN  
-7. Commits on `main`; update this handoff after major work  
-8. One PR / fix cluster at a time preferred for quality (user rule)
+5. Network: fail soft; never block 40 Hz tick  
+6. Commits on `main`; update this handoff after major work  
+7. Quality over finishing everything; no unprompted feature invention  
+8. Do not re-open palette/song law without PR20–21 PDF  
 
 ---
 
-## 9. Smoke path (human)
+## 10. Smoke path (human)
 
-1. `swift run Aurora`  
+1. `open Aurora.xcodeproj` → Run **Aurora** (or `swift run Aurora`)  
 2. Patch universe + fixture  
 3. Programmer → Cue List → Live **GO**  
-4. Optional: Effects on selection  
-5. Optional: Output Art-Net / sACN  
-6. Optional: **Remote → Enable** → note PIN → browser `http://<mac-ip>:8743`  
-7. File → Save (atomic; dirty clears)  
-8. Dirty New/Open/Quit prompts  
+4. Optional: Effects, Art-Net/sACN, Enable Remote + PIN → browser `:8743`  
+5. File → Save (atomic; dirty clears); dirty New/Open/Quit prompts  
 
 ---
 
-## 10. Sensible next work
+## 11. Agent instructions post-compact
 
-**Active program:** post-remediation hardening for UI readiness (not visual redesign yet).
-
-1. **Stage A — P0** (block show use / UI): dirty state-ID collision, Save As assets, playback preserve on edit, 16-bit DMX, required package files  
-2. **Stage B — UI Gate P1** domain semantics (cues, fixtures, song, effects, selection, MIDI, dispatcher, routing, validator, groups, palettes)  
-3. **Stage C — AppModel split** + `PerformanceSnapshot` → then **stop for UI spec**  
-4. Later: hardware Art-Net/sACN, visual redesign, P2/P3  
-
-Do **not** re-open palette/song semantics without the PR20–21 PDF.  
-Do **not** start visual UI redesign until Stage C Go/No-Go checklist is green.
-
----
-
-## 11. Git arc (high level)
-
-1. PR1–21 core desk + MIDI + palettes/songs  
-2. Lane A Art-Net + diagnostics  
-3. Phase 1 polish (palette ref UI, universe monitor)  
-4. Roadmap PR18/22–34 (effects, protocols, remote)  
-5. Deep code review P0–P2 fixes (`ef8ce0e` … `cd90f80`)  
+```
+Read docs/PROJECT_HANDOFF.md first.
+Do not invent new PR work without an explicit user request.
+Preserve control path and module dependency direction.
+Prefer existing modules over new packages.
+UI redesign only when user asks; use docs/STAGE_C_UI_STATE_HANDOFF.md.
+Update this handoff after major architecture/status changes.
+```
 
 ---
 
-## 12. Open first after compression
+## 12. Orientation checklist
 
-1. **`docs/PROJECT_HANDOFF.md`** (this file)  
-2. **`Aurora_Deep_Code_Review_Fixes.md`** if continuing review backlog  
-3. **`docs/design/aurora-system-design.md`**  
-4. **`Aurora PR20-PR21 Architectural Guidance.pdf`** if palettes/songs  
-5. **`Package.swift`** + **`Sources/Aurora/AppModel.swift`**  
-6. **`README.md`**  
-
----
-
-## 13. Agent instructions
-
-- Read this handoff before edits  
-- Preserve control path and module dependency direction  
-- Prefer existing modules over new packages  
-- Engine: keep deterministic tests  
-- Update handoff when architecture or PR status changes  
-- User prefers: implement + test + commit per PR/cluster; **correctness over finishing everything**  
-
----
-
-## 14. Orientation checklist
-
-- [ ] Xcode selected; `swift test` green (~173)  
-- [ ] Control path + MIDI router + remote-as-client understood  
-- [ ] Atomic save / dirty / cue-only / universe reconcile known  
-- [ ] Palette refs resolve in engine; type slots matter  
-- [ ] Remote PIN is random on enable  
-- [ ] Next work chosen by user (hardware / UI / remaining P2)  
+- [ ] Xcode selected; `swift test` → 241 green  
+- [ ] Optional: `xcodebuild -scheme Aurora … build` green  
+- [ ] Control path + Stage C controllers understood  
+- [ ] P0–P3 review backlog largely implemented (see §6)  
+- [ ] Next work chosen by **user** (UI redesign / hardware / shipping)  
 
 ---
 
