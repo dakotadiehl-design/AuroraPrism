@@ -24,6 +24,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var isMIDILearning: Bool = false
     @Published var songStatus: String = ""
     @Published var artNetConfig: ArtNetConfig
+    @Published var sacnConfig: SACNConfig
     @Published private(set) var outputStatus: String = "Output: Null"
     @Published private(set) var midiLog: [String] = []
     @Published private(set) var consoleLog: [String] = []
@@ -33,6 +34,7 @@ final class AppModel: ObservableObject {
     private let outputManager = OutputManager()
     private let nullDriver = NullOutputDriver(name: "Null")
     private let artNetDriver: ArtNetOutputDriver
+    private let sacnDriver: SACNOutputDriver
     let engine: LightingEngine
     private let midi = MIDIInputManager()
     let midiLearn = MIDILearnSession()
@@ -45,10 +47,16 @@ final class AppModel: ObservableObject {
         let artConfig = ArtNetConfig.load()
         self.artNetConfig = artConfig
         self.artNetDriver = ArtNetOutputDriver(config: artConfig)
+        let sacn = SACNConfig.load()
+        self.sacnConfig = sacn
+        self.sacnDriver = SACNOutputDriver(config: sacn)
         self.engine = LightingEngine(output: outputManager)
         outputManager.register(nullDriver)
         if artConfig.enabled {
             outputManager.register(artNetDriver)
+        }
+        if sacn.enabled {
+            outputManager.register(sacnDriver)
         }
 
         do {
@@ -314,6 +322,24 @@ final class AppModel: ObservableObject {
         bump()
     }
 
+    func setSACNEnabled(_ enabled: Bool) {
+        sacnConfig.enabled = enabled
+        sacnConfig.save()
+        applySACNRegistration()
+        refreshOutputStatus()
+        log(enabled ? "sACN enabled" : "sACN disabled")
+        bump()
+    }
+
+    func setSACNUnicastHost(_ host: String?) {
+        let trimmed = host?.trimmingCharacters(in: .whitespacesAndNewlines)
+        sacnConfig.destinationHost = (trimmed?.isEmpty == false) ? trimmed : nil
+        sacnConfig.save()
+        sacnDriver.updateConfig(sacnConfig)
+        refreshOutputStatus()
+        bump()
+    }
+
     private func applyArtNetRegistration() {
         if artNetConfig.enabled {
             artNetDriver.updateConfig(artNetConfig)
@@ -327,13 +353,31 @@ final class AppModel: ObservableObject {
         }
     }
 
+    private func applySACNRegistration() {
+        if sacnConfig.enabled {
+            sacnDriver.updateConfig(sacnConfig)
+            outputManager.register(sacnDriver)
+            if engine.isRunning {
+                try? sacnDriver.start()
+            }
+        } else {
+            sacnDriver.stop()
+            outputManager.unregister(id: sacnDriver.id)
+        }
+    }
+
     private func refreshOutputStatus() {
+        var parts: [String] = []
         if artNetConfig.enabled {
             let err = artNetDriver.lastError.map { " err:\($0)" } ?? ""
-            outputStatus = "Art-Net \(artNetConfig.destinationHost):\(artNetConfig.destinationPort)\(err)"
-        } else {
-            outputStatus = "Output: Null only"
+            parts.append("Art-Net \(artNetConfig.destinationHost):\(artNetConfig.destinationPort)\(err)")
         }
+        if sacnConfig.enabled {
+            let dest = sacnConfig.destinationHost ?? "multicast"
+            let err = sacnDriver.lastError.map { " err:\($0)" } ?? ""
+            parts.append("sACN \(dest):\(sacnConfig.destinationPort)\(err)")
+        }
+        outputStatus = parts.isEmpty ? "Output: Null only" : parts.joined(separator: " · ")
     }
 
     func log(_ message: String) {
@@ -445,6 +489,24 @@ final class AppModel: ObservableObject {
             setArtNetDestination(field.stringValue)
             if !artNetConfig.enabled {
                 setArtNetEnabled(true)
+            }
+        }
+    }
+
+    func promptSACNDestination() {
+        let alert = NSAlert()
+        alert.messageText = "sACN Destination"
+        alert.informativeText = "Leave empty for per-universe multicast (239.255.x.y). Or set a unicast node IP. Show U N → sACN N+\(sacnConfig.universeOffset)."
+        let field = NSTextField(string: sacnConfig.destinationHost ?? "")
+        field.frame = NSRect(x: 0, y: 0, width: 280, height: 24)
+        field.placeholderString = "multicast"
+        alert.accessoryView = field
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+        if alert.runModal() == .alertFirstButtonReturn {
+            setSACNUnicastHost(field.stringValue)
+            if !sacnConfig.enabled {
+                setSACNEnabled(true)
             }
         }
     }

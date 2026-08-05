@@ -96,6 +96,13 @@ struct AuroraApp: App {
                 Button("Art-Net Destination…") {
                     appModel.promptArtNetDestination()
                 }
+                Divider()
+                Button(appModel.sacnConfig.enabled ? "Disable sACN" : "Enable sACN") {
+                    appModel.setSACNEnabled(!appModel.sacnConfig.enabled)
+                }
+                Button("sACN Destination…") {
+                    appModel.promptSACNDestination()
+                }
             }
         }
     }
