@@ -4,14 +4,19 @@ import Foundation
 /// Owns the live `ShowProject`, undo stack, event bus, and selection.
 ///
 /// All show mutations should go through `perform(_:)`.
-/// Dirty state uses generation counters so undo can return to a saved point (P0-3).
+///
+/// Dirty state uses **unique document state IDs** (P0-1 / post-remediation review):
+/// - Every new committed content state mints a monotonic ID that is never reused for different content.
+/// - Undo/redo restore the ID recorded for that history entry (so returning to a saved state is clean).
+/// - Branching after undo mints new IDs (so depth collision cannot false-clean).
+/// - Commands never coalesce across a save-point boundary.
 @MainActor
 public final class DocumentSession {
     public private(set) var project: ShowProject
 
-    /// Logical document generation; bumps on mutate / undo / redo.
+    /// Unique ID of the current document content state.
     public private(set) var documentGeneration: UInt64 = 0
-    /// Generation last successfully saved (or at open/new).
+    /// State ID last successfully saved (or at open/new).
     public private(set) var savedGeneration: UInt64 = 0
 
     public var isDirty: Bool { documentGeneration != savedGeneration }
@@ -20,8 +25,12 @@ public final class DocumentSession {
     public let selection = SelectionManager()
 
     private let undoStack = UndoStack()
-    /// Generation after each undo stack entry was applied.
-    private var undoGenerations: [UInt64] = []
+    /// State ID after each undo-stack entry was applied (parallel to undo stack).
+    private var undoStateIDs: [UInt64] = []
+    /// State ID after each redo-stack entry when re-applied (parallel to redo stack).
+    private var redoStateIDs: [UInt64] = []
+    /// Monotonic allocator; only increases when minting a brand-new content state.
+    private var nextStateID: UInt64 = 0
     private var groupingName: String?
     private var groupBuffer: [any Command]?
 
@@ -45,11 +54,13 @@ public final class DocumentSession {
     public func reset(to project: ShowProject) {
         self.project = project
         undoStack.clear()
-        undoGenerations.removeAll()
+        undoStateIDs.removeAll()
+        redoStateIDs.removeAll()
         groupBuffer = nil
         groupingName = nil
         documentGeneration = 0
         savedGeneration = 0
+        nextStateID = 0
         selection.clear()
     }
 
@@ -89,6 +100,7 @@ public final class DocumentSession {
         if var buffer = groupBuffer {
             if buffer.isEmpty {
                 undoStack.clearRedo()
+                redoStateIDs.removeAll()
             }
             buffer.append(command)
             groupBuffer = buffer
@@ -96,17 +108,23 @@ public final class DocumentSession {
             return
         }
 
-        documentGeneration &+= 1
-        if let prior = undoStack.top, let merged = command.merging(withPrior: prior) {
+        let newID = mintStateID()
+        documentGeneration = newID
+
+        // Never coalesce across a save-point: the stack top is exactly the saved state.
+        let topIsSavedState = undoStateIDs.last == savedGeneration && !undoStateIDs.isEmpty
+        if !topIsSavedState, let prior = undoStack.top, let merged = command.merging(withPrior: prior) {
             try undoStack.replaceTop(with: merged)
-            if !undoGenerations.isEmpty {
-                undoGenerations[undoGenerations.count - 1] = documentGeneration
+            redoStateIDs.removeAll()
+            if !undoStateIDs.isEmpty {
+                undoStateIDs[undoStateIDs.count - 1] = newID
             } else {
-                undoGenerations.append(documentGeneration)
+                undoStateIDs.append(newID)
             }
         } else {
             undoStack.push(command)
-            undoGenerations.append(documentGeneration)
+            redoStateIDs.removeAll()
+            undoStateIDs.append(newID)
         }
 
         didMutateProject()
@@ -114,9 +132,7 @@ public final class DocumentSession {
 
     public func undo() throws {
         let command = try undoStack.popUndo()
-        if !undoGenerations.isEmpty {
-            undoGenerations.removeLast()
-        }
+        let undoneStateID = undoStateIDs.isEmpty ? documentGeneration : undoStateIDs.removeLast()
         let context = CommandContext(project: project)
         let snapshot = project
 
@@ -125,17 +141,26 @@ public final class DocumentSession {
         } catch {
             project = snapshot
             undoStack.push(command)
+            undoStateIDs.append(undoneStateID)
             throw error
         }
 
         project = context.project
-        documentGeneration = undoGenerations.last ?? 0
+        // Restore the state ID of the document after the previous entry (or baseline 0).
+        documentGeneration = undoStateIDs.last ?? 0
         undoStack.pushRedo(command)
+        redoStateIDs.append(undoneStateID)
         didMutateProject()
     }
 
     public func redo() throws {
         let command = try undoStack.popRedo()
+        guard !redoStateIDs.isEmpty else {
+            // Should not happen if stacks stay aligned; fall back to minting.
+            undoStack.pushRedo(command)
+            throw CommandError.nothingToRedo
+        }
+        let restoredID = redoStateIDs.removeLast()
         let context = CommandContext(project: project)
         let snapshot = project
 
@@ -144,13 +169,15 @@ public final class DocumentSession {
         } catch {
             project = snapshot
             undoStack.pushRedo(command)
+            redoStateIDs.append(restoredID)
             throw error
         }
 
         project = context.project
-        documentGeneration &+= 1
+        // Restore the original state ID so returning to a saved checkpoint stays clean.
+        documentGeneration = restoredID
         undoStack.pushUndoPreservingRedo(command)
-        undoGenerations.append(documentGeneration)
+        undoStateIDs.append(restoredID)
         didMutateProject()
     }
 
@@ -171,10 +198,12 @@ public final class DocumentSession {
             throw CommandError.emptyGroup
         }
 
-        documentGeneration &+= 1
+        let newID = mintStateID()
+        documentGeneration = newID
         let group = CommandGroup(name: name, commands: buffer)
         undoStack.push(group)
-        undoGenerations.append(documentGeneration)
+        redoStateIDs.removeAll()
+        undoStateIDs.append(newID)
         didMutateProject()
     }
 
@@ -197,6 +226,11 @@ public final class DocumentSession {
         if selection.prune(against: project) {
             publishSelectionChanged()
         }
+    }
+
+    private func mintStateID() -> UInt64 {
+        nextStateID &+= 1
+        return nextStateID
     }
 
     private func publishSelectionChanged() {
