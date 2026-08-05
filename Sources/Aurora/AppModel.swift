@@ -236,10 +236,19 @@ final class AppModel: ObservableObject {
         panel.message = "Choose a .aurora package (folder)"
         panel.prompt = "Open"
         guard panel.runModal() == .OK, let url = panel.url else { return }
+        openShow(at: url, skipDirtyConfirm: true)
+    }
+
+    /// Open a package URL (Finder, recent documents, or panel).
+    func openShow(at url: URL, skipDirtyConfirm: Bool = false) {
+        if !skipDirtyConfirm {
+            guard confirmDiscardIfDirty(actionName: "opening") else { return }
+        }
         do {
             try document.openShow(from: url)
             showControl.resetSong()
             reloadEngine()
+            NSDocumentController.shared.noteNewRecentDocumentURL(url)
             notifyUI()
         } catch {
             document.statusMessage = "Open failed: \(error.localizedDescription)"

@@ -1,0 +1,138 @@
+# XcodeGen specification — source of truth for Aurora.xcodeproj
+# Regenerate: xcodegen generate  (or Scripts/generate-xcodeproj.sh)
+name: Aurora
+options:
+  bundleIdPrefix: com.aurora
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  generateEmptyDirectories: true
+  defaultConfig: Debug
+
+configs:
+  Debug: debug
+  Release: release
+
+settings:
+  base:
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    SWIFT_VERSION: "5.9"
+    CLANG_ENABLE_MODULES: YES
+    ENABLE_STRICT_OBJC_MSGSEND: YES
+    CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER: YES
+    ALWAYS_SEARCH_USER_PATHS: NO
+    COPY_PHASE_STRIP: NO
+  configs:
+    Debug:
+      SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: "DEBUG"
+      GCC_PREPROCESSOR_DEFINITIONS: "DEBUG=1 $(inherited)"
+      ONLY_ACTIVE_ARCH: YES
+      ENABLE_TESTABILITY: YES
+      DEBUG_INFORMATION_FORMAT: dwarf
+      MTL_ENABLE_DEBUG_INFO: INCLUDE_SOURCE
+    Release:
+      SWIFT_OPTIMIZATION_LEVEL: "-O"
+      SWIFT_COMPILATION_MODE: wholemodule
+      DEBUG_INFORMATION_FORMAT: "dwarf-with-dsym"
+      ONLY_ACTIVE_ARCH: NO
+      ENABLE_NS_ASSERTIONS: NO
+      MTL_ENABLE_DEBUG_INFO: NO
+      VALIDATE_PRODUCT: YES
+
+packages:
+  AuroraPackage:
+    path: .
+
+targets:
+  Aurora:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources/Aurora
+        type: group
+      - path: App/Assets.xcassets
+        buildPhase: resources
+      - path: App/Preview Content
+        buildPhase: resources
+        optional: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aurora.lighting
+        PRODUCT_NAME: Aurora
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: App/Info.plist
+        CODE_SIGN_ENTITLEMENTS: App/Aurora.entitlements
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+        # Local/CI: ad-hoc style signing; developers can switch to Team ID in Xcode
+        DEVELOPMENT_TEAM: ""
+        ENABLE_HARDENED_RUNTIME: YES
+        ENABLE_APP_SANDBOX: YES
+        COMBINE_HIDPI_IMAGES: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+        SWIFT_EMIT_LOC_STRINGS: YES
+        ENABLE_PREVIEWS: YES
+        # App target composes SPM libraries only — never the executable product
+      configs:
+        Debug:
+          ENABLE_HARDENED_RUNTIME: NO
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "DEBUG"
+        Release:
+          ENABLE_HARDENED_RUNTIME: YES
+          SWIFT_COMPILATION_MODE: wholemodule
+    dependencies:
+      - package: AuroraPackage
+        product: AuroraUI
+      - package: AuroraPackage
+        product: AuroraCore
+      - package: AuroraPackage
+        product: AuroraModel
+      - package: AuroraPackage
+        product: AuroraFixtureLib
+      - package: AuroraPackage
+        product: AuroraEngine
+      - package: AuroraPackage
+        product: AuroraOutput
+      - package: AuroraPackage
+        product: AuroraMIDI
+      - package: AuroraPackage
+        product: AuroraRemote
+      - package: AuroraPackage
+        product: AuroraDiagnostics
+      - sdk: AppKit.framework
+      - sdk: SwiftUI.framework
+    scheme:
+      testTargets: []
+      gatherCoverageData: false
+      commandLineArguments: {}
+
+schemes:
+  Aurora:
+    build:
+      targets:
+        Aurora: all
+    run:
+      config: Debug
+      executable: Aurora
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+  Aurora-Release:
+    build:
+      targets:
+        Aurora: all
+    run:
+      config: Release
+      executable: Aurora
+    archive:
+      config: Release

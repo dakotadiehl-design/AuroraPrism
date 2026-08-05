@@ -21,6 +21,14 @@ final class AuroraAppDelegate: NSObject, NSApplicationDelegate {
         }
         return .terminateCancel
     }
+
+    /// Finder / Launch Services double-click of a `.aurora` package.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let appModel else { return }
+        for url in urls {
+            appModel.openShow(at: url)
+        }
+    }
 }
 
 @main

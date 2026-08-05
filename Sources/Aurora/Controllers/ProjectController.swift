@@ -120,6 +120,7 @@ final class ProjectController: ObservableObject {
         documentURL = url
         session.applySavedMetadata(modifiedAt: writtenAt)
         statusMessage = "Saved \(url.lastPathComponent)"
+        NSDocumentController.shared.noteNewRecentDocumentURL(url)
         objectWillChange.send()
     }
 

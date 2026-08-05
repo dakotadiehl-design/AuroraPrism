@@ -268,6 +268,12 @@ Scaffold → model → core → fixtures/patch → UI shell → engine/cues/prog
 | Plugins | Stable protocol surfaces (no dylib yet) |
 | Packaging | App/Info.plist, autosave, packaging notes |
 
+### Xcode app packaging
+
+- `Aurora.xcodeproj` + `project.yml` — macOS app composes SPM library products
+- Entitlements & schemes: `docs/xcode-project.md`
+- CI: `.github/workflows/macos-ci.yml` (SPM test + xcodebuild Debug/Release)
+
 **Next:** Visual UI redesign against Stage C contracts. Real Art-Net/sACN hardware soak on desk hardware still recommended before live shows.
 
 ### Intentionally incomplete

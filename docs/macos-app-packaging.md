@@ -1,24 +1,55 @@
-# macOS App Packaging (P3-3)
+# macOS App Packaging
 
-Aurora’s SPM product remains a runnable executable (`swift run Aurora`). For a polished desk app:
+## Primary path: Xcode app
 
-## Bundle skeleton
+```bash
+open Aurora.xcodeproj
+# Scheme Aurora → Run
+```
+
+Full details (entitlements, schemes, CI): **[`docs/xcode-project.md`](./xcode-project.md)**.
+
+### Bundle layout (built product)
 
 ```text
 Aurora.app/
   Contents/
-    Info.plist          ← from App/Info.plist
-    MacOS/Aurora        ← built executable
-    Resources/          ← optional assets
+    Info.plist
+    MacOS/Aurora
+    Resources/Assets.car (and asset catalog resources)
+    Frameworks/   (if any dynamic deps)
 ```
 
-## Build notes
+### Metadata sources
 
-1. Prefer an Xcode macOS App target that links local SPM package libraries and compiles `Sources/Aurora`.
-2. Document type: `.aurora` package (`com.aurora.show-package`) — see `App/Info.plist`.
-3. Autosave: `AutosaveController` in the app target (interval default 120s when a document URL exists).
-4. Open recovery: `ProjectPackage.recoverOrphanedPackages(around:)` on open/save.
+| File | Role |
+|------|------|
+| `App/Info.plist` | Bundle ID placeholders, document type, local network usage |
+| `App/Aurora.entitlements` | Sandbox + network + USB + user-selected files |
+| `App/Assets.xcassets` | AppIcon + AccentColor |
+| `project.yml` | XcodeGen source of truth for `Aurora.xcodeproj` |
+
+## CLI path (unchanged)
+
+SPM executable product remains for headless/agent workflows:
+
+```bash
+swift build && swift test && swift run Aurora
+```
+
+Libraries always build from `Package.swift`. The app target **composes** library products; it does not merge module sources.
+
+## Document type
+
+- Extension: `.aurora` (directory package)
+- UTType: `com.aurora.show-package`
+- Runtime I/O: `ProjectPackage` + `ProjectController` (not full `NSDocument`)
+
+## Autosave & recovery
+
+- `AutosaveController` (interval when a document URL is set)
+- `ProjectPackage.recoverOrphanedPackages(around:)` on open/save
 
 ## Sandbox / notarization
 
-Not enabled by default — Art-Net, sACN, MIDI, and remote LAN need network + MIDI entitlements if sandboxing later.
+Sandbox is **enabled** with network client/server, user-selected files, bookmarks, and USB (see entitlement table in `xcode-project.md`). Notarization requires an Apple Developer identity and is out of band.

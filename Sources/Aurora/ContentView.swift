@@ -73,3 +73,12 @@ struct ContentView: View {
         .navigationTitle(appModel.windowTitle)
     }
 }
+
+#if DEBUG
+#Preview("Aurora Workspace") {
+    ContentView()
+        .environmentObject(AppModel())
+        .frame(width: 1100, height: 720)
+}
+#endif
+

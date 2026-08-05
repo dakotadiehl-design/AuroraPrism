@@ -62,15 +62,26 @@ The package declares `platforms: [.macOS(.v14)]` only. Do not expect `swift test
 
 ## Build / test / run
 
+### Xcode app (recommended for UI / desk)
+
+```bash
+open Aurora.xcodeproj
+# Scheme: Aurora → My Mac → Run
+```
+
+Details: entitlements, schemes, document type — [`docs/xcode-project.md`](./docs/xcode-project.md).
+
+### SPM CLI
+
 ```bash
 swift build
 swift test
 swift run Aurora
 ```
 
-Run that from **Terminal.app** (or iTerm) on the Mac’s local desktop session — not over SSH and not from a headless agent. The SPM product is a bare executable (not an `.app` bundle yet); the app forces a regular activation policy so a window and Dock icon appear.
+Run the CLI product from **Terminal.app** (or iTerm) on a local desktop session — not over SSH. The Xcode target produces a real `Aurora.app` (Dock, Finder `.aurora` documents, sandbox). SPM still builds library modules and a bare executable for agent/headless workflows.
 
-Or open `Package.swift` in Xcode and run the **Aurora** scheme (most reliable for UI work). You should see a window listing the sample project and linked modules.
+Libraries are always composed from `Package.swift`; the app target does **not** merge module sources.
 
 ## Modules
 

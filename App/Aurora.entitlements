@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Production sandbox: see docs/xcode-project.md for justifications -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<!-- Art-Net, sACN, OSC client, remote, RTP-MIDI outbound -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<!-- OSC :9000, remote TCP :8742, web :8743, sACN multicast, RTP-MIDI -->
+	<key>com.apple.security.network.server</key>
+	<true/>
+	<!-- Open/Save .aurora packages and fixture JSON via panels -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<!-- Persist access to user-selected show packages across relaunch (autosave) -->
+	<key>com.apple.security.files.bookmarks.app-scope</key>
+	<true/>
+	<!-- ENTTEC USB DMX Pro / local USB serial DMX -->
+	<key>com.apple.security.device.usb</key>
+	<true/>
+</dict>
+</plist>
