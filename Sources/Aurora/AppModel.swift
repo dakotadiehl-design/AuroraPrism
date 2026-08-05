@@ -44,6 +44,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var oscStatus: String = "OSC: off"
     @Published private(set) var isOSCEnabled: Bool = false
     let songDirector = SongDirector()
+    /// In-process plugin registry (PR29 skeleton; no dylib loading).
+    let pluginHost = PluginHost()
     private var statusTimer: Timer?
 
     init(project: ShowProject = .empty(name: "Untitled Show")) {
