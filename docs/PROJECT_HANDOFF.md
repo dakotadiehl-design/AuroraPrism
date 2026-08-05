@@ -7,7 +7,7 @@
 | **Last updated** | 2026-08-05 (Pre-UI blockers complete — UI redesign unblocked) |
 | **Workspace** | `/Users/dakota/code/Aurora` |
 | **Branch** | `main` (local only; no remote assumed) |
-| **HEAD** | *(see `git log -1`)* — Pre-UI blockers cleanup |
+| **HEAD** | `b87dcf6` — Pre-UI blockers (save coordinator, health, shutdown, 16-bit home) |
 | **Tests** | **264** passing (`swift test`) |
 | **Xcode app** | `Aurora.xcodeproj` — Debug build verified green |
 
