@@ -314,13 +314,12 @@ Single `@MainActor` `AppModel` owns:
 | Next product lane (user chose) | **Lane A — real light**: Art-Net (done) → validate on node → sACN/effects/remote as needed |
 | Dual host | Plan on any OS; implement on Mac only (KD15) |
 
-### Sensible next work (post Phase 1 polish)
+### Sensible next work (post roadmap)
 
-1. **Hardware validate** Art-Net on real node (universe offset, unicast IP)  
-2. **PR22 effects** (recommended desk-depth lane) → PR23 UI  
-3. **PR26 sACN** if hardware needs E1.31  
-4. **PR31–32 remote** if off-stage Mac + iPad demo  
-5. Optional: break-refs-to-literals on palette delete; multi-select cue list UI
+1. **Hardware validate** Art-Net / sACN on real nodes  
+2. Demo remote: **Remote → Enable**, open `http://<mac-lan-ip>:8743` on iPad Safari (PIN `0000` default)  
+3. Full GDTF importer or shipping iOS AuroraPad if product requires  
+4. Optional: break-refs-to-literals on palette delete; multi-select cue list UI  
 
 ---
 
@@ -332,8 +331,9 @@ Chronological feature arc on `main`:
 2. PR7–8 UI shell/patch → PR9–11 engine/cues → PR12–14 programmer  
 3. PR16–17 MIDI → PR19 live → PR15/20/21 color/groups/songs (often batched commits)  
 4. PR24–25 diagnostics + Art-Net (Lane A)  
+5. PR22–23 effects → PR18/26/27 protocols → PR28–30 polish → PR31–34 remote  
 
-Some commits batch multiple PR numbers (e.g. `79ba7c9` PR17–21, `f44f8c2` Lane A).
+Some commits batch multiple PR numbers earlier in history; later roadmap PRs are one commit each.
 
 ---
 
