@@ -1,7 +1,7 @@
 import AuroraUI
 import SwiftUI
 
-/// Maps panel IDs to concrete views.
+/// Maps panel IDs to concrete views. Panels observe controller state via callbacks / appModel facades.
 enum PanelRegistry {
     @MainActor
     static func view(id: WorkspacePanelID, context: WorkspacePanelContext, appModel: AppModel) -> AnyView {
@@ -16,14 +16,14 @@ enum PanelRegistry {
             return AnyView(
                 CueListPanel(
                     context: context,
-                    playbackCueIndex: appModel.engine.currentSnapshot().playback.cueIndex,
+                    playbackCueIndex: appModel.performance.cueIndex,
                     onGo: { appModel.go() },
                     onStop: { appModel.stopPlayback() },
                     onBack: { appModel.back() },
                     onFire: { appModel.fireCue(id: $0) },
                     onProjectChanged: {
                         appModel.reloadEngineFromSession()
-                        appModel.bump()
+                        appModel.notifyUI()
                     }
                 )
             )
@@ -33,7 +33,7 @@ enum PanelRegistry {
                     context: context,
                     programmer: appModel.engine.programmer,
                     project: appModel.session.project,
-                    onChanged: { appModel.bump() }
+                    onChanged: { appModel.notifyUI() }
                 )
             )
         case .livePlayback:
@@ -45,18 +45,18 @@ enum PanelRegistry {
                     onBack: { appModel.back() },
                     isBlind: appModel.engine.programmer.snapshot().isBlind,
                     isHighlight: appModel.engine.programmer.snapshot().isHighlight,
-                    onBlind: { appModel.engine.programmer.setBlind($0); appModel.bump() },
-                    onHighlight: { appModel.engine.programmer.setHighlight($0); appModel.bump() }
+                    onBlind: { appModel.engine.programmer.setBlind($0); appModel.notifyUI() },
+                    onHighlight: { appModel.engine.programmer.setHighlight($0); appModel.notifyUI() }
                 )
             )
         case .groups:
-            return AnyView(GroupsPanel(context: context, onChanged: { appModel.bump() }))
+            return AnyView(GroupsPanel(context: context, onChanged: { appModel.notifyUI() }))
         case .palettes:
             return AnyView(
                 PalettesPanel(
                     context: context,
                     programmer: appModel.engine.programmer,
-                    onChanged: { appModel.bump() }
+                    onChanged: { appModel.notifyUI() }
                 )
             )
         case .midi:
@@ -66,7 +66,7 @@ enum PanelRegistry {
                     isLearning: appModel.isMIDILearning,
                     onLearn: { appModel.armMIDILearn($0) },
                     onCancelLearn: { appModel.cancelMIDILearn() },
-                    onChanged: { appModel.bump() }
+                    onChanged: { appModel.notifyUI() }
                 )
             )
         case .song:
@@ -75,19 +75,18 @@ enum PanelRegistry {
                     context: context,
                     entryIndex: appModel.songDirector.entryIndex,
                     onLoadSong: { song in
-                        appModel.songDirector.load(song: song, project: appModel.session.project, engine: appModel.engine)
-                        appModel.songStatus = "\(song.title)"
-                        appModel.bump()
+                        appModel.showControl.loadSong(song, project: appModel.session.project)
+                        appModel.notifyUI()
                     },
                     onNext: {
-                        appModel.songDirector.next(project: appModel.session.project, engine: appModel.engine)
-                        appModel.bump()
+                        appModel.showControl.songNext(project: appModel.session.project)
+                        appModel.notifyUI()
                     },
                     onPrevious: {
-                        appModel.songDirector.previous(project: appModel.session.project, engine: appModel.engine)
-                        appModel.bump()
+                        appModel.showControl.songPrevious(project: appModel.session.project)
+                        appModel.notifyUI()
                     },
-                    onChanged: { appModel.bump() }
+                    onChanged: { appModel.notifyUI() }
                 )
             )
         case .effects:
@@ -97,7 +96,7 @@ enum PanelRegistry {
                     effects: appModel.engine.effects,
                     onChanged: {
                         appModel.commitEffectsToProject()
-                        appModel.bump()
+                        appModel.notifyUI()
                     }
                 )
             )

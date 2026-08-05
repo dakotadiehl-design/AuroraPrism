@@ -8,7 +8,14 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             WorkspaceView(
-                layout: $appModel.layout,
+                layout: Binding(
+                    get: { appModel.workspace.layout },
+                    set: {
+                        appModel.workspace.layout = $0
+                        WorkspaceLayoutStore.save($0)
+                        appModel.notifyUI()
+                    }
+                ),
                 context: appModel.panelContext,
                 panelBuilder: { id, ctx in
                     PanelRegistry.view(id: id, context: ctx, appModel: appModel)
@@ -21,7 +28,16 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 Spacer()
-                Text(appModel.outputStatus)
+                if appModel.workspace.mode == .perform {
+                    Text(appModel.performance.cueName.isEmpty
+                         ? "Cue —"
+                         : "Cue \(appModel.performance.cueIndex + 1) \(appModel.performance.cueName)")
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                }
+                Text(appModel.performance.outputStatusLine)
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -41,12 +57,19 @@ struct ContentView: View {
                 Text("\(appModel.session.project.fixtures.count) fixtures · \(appModel.session.project.universes.count) universes")
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
+                if appModel.performance.validationIssueCount > 0 {
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                    Text("\(appModel.performance.validationIssueCount) issues")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
         }
         .frame(minWidth: 900, minHeight: 560)
-        // Avoid global .id(revision) rebuild (P2-1); panels observe appModel via environment.
+        // Stage C: observe composition root + controllers; no global .id(revision).
         .navigationTitle(appModel.windowTitle)
     }
 }

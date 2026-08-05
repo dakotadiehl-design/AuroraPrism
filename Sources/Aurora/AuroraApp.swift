@@ -79,13 +79,22 @@ struct AuroraApp: App {
             }
 
             CommandMenu("View") {
+                Button("Build Mode") {
+                    appModel.workspace.setMode(.build)
+                    appModel.notifyUI()
+                }
+                Button("Perform Mode") {
+                    appModel.workspace.setMode(.perform)
+                    appModel.notifyUI()
+                }
+                Divider()
                 ForEach(WorkspacePanelID.allCases) { panel in
                     Button {
                         appModel.togglePanel(panel)
                     } label: {
                         HStack {
                             Text(panel.title)
-                            if appModel.layout.isVisible(panel) {
+                            if appModel.workspace.isVisible(panel) {
                                 Image(systemName: "checkmark")
                             }
                         }

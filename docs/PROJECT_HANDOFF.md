@@ -249,7 +249,14 @@ Scaffold → model → core → fixtures/patch → UI shell → engine/cues/prog
 | B2 | MIDI velocity/scalars, multi-map, data2 filter, ShowActionCatalog + unified ControlActionRouter |
 | B3 | Output routing, ProjectValidator (cached), group SoT, palette record, Song snapshot |
 
-**Next:** Stage C — AppModel split / granular UI state / PerformanceSnapshot, then **stop for UI spec**. Visual redesign still blocked until Stage C Go/No-Go.
+### Stage C (UI state architecture) — complete
+
+- Controllers under `Sources/Aurora/Controllers/` (Project, ShowControl, Input, Output, Remote, Diagnostics, Workspace, Settings)
+- `AppModel` is composition root + facade; `notifyUI()` replaces global revision bump
+- Shared `PerformanceSnapshot` + Build/Perform workspace mode
+- Ownership map: **`docs/STAGE_C_UI_STATE_HANDOFF.md`**
+
+**Next:** Visual UI redesign against Stage C contracts (separate plan). P2/P3 may run in parallel.
 
 ### Intentionally incomplete
 
@@ -274,7 +281,9 @@ Scaffold → model → core → fixtures/patch → UI shell → engine/cues/prog
 | Concern | Path |
 |---------|------|
 | App entry | `Sources/Aurora/AuroraApp.swift` |
-| Integration hub | `Sources/Aurora/AppModel.swift` |
+| Integration hub | `Sources/Aurora/AppModel.swift` (composition root) |
+| UI state controllers | `Sources/Aurora/Controllers/*` |
+| Stage C ownership | `docs/STAGE_C_UI_STATE_HANDOFF.md` |
 | Live MIDI router | `Sources/Aurora/ControlActionRouter.swift` |
 | Document session | `Sources/AuroraCore/DocumentSession.swift` |
 | Package I/O | `Sources/AuroraModel/ProjectPackage.swift` |
