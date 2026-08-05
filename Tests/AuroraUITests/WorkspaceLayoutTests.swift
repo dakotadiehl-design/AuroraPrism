@@ -18,6 +18,12 @@ final class WorkspaceLayoutTests: XCTestCase {
         for id in WorkspacePanelID.allCases {
             XCTAssertFalse(id.title.isEmpty)
         }
+        XCTAssertTrue(WorkspacePanelID.allCases.contains(.effects))
+        XCTAssertEqual(WorkspacePanelID.effects.title, "Effects")
+    }
+
+    func testDefaultLayoutIncludesEffectsPanel() {
+        XCTAssertTrue(WorkspaceLayout.defaultVisible.contains(.effects))
     }
 
     func testLayoutStoreSaveLoad() {

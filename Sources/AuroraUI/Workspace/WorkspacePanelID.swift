@@ -14,6 +14,7 @@ public enum WorkspacePanelID: String, Codable, CaseIterable, Sendable, Identifia
     case inspector
     case console
     case song
+    case effects
 
     public var id: String { rawValue }
 
@@ -31,6 +32,7 @@ public enum WorkspacePanelID: String, Codable, CaseIterable, Sendable, Identifia
         case .inspector: return "Inspector"
         case .console: return "Console"
         case .song: return "Song"
+        case .effects: return "Effects"
         }
     }
 
@@ -48,6 +50,7 @@ public enum WorkspacePanelID: String, Codable, CaseIterable, Sendable, Identifia
         case .inspector: return "Inspector."
         case .console: return "Console."
         case .song: return "Song mode."
+        case .effects: return "Live effects."
         }
     }
 }

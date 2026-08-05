@@ -90,6 +90,14 @@ enum PanelRegistry {
                     onChanged: { appModel.bump() }
                 )
             )
+        case .effects:
+            return AnyView(
+                EffectsPanel(
+                    selectionFixtureIDs: appModel.session.selection.snapshot.fixtureIDs,
+                    effects: appModel.engine.effects,
+                    onChanged: { appModel.bump() }
+                )
+            )
         case .universeMonitor:
             return AnyView(
                 UniverseMonitorPanel(
