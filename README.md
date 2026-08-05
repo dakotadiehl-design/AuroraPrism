@@ -12,6 +12,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 | [`docs/design/aurora-system-design.md`](./docs/design/aurora-system-design.md) | System architecture & full PR plan |
 | [`docs/design/pr1-project-scaffold.md`](./docs/design/pr1-project-scaffold.md) | **PR1** module layout, dependencies, acceptance |
 | [`docs/design/pr2-domain-model.md`](./docs/design/pr2-domain-model.md) | **PR2** domain model & package format |
+| [`docs/design/remote-companion.md`](./docs/design/remote-companion.md) | Stage iPad remote (web first, native later) |
 | [`docs/development-workflow.md`](./docs/development-workflow.md) | Mac toolchain & dual-host notes |
 
 ## Development environments
@@ -38,7 +39,9 @@ swift test
 swift run Aurora
 ```
 
-Or open `Package.swift` in Xcode and run the **Aurora** scheme. You should see a window titled scaffold listing linked modules (`AuroraModel`, `AuroraCore`, `AuroraEngine`, `AuroraUI`).
+Run that from **Terminal.app** (or iTerm) on the Mac’s local desktop session — not over SSH and not from a headless agent. The SPM product is a bare executable (not an `.app` bundle yet); the app forces a regular activation policy so a window and Dock icon appear.
+
+Or open `Package.swift` in Xcode and run the **Aurora** scheme (most reliable for UI work). You should see a window listing the sample project and linked modules.
 
 ## Modules
 

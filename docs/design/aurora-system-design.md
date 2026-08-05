@@ -5,8 +5,8 @@
 | **Status** | Draft (implementation-ready) |
 | **Audience** | Developers, contributors, technical reviewers, maintainers |
 | **Source overview** | `Aurora Lighting Control System.pdf` (High-Level Feature Overview & Architecture) |
-| **Platform** | macOS (native) |
-| **Stack** | Swift 5.9+, SwiftUI + AppKit, CoreMIDI, SPM/Xcode modules |
+| **Platform** | macOS (native host); stage companion via web (iPad Safari) then optional native iPad |
+| **Stack** | Swift 5.9+, SwiftUI + AppKit, CoreMIDI, SPM/Xcode modules; remote web UI over LAN |
 | **Scope** | Full system as specified; delivery is incremental via PR plan |
 
 ---
@@ -56,38 +56,44 @@ Aurora should feel like a modern professional creative application (Logic / Fina
 | KD13 | Default engine rate | 40 Hz (25 ms), configurable 20–44 Hz | Balance smoothness vs CPU; measurable |
 | KD14 | Fixture definitions | Custom JSON personality format first; import adapters later | Ship seed library quickly; GDTF/OFL as PR-level work |
 | KD15 | Dual host workflow | Plan/design on Linux OK; implement & verify on macOS only | Matches team setup; product is macOS-native; see `docs/development-workflow.md` |
+| KD16 | Stage remote companion | Shared remote protocol; **web client first** (iPad Safari); native iPad later; **LAN + PIN**; **live-ops v1** | Off-stage Mac, on-stage control; volunteers need zero install; same control plane as desktop UI |
 
 ---
 
 ## 3. High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Aurora UI (SwiftUI + AppKit)                               │
-│  Workspace | Patch | Cue | Programmer | Song | Monitoring   │
-└────────────────────────────┬────────────────────────────────┘
-                             │ commands / observations
-┌────────────────────────────▼────────────────────────────────┐
-│  Application Core                                           │
-│  Project Manager | Command System | Undo | Selection | Prefs│
-└────────────────────────────┬────────────────────────────────┘
+┌──────────────────────────────┐     ┌─────────────────────────────┐
+│  Aurora UI (SwiftUI+AppKit)  │     │  Stage companion            │
+│  Workspace | Patch | Cue …   │     │  Web (v1) / native iPad later│
+└──────────────┬───────────────┘     └──────────────┬──────────────┘
+               │ commands / snapshots                 │ remote protocol
+               │                                      │ (WebSocket + auth)
+               └──────────────────┬───────────────────┘
+                                  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Application Core (+ AuroraRemote session bridge)               │
+│  Project Manager | Commands | Undo | Selection | Prefs | Events │
+└────────────────────────────┬────────────────────────────────────┘
                              │ model events / engine control
-┌────────────────────────────▼────────────────────────────────┐
-│  Lighting Engine                                            │
-│  Cue Engine | Effect Engine | Playback | Programmer | Sched │
-└────────────────────────────┬────────────────────────────────┘
+┌────────────────────────────▼────────────────────────────────────┐
+│  Lighting Engine                                                │
+│  Cue | Effect | Playback | Programmer | Scheduler               │
+└────────────────────────────┬────────────────────────────────────┘
                              │ channel frames
-┌────────────────────────────▼────────────────────────────────┐
-│  Output Layer                                               │
-│  DMX | MIDI | RTP-MIDI | Future Art-Net | sACN | OSC        │
-└─────────────────────────────────────────────────────────────┘
+┌────────────────────────────▼────────────────────────────────────┐
+│  Output Layer                                                   │
+│  DMX | MIDI | RTP-MIDI | Future Art-Net | sACN | OSC            │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 **Control path (never bypassed):**
 
 ```
-User → UI → Application Model (commands) → Lighting Engine → Output Drivers → Hardware
+User (Mac UI or remote companion) → Application Core (commands) → Lighting Engine → Output Drivers → Hardware
 ```
+
+Remote clients **never** talk to Output or the engine scheduler directly. See [`remote-companion.md`](./remote-companion.md).
 
 ### 3.1 Architectural principles
 
@@ -111,6 +117,9 @@ User → UI → Application Model (commands) → Lighting Engine → Output Driv
 | `AuroraOutput` | Library | DMX buffers, `OutputDriver`, mock/null drivers; future Art-Net/sACN |
 | `AuroraFixtureLib` | Library | Manufacturers, personalities, channel layouts, seed data |
 | `AuroraDiagnostics` | Library | Logging, metrics, monitor data sources |
+| `AuroraRemote` | Library | LAN remote sessions, auth/PIN, protocol codec, command bridge, snapshot fan-out |
+| Remote web assets | Resources (with app / remote host) | Static live-ops web UI served to iPad Safari |
+| `AuroraPad` (later) | iPad app | Native companion speaking the same remote protocol |
 
 Dependency direction (allowed):
 
@@ -122,9 +131,11 @@ App → UI → Core → Model
        MIDI → Core/Engine (events in; no UI)
        FixtureLib → Model
        Diagnostics → Core/Engine/MIDI/Output (observe only)
+       Remote → Core, Model   (commands + events; no Output/MIDI drivers)
+       App → Remote           (host server lifecycle, Bonjour, QR panel)
 ```
 
-UI must not depend on Output or MIDI implementations directly.
+UI must not depend on Output or MIDI implementations directly. Remote must not depend on Output or MIDI implementations directly.
 
 ---
 
@@ -223,9 +234,23 @@ Unlimited undo/redo; transaction grouping; persistent history for the editing se
 
 Extension points for protocols, import/export, effect generators, fixture libraries, scripting, hardware integrations.
 
-### 4.16 Future expansion (do not block)
+### 4.16 Remote / stage companion
 
-Multi-user collaboration; remote programming; tablet companions; timeline-based programming; timecode; audio analysis; AI-assisted cue generation; visualizer; pixel mapping; video sync; plugin marketplace.
+**Goal:** Mac runs Aurora **off stage** (show computer + DMX/MIDI I/O). Operators **monitor and manage live playback from stage** on an iPad.
+
+| Aspect | v1 decision |
+|--------|-------------|
+| Client | **Web companion** first (iPad Safari / home-screen web app); **native iPad app later** on the same protocol |
+| Network | **Venue LAN only** — Bonjour discovery, optional QR; **no cloud** in v1 |
+| Auth | Remote **off by default**; **PIN** required when enabled; Mac is master (kick, lock, role) |
+| Scope | **Live ops** — GO/Stop/Back/Next, fire cues, song progress, lite programmer, monitors |
+| Non-goals v1 | Full patch/cue authoring parity; internet remote; multi-user document co-editing |
+
+Full protocol, roles, and PR breakdown: [`remote-companion.md`](./remote-companion.md).
+
+### 4.17 Future expansion (do not block)
+
+Multi-user collaboration; deep remote programming; timeline-based programming; timecode; audio analysis; AI-assisted cue generation; visualizer; pixel mapping; video sync; plugin marketplace; cloud/VPN remote (beyond LAN).
 
 ---
 
@@ -375,8 +400,13 @@ Typed events (examples):
 - `projectModified`  
 - `selectionChanged`  
 - `engineFramePublished` (throttled for UI)  
+- `remoteClientJoined` / `remoteClientLeft` / `remoteSessionLocked`  
 
-Subscribers: UI panels, diagnostics, optional future plugins. Delivery on appropriate queues (UI on main; engine never waits on UI).
+Subscribers: UI panels, diagnostics, **remote session bridge**, optional future plugins. Delivery on appropriate queues (UI on main; engine never waits on UI or remote sockets).
+
+### 6.2.1 Remote as a command source
+
+`AuroraRemote` translates authorized companion messages into the **same** live-action / command entry points used by the Mac UI (Go, Stop, FireCue, programmer sets, etc.). Structural edit commands that are unsafe for stage (delete fixtures, re-patch) are **not** exposed on the remote protocol in v1.
 
 ### 6.3 Selection manager
 
@@ -598,6 +628,8 @@ No hardware required for CI.
 ## 14. Security & Reliability Notes
 
 - Network protocols (Art-Net/sACN/RTP-MIDI): bind intentionally; document port usage.  
+- **Remote companion:** bind to **private/LAN interfaces only** by default; disabled until operator enables; **PIN** (and session tokens) required; role separation (Viewer / Operator); Mac kill switch; rate-limit commands; never expose raw DMX injection APIs to remotes.  
+- Prefer documenting HTTP-on-LAN risk for v1; revisit TLS / pairing certs if venues require it.  
 - No force-unwrap on engine/output paths.  
 - Crash recovery: autosaved package + clear restore UX.  
 - Show file from untrusted source: parse safely (size limits, schema validation).
@@ -617,6 +649,9 @@ Recommended defaults are marked; change before implementation if product owners 
 | OQ5 | Single vs multi-window? | Single main document window + optional undocked panels/windows |
 | OQ6 | License? | TBD by owner (affects plugin distribution) |
 | OQ7 | Min macOS? | 14.0 |
+| OQ8 | Multi-operator remote conflict? | Last-writer for live ops attributes; Mac can lock remote to Viewer; presence list on Mac |
+| OQ9 | Remote selection model? | Mac selection is source of truth in v1; remote may request select-by-group |
+| OQ10 | Web UI tech (SPA framework)? | Decide at PR32; keep host static-file + WebSocket simple |
 
 ---
 
@@ -633,7 +668,8 @@ Recommended defaults are marked; change before implementation if product owners 
 | Layered architecture diagram | §3 |
 | Modular / event / command / separation | §3.1, §6 |
 | Performance goals | §7.8 |
-| Future expansion | §4.16 |
+| Future expansion | §4.17 |
+| Stage / tablet companion | §4.16, [`remote-companion.md`](./remote-companion.md) |
 | Guiding philosophy | §1.4 |
 
 ---
@@ -707,6 +743,17 @@ Incremental, independently reviewable pull requests. Later PRs assume earlier on
 | **PR29** | Plugin architecture skeleton | Core interfaces | Mature APIs | Extension points for protocols/effects/libs |
 | **PR30** | Performance hardening | Engine / CI | PR10–11 | Benchmarks, latency budgets, scale tests |
 
+### Phase H — Stage remote companion
+
+Does **not** block live-capable core (PR1–PR24). Implement after Core commands/events and cue playback exist. Detail: [`remote-companion.md`](./remote-companion.md).
+
+| PR | Title | Components | Depends | Description |
+|----|-------|------------|---------|-------------|
+| **PR31** | Remote protocol & session core | `AuroraRemote` | PR3–4, PR10–11 | Auth/PIN, WebSocket server skeleton, command bridge, throttled snapshots, protocol version |
+| **PR32** | Web companion (live ops) | Remote web assets, App UI | PR31, PR12, PR19 | Bonjour + QR, touch transport/cue/song/monitors, lite programmer |
+| **PR33** | Remote hardening | Remote / App | PR32 | Roles, lock/kill switch, multi-client limits, reconnect, security tests |
+| **PR34** | Native iPad companion (optional) | `AuroraPad` | PR31–33 | SwiftUI client on same protocol; distribution TBD |
+
 ### Dependency sketch
 
 ```
@@ -715,9 +762,10 @@ PR1 → PR2 → PR3 / PR4
 PR1 → PR7 → PR8, PR12, …
 PR2 → PR9 → PR10 → PR11 → PR12 / PR13 / PR21 / PR22
 PR1 → PR16 → PR17 / PR18
+PR3/4 + PR10/11 (+ PR12/19) → PR31 → PR32 → PR33 → PR34
 ```
 
-**Live-capable core** is approximately **PR1–PR24** (through diagnostics). PR25–PR29 are full-system / future protocol work still in scope for the product architecture.
+**Live-capable core** is approximately **PR1–PR24** (through diagnostics). PR25–PR30 are full-system / protocol / polish work. **PR31–PR34** add off-stage Mac + on-stage iPad remote without a second engine.
 
 ---
 
@@ -757,3 +805,4 @@ Engine, MIDI, and docking remain stubs until their PRs.
 | 0.2 | 2026-08-04 | PR1 scaffold landed; link to `pr1-project-scaffold.md`; §18 updated |
 | 0.3 | 2026-08-04 | KD15 dual host workflow (Linux plan / macOS dev); `docs/development-workflow.md` |
 | 0.4 | 2026-08-04 | PR2 domain model & package format; link to `pr2-domain-model.md` |
+| 0.5 | 2026-08-04 | KD16 stage remote companion (web first, native later); §4.16; Phase H PR31–34; `remote-companion.md` |
