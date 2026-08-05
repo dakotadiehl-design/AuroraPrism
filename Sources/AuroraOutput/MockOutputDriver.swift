@@ -1,3 +1,4 @@
+import AuroraModel
 import Foundation
 
 public struct CapturedFrame: Equatable, Sendable {
@@ -16,13 +17,19 @@ public struct CapturedFrame: Equatable, Sendable {
 public final class MockOutputDriver: OutputDriver, @unchecked Sendable {
     public let id: UUID
     public let name: String
+    public let outputProtocol: UniverseProtocolHint
     public private(set) var isRunning = false
     public private(set) var frames: [CapturedFrame] = []
     private let lock = NSLock()
 
-    public init(id: UUID = UUID(), name: String = "Mock") {
+    public init(
+        id: UUID = UUID(),
+        name: String = "Mock",
+        outputProtocol: UniverseProtocolHint = .none
+    ) {
         self.id = id
         self.name = name
+        self.outputProtocol = outputProtocol
     }
 
     public func start() throws {

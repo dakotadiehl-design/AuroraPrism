@@ -33,6 +33,7 @@ let package = Package(
         ),
         .target(
             name: "AuroraOutput",
+            dependencies: ["AuroraModel"],
             linkerSettings: [
                 .linkedFramework("Network"),
             ]

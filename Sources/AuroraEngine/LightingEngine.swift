@@ -13,6 +13,8 @@ public final class LightingEngine: @unchecked Sendable {
     private var project: ShowProject = .empty(name: "Engine")
     /// Immutable runtime indexes + channel write plans (P1-12).
     private var compiledShow: CompiledShow = .empty
+    /// Cached validation issues (P1-11) — not recomputed on the 40 Hz path.
+    private var cachedResolutionIssues: [ResolutionIssue] = []
     private var manualLook: ActiveLook?
     private var frameIndex: UInt64 = 0
     private var snapshot = EngineFrameSnapshot.idle
@@ -65,9 +67,11 @@ public final class LightingEngine: @unchecked Sendable {
     /// Use for New / Open / replacing the entire document.
     public func load(project: ShowProject) {
         let compiled = CompiledShow.compile(project)
+        let issues = ProjectValidator.validate(project).issues
         lock.lock()
         self.project = project
         self.compiledShow = compiled
+        self.cachedResolutionIssues = issues
         lock.unlock()
 
         reconcileOutputUniverses(for: project)
@@ -84,13 +88,22 @@ public final class LightingEngine: @unchecked Sendable {
     /// Use for ordinary document edits (rename, MIDI map, notes, unrelated cues).
     public func updateProject(_ project: ShowProject) {
         let compiled = CompiledShow.compile(project)
+        let issues = ProjectValidator.validate(project).issues
         lock.lock()
         self.project = project
         self.compiledShow = compiled
+        self.cachedResolutionIssues = issues
         lock.unlock()
 
         reconcileOutputUniverses(for: project)
         playback.updateProject(project)
+    }
+
+    /// Last validation snapshot from load/update (not frame-rate revalidated).
+    public var resolutionIssues: [ResolutionIssue] {
+        lock.lock()
+        defer { lock.unlock() }
+        return cachedResolutionIssues
     }
 
     private func reconcileOutputUniverses(for project: ShowProject) {
@@ -99,6 +112,7 @@ public final class LightingEngine: @unchecked Sendable {
         for universe in project.universes {
             output.ensureUniverse(universe.number, channelCount: Int(universe.channelCount))
         }
+        output.setUniverseRoutes(from: project.universes)
     }
 
     /// Optional override look (tests). When set, ignores playback until cleared.
@@ -171,6 +185,7 @@ public final class LightingEngine: @unchecked Sendable {
         lock.lock()
         let project = self.project
         let compiled = self.compiledShow
+        let cachedIssues = self.cachedResolutionIssues
         let manual = self.manualLook
         let config = self.configuration
         frameIndex &+= 1
@@ -213,8 +228,7 @@ public final class LightingEngine: @unchecked Sendable {
         }
 
         if shouldPublish {
-            // Surface project reference issues without blocking output (P1-11).
-            let issues = project.validateReferences()
+            // Use cached validation — never re-scan project on the frame path (P1-11).
             let snap = EngineFrameSnapshot(
                 frameIndex: index,
                 time: time,
@@ -222,7 +236,7 @@ public final class LightingEngine: @unchecked Sendable {
                 universeLevels: levels,
                 isRunning: running || publishSnapshotAlways,
                 playback: playbackSnap,
-                resolutionIssues: issues
+                resolutionIssues: cachedIssues
             )
             lock.lock()
             snapshot = snap

@@ -1,14 +1,32 @@
+import AuroraModel
 import Foundation
 
 /// Owns per-universe DMX buffers and fans frames out to registered drivers.
 public final class OutputManager: @unchecked Sendable {
     private var buffers: [UInt16: DMXBuffer] = [:]
     private var drivers: [UUID: OutputDriver] = [:]
+    /// Show universe number → protocol route (P1-10).
+    private var routes: [UInt16: UniverseProtocolHint] = [:]
     private let lock = NSLock()
     private let defaultChannelCount: Int
 
     public init(defaultChannelCount: Int = 512) {
         self.defaultChannelCount = defaultChannelCount
+    }
+
+    /// Configure per-universe output routing from the show model.
+    public func setUniverseRoutes(_ routes: [UInt16: UniverseProtocolHint]) {
+        lock.lock()
+        self.routes = routes
+        lock.unlock()
+    }
+
+    public func setUniverseRoutes(from projectUniverses: [Universe]) {
+        var map: [UInt16: UniverseProtocolHint] = [:]
+        for universe in projectUniverses {
+            map[universe.number] = universe.protocolHint
+        }
+        setUniverseRoutes(map)
     }
 
     public func register(_ driver: OutputDriver) {
@@ -96,13 +114,32 @@ public final class OutputManager: @unchecked Sendable {
             return
         }
         let channels = buffer.channels
+        let route = routes[universe] ?? .none
         let activeDrivers = drivers.values.filter(\.isRunning)
         lock.unlock()
 
         channels.withUnsafeBufferPointer { ptr in
-            for driver in activeDrivers {
+            for driver in activeDrivers where Self.driver(driver, accepts: route) {
                 driver.send(universe: universe, dmx: ptr)
             }
+        }
+    }
+
+    /// Route filter: `.none` → all drivers (legacy); typed hints → matching protocol only.
+    /// Mock drivers with `.none` still receive all routes (tests / monitoring).
+    public static func driver(_ driver: OutputDriver, accepts route: UniverseProtocolHint) -> Bool {
+        if driver.outputProtocol == .none {
+            return true
+        }
+        switch route {
+        case .none:
+            return true
+        case .local:
+            return driver.outputProtocol == .local
+        case .artNet:
+            return driver.outputProtocol == .artNet
+        case .sACN:
+            return driver.outputProtocol == .sACN
         }
     }
 

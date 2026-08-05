@@ -1,9 +1,11 @@
+import AuroraModel
 import Foundation
 
 /// Discards all frames (offline / headless).
 public final class NullOutputDriver: OutputDriver, @unchecked Sendable {
     public let id: UUID
     public let name: String
+    public let outputProtocol: UniverseProtocolHint = .local
     public private(set) var isRunning = false
 
     public init(id: UUID = UUID(), name: String = "Null") {

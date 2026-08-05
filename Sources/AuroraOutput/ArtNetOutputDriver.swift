@@ -1,3 +1,4 @@
+import AuroraModel
 import Foundation
 import Network
 
@@ -5,6 +6,7 @@ import Network
 public final class ArtNetOutputDriver: OutputDriver, @unchecked Sendable {
     public let id: UUID
     public let name: String
+    public let outputProtocol: UniverseProtocolHint = .artNet
     public private(set) var isRunning = false
 
     private var config: ArtNetConfig
