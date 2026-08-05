@@ -231,6 +231,14 @@ Single `@MainActor` `AppModel` owns:
 | 33 | Remote hardening (rate limit, kick, lock) |
 | 34 | RemoteProtocolClient scaffold (no iOS app target) |
 
+### Code-review fixes (2026-08-05)
+
+See `Aurora_Deep_Code_Review_Fixes.md`. Landed:
+
+- **P0:** atomic package save + media preserve; dirty generation/`markSaved`; New/Open/Quit guard; universe blackout on remove; cue-only preserves prior look  
+- **P1:** MIDI off-MainActor router + source IDs; remote random PIN/auth rate limit/tokens; presets UI; palette type checks; resolution issues on snapshot  
+- **P2 (partial):** DiagnosticsStore; HTTP body limits; lifetime max metric naming; `startAll` rollback; remove global `.id(revision)`  
+
 ### Intentionally incomplete / follow-ups
 
 | Item | Notes |
@@ -240,6 +248,9 @@ Single `@MainActor` `AppModel` owns:
 | Native iPad app binary | PR34 is protocol client only; package stays macOS-only |
 | TLS for remote | LAN HTTP/TCP cleartext; venue network assumed |
 | Dynamic plugin dylibs | PR29 in-process only |
+| AppModel full split (P1-8) | Still a coordinator; extract controllers in UI phase |
+| 2k-fixture scale bench (P2-3) | Smoke scale remains 200 fixtures |
+| Persistent effect definitions (P1-12) | Runtime-only effects still |
 
 ### Known gaps / incomplete polish
 
