@@ -86,25 +86,97 @@ public final class Programmer: @unchecked Sendable {
         lock.unlock()
     }
 
+    /// Home: apply personality default/home values from the compiled show (P1-2).
+    public func home(fixtureIDs: Set<UUID>, compiled: CompiledShow) {
+        lock.lock()
+        for id in fixtureIDs {
+            if let fixture = compiled.fixtures.first(where: { $0.id == id }) {
+                state.values[id] = fixture.homeValues
+            } else {
+                state.values[id] = nil
+            }
+        }
+        lock.unlock()
+    }
+
+    /// Convenience: compile project then home.
+    public func home(fixtureIDs: Set<UUID>, project: ShowProject) {
+        home(fixtureIDs: fixtureIDs, compiled: .compile(project))
+    }
+
+    /// Legacy clear-only home (no personality defaults). Prefer `home(fixtureIDs:compiled:)`.
     public func home(fixtureIDs: Set<UUID>) {
         clear(fixtureIDs: fixtureIDs)
     }
 
-    /// Locate: intensity full, pan/tilt center when those attributes exist on the definition.
-    public func locate(fixtureIDs: Set<UUID>, project: ShowProject) {
+    /// Locate: personality highlight for beam/color + centered pan/tilt when present (P1-2).
+    public func locate(fixtureIDs: Set<UUID>, compiled: CompiledShow) {
         lock.lock()
         for id in fixtureIDs {
-            guard let fixture = project.fixtures.first(where: { $0.id == id }),
-                  let definition = project.definition(id: fixture.definitionId)
-            else { continue }
-            var attrs = state.values[id] ?? [:]
-            let tags = Set(definition.channels.map(\.attribute))
-            if tags.contains("intensity") { attrs["intensity"] = 1 }
-            if tags.contains("pan") { attrs["pan"] = 0.5 }
-            if tags.contains("tilt") { attrs["tilt"] = 0.5 }
+            guard let fixture = compiled.fixtures.first(where: { $0.id == id }) else { continue }
+            var attrs = fixture.homeValues
+            let attrsPresent = Set(fixture.attributeWrites.map(\.attribute))
+            for (attribute, value) in fixture.highlightValues {
+                if attribute == "intensity"
+                    || attribute == "shutter"
+                    || attribute.hasPrefix("color")
+                    || attribute == "iris"
+                    || attribute == "zoom"
+                    || attribute == "focus" {
+                    attrs[attribute] = value
+                }
+            }
+            if attrsPresent.contains("pan") { attrs["pan"] = 0.5 }
+            if attrsPresent.contains("tilt") { attrs["tilt"] = 0.5 }
+            // Ensure intensity is open if personality has it but no highlight entry.
+            if attrsPresent.contains("intensity"), attrs["intensity"] == nil {
+                attrs["intensity"] = 1
+            }
             state.values[id] = attrs
         }
         lock.unlock()
+    }
+
+    public func locate(fixtureIDs: Set<UUID>, project: ShowProject) {
+        locate(fixtureIDs: fixtureIDs, compiled: .compile(project))
+    }
+
+    /// Set a wheel attribute from a personality slot's DMX value (normalized 0…1).
+    @discardableResult
+    public func setWheelSlot(
+        fixtureID: UUID,
+        wheelKind: WheelKind,
+        slotIndex: UInt16,
+        project: ShowProject
+    ) -> Bool {
+        guard let fixture = project.fixtures.first(where: { $0.id == fixtureID }),
+              let definition = project.definition(id: fixture.definitionId),
+              let wheel = definition.wheels.first(where: { $0.kind == wheelKind }),
+              let slot = wheel.slots.first(where: { $0.index == slotIndex }),
+              let dmx = slot.dmxValue
+        else { return false }
+
+        // Prefer a channel whose name/attribute matches the wheel; fall back to common tags.
+        let attribute = Self.wheelAttributeName(wheel: wheel, definition: definition)
+        set(fixtureID: fixtureID, attribute: attribute, value: Double(dmx) / 255.0)
+        return true
+    }
+
+    private static func wheelAttributeName(wheel: WheelDef, definition: FixtureDefinition) -> String {
+        let candidates = [
+            wheel.name.lowercased(),
+            wheel.kind == .color ? "colorWheel" : "goboWheel",
+            wheel.kind == .color ? "color" : "gobo",
+        ]
+        for channel in definition.channels {
+            let attr = channel.attribute.lowercased()
+            let name = channel.name.lowercased()
+            if candidates.contains(where: { attr.contains($0) || name.contains($0) }) {
+                return channel.attribute
+            }
+        }
+        // Last resort: first control-like channel or synthetic attribute from wheel name.
+        return wheel.kind == .color ? "colorWheel" : "goboWheel"
     }
 
     public func captureLevels() -> CueLevelData {
@@ -116,15 +188,18 @@ public final class Programmer: @unchecked Sendable {
 
     /// Applies programmer (and highlight) on top of a playback look for output.
     public func apply(onPlayback playback: ActiveLook, project: ShowProject) -> ActiveLook {
+        apply(onPlayback: playback, compiled: .compile(project))
+    }
+
+    public func apply(onPlayback playback: ActiveLook, compiled: CompiledShow) -> ActiveLook {
         lock.lock()
         let state = self.state
         lock.unlock()
 
         if state.isBlind {
-            // Still allow highlight to affect output while blind? Spec: blind = programmer does not hit output.
-            // Highlight is separate override above programmer — apply highlight only if on.
+            // Blind: programmer does not hit output. Highlight may still apply.
             if state.isHighlight {
-                return applyHighlight(on: playback, selection: state.highlightSelection, project: project)
+                return applyHighlight(on: playback, selection: state.highlightSelection, compiled: compiled)
             }
             return playback
         }
@@ -139,24 +214,33 @@ public final class Programmer: @unchecked Sendable {
         }
 
         if state.isHighlight {
-            look = applyHighlight(on: look, selection: state.highlightSelection, project: project)
+            look = applyHighlight(on: look, selection: state.highlightSelection, compiled: compiled)
         }
         return look
     }
 
-    private func applyHighlight(on look: ActiveLook, selection: Set<UUID>, project: ShowProject) -> ActiveLook {
+    private func applyHighlight(
+        on look: ActiveLook,
+        selection: Set<UUID>,
+        compiled: CompiledShow
+    ) -> ActiveLook {
         var result = look
         for id in selection {
-            guard let fixture = project.fixtures.first(where: { $0.id == id }),
-                  let definition = project.definition(id: fixture.definitionId)
-            else { continue }
+            guard let fixture = compiled.fixtures.first(where: { $0.id == id }) else { continue }
             var attrs = result.fixtureAttributes[id] ?? [:]
-            let tags = Set(definition.channels.map(\.attribute))
-            if tags.contains("intensity") { attrs["intensity"] = 1 }
-            if tags.contains("colorR") { attrs["colorR"] = 1 }
-            if tags.contains("colorG") { attrs["colorG"] = 1 }
-            if tags.contains("colorB") { attrs["colorB"] = 1 }
-            if tags.contains("colorW") { attrs["colorW"] = 1 }
+            // Personality highlight values (P1-2); fall back to full open for common beam attrs.
+            if fixture.highlightValues.isEmpty {
+                let tags = Set(fixture.attributeWrites.map(\.attribute))
+                if tags.contains("intensity") { attrs["intensity"] = 1 }
+                if tags.contains("colorR") { attrs["colorR"] = 1 }
+                if tags.contains("colorG") { attrs["colorG"] = 1 }
+                if tags.contains("colorB") { attrs["colorB"] = 1 }
+                if tags.contains("colorW") { attrs["colorW"] = 1 }
+            } else {
+                for (attribute, value) in fixture.highlightValues {
+                    attrs[attribute] = value
+                }
+            }
             result.fixtureAttributes[id] = attrs
         }
         return result

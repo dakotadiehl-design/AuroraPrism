@@ -187,7 +187,7 @@ public final class LightingEngine: @unchecked Sendable {
         }
         // Layer order: playback → effects → programmer (§7.3 / PR22).
         let effectedLook = effects.apply(on: playbackLook, time: time)
-        let look = programmer.apply(onPlayback: effectedLook, project: project)
+        let look = programmer.apply(onPlayback: effectedLook, compiled: compiled)
         let playbackSnap = playback.snapshot()
 
         let levels = MergeStub.merge(compiled: compiled, look: look, channelCount: config.channelCount)

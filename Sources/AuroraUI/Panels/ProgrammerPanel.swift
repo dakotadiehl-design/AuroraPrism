@@ -119,7 +119,7 @@ public struct ProgrammerPanel: View {
                 onChanged()
             }
             Button("Home") {
-                programmer.home(fixtureIDs: Set(selectedIDs))
+                programmer.home(fixtureIDs: Set(selectedIDs), project: project)
                 loadFromProgrammer()
                 onChanged()
             }
