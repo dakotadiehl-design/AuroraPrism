@@ -24,29 +24,6 @@ public struct ResolutionIssue: Equatable, Sendable, Hashable, Identifiable {
 }
 
 public extension ShowProject {
-    /// Reports broken palette refs and other structural reference issues.
-    func validateReferences() -> [ResolutionIssue] {
-        var issues: [ResolutionIssue] = []
-        let paletteIDs = Set(palettes.map(\.id))
-        for list in cueLists {
-            for cue in list.cues {
-                for fx in cue.levels.fixtures {
-                    for (attr, pid) in fx.paletteRefs {
-                        if !paletteIDs.contains(pid) {
-                            issues.append(ResolutionIssue(
-                                message: "Missing palette \(pid.uuidString) for \(attr)",
-                                cueID: cue.id,
-                                paletteID: pid,
-                                attribute: attr
-                            ))
-                        }
-                    }
-                }
-            }
-        }
-        return issues
-    }
-
     func isPaletteReferenced(_ paletteID: UUID) -> Bool {
         paletteReferenceCount(paletteID) > 0
     }
