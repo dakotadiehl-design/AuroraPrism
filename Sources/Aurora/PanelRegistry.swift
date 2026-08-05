@@ -95,7 +95,10 @@ enum PanelRegistry {
                 EffectsPanel(
                     orderedSelectionFixtureIDs: appModel.session.selection.snapshot.orderedFixtureIDs,
                     effects: appModel.engine.effects,
-                    onChanged: { appModel.bump() }
+                    onChanged: {
+                        appModel.commitEffectsToProject()
+                        appModel.bump()
+                    }
                 )
             )
         case .universeMonitor:

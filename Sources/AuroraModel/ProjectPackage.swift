@@ -25,6 +25,7 @@ public enum ProjectPackageError: Error, Equatable, Sendable {
 ///   songs.json
 ///   media-assets.json
 ///   midi-mappings.json
+///   effects.json      (optional on load for older packages; always written)
 ///   cues/
 ///     <cueListId>.json
 ///   media/          (optional; asset binaries)
@@ -44,6 +45,7 @@ public enum ProjectPackage {
     private static let songsFileName = "songs.json"
     private static let mediaAssetsFileName = "media-assets.json"
     private static let midiMappingsFileName = "midi-mappings.json"
+    private static let effectsFileName = "effects.json"
     private static let cuesDirectoryName = "cues"
 
     // MARK: - JSON coding
@@ -160,6 +162,7 @@ public enum ProjectPackage {
         try writeJSON(projectToWrite.songs, to: destination.appendingPathComponent(songsFileName), encoder: encoder)
         try writeJSON(projectToWrite.mediaAssets, to: destination.appendingPathComponent(mediaAssetsFileName), encoder: encoder)
         try writeJSON(projectToWrite.midiMappings, to: destination.appendingPathComponent(midiMappingsFileName), encoder: encoder)
+        try writeJSON(projectToWrite.effects, to: destination.appendingPathComponent(effectsFileName), encoder: encoder)
 
         let cuesDir = destination.appendingPathComponent(cuesDirectoryName, isDirectory: true)
         for list in projectToWrite.cueLists {
@@ -237,6 +240,10 @@ public enum ProjectPackage {
         let midiMappings: [MIDIMapping] = try readJSONArray(
             url.appendingPathComponent(midiMappingsFileName), decoder: decoder, name: midiMappingsFileName, required: true
         )
+        // Additive: older packages may omit effects.json.
+        let effects: [EffectDefinition] = try readJSONArray(
+            url.appendingPathComponent(effectsFileName), decoder: decoder, name: effectsFileName, required: false
+        )
 
         let cuesDir = url.appendingPathComponent(cuesDirectoryName, isDirectory: true)
         var cueLists: [CueList] = []
@@ -272,6 +279,7 @@ public enum ProjectPackage {
             songs: songs,
             mediaAssets: mediaAssets,
             midiMappings: midiMappings,
+            effects: effects,
             workspaceLayoutId: root.workspaceLayoutId
         )
     }

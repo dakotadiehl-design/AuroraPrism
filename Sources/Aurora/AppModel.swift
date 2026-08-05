@@ -292,6 +292,7 @@ final class AppModel: ObservableObject {
     private func reloadEngine() {
         engine.setLook(nil) // use cue playback, not a static override
         engine.load(project: session.project)
+        engine.effects.load(definitions: session.project.effects)
         controlRouter.updateMappings(session.project.midiMappings, project: session.project)
         controlRouter.updateSelection(session.selection.snapshot.fixtureIDs)
     }
@@ -299,8 +300,22 @@ final class AppModel: ObservableObject {
     /// Non-destructive project push for ordinary document mutations.
     private func applyProjectUpdate() {
         engine.updateProject(session.project)
+        engine.effects.load(definitions: session.project.effects)
         controlRouter.updateMappings(session.project.midiMappings, project: session.project)
         controlRouter.updateSelection(session.selection.snapshot.fixtureIDs)
+    }
+
+    /// Persist current live effects into the show document (undoable).
+    func commitEffectsToProject() {
+        let definitions = engine.effects.exportDefinitions()
+        do {
+            try session.perform(SetEffectsCommand(effects: definitions))
+            // applyProjectUpdate runs via projectModified; avoid double-load flicker.
+            statusMessage = "Effects updated (\(definitions.count))"
+            bump()
+        } catch {
+            presentError(error, title: "Effects Update Failed")
+        }
     }
 
     func go() {

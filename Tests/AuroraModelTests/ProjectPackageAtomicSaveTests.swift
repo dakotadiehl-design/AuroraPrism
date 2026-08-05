@@ -97,6 +97,32 @@ final class ProjectPackageAtomicSaveTests: XCTestCase {
         )
     }
 
+    func testEffectsRoundTripOnSaveLoad() throws {
+        let packageURL = tempRoot.appendingPathComponent("Fx.aurora", isDirectory: true)
+        var project = ShowProject.empty(name: "Fx")
+        let fxID = UUID()
+        let fixID = UUID()
+        project.effects = [
+            EffectDefinition(
+                id: fxID,
+                name: "Pulse 1",
+                kind: "pulse",
+                rateHz: 2,
+                size: 0.4,
+                fixtureIDs: [fixID],
+                order: 3,
+                enabled: true
+            )
+        ]
+        try ProjectPackage.save(project, to: packageURL)
+        let loaded = try ProjectPackage.load(from: packageURL)
+        XCTAssertEqual(loaded.effects.count, 1)
+        XCTAssertEqual(loaded.effects[0].id, fxID)
+        XCTAssertEqual(loaded.effects[0].order, 3)
+        XCTAssertEqual(loaded.effects[0].fixtureIDs, [fixID])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: packageURL.appendingPathComponent("effects.json").path))
+    }
+
     func testNoTempLeftoversAfterSave() throws {
         let packageURL = tempRoot.appendingPathComponent("Safe.aurora", isDirectory: true)
         var project = ShowProject.empty(name: "Original")

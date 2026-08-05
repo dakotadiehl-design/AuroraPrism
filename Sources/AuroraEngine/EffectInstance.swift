@@ -1,8 +1,7 @@
+import AuroraModel
 import Foundation
 
-/// A live effect applied above playback and below the programmer (PR22).
-///
-/// Runtime-only in v1 — not yet persisted on the show document.
+/// A live effect applied above playback and below the programmer (PR22 / P1-4).
 public struct EffectInstance: Equatable, Sendable, Identifiable, Hashable {
     public var id: UUID
     public var name: String
@@ -19,6 +18,8 @@ public struct EffectInstance: Equatable, Sendable, Identifiable, Hashable {
     public var attribute: String
     /// Ordered fixture participation (chase / wave phase order).
     public var fixtureIDs: [UUID]
+    /// Explicit apply order (lower first). Not UUID sort.
+    public var order: Int
     public var enabled: Bool
 
     public init(
@@ -31,6 +32,7 @@ public struct EffectInstance: Equatable, Sendable, Identifiable, Hashable {
         spread: Double = 0,
         attribute: String = "intensity",
         fixtureIDs: [UUID] = [],
+        order: Int = 0,
         enabled: Bool = true
     ) {
         self.id = id
@@ -42,6 +44,37 @@ public struct EffectInstance: Equatable, Sendable, Identifiable, Hashable {
         self.spread = spread
         self.attribute = attribute
         self.fixtureIDs = fixtureIDs
+        self.order = order
         self.enabled = enabled
+    }
+
+    public init(definition: EffectDefinition) {
+        self.id = definition.id
+        self.name = definition.name
+        self.kind = EffectKind(rawValue: definition.kind) ?? .pulse
+        self.rateHz = definition.rateHz
+        self.size = definition.size
+        self.phase = definition.phase
+        self.spread = definition.spread
+        self.attribute = definition.attribute
+        self.fixtureIDs = definition.fixtureIDs
+        self.order = definition.order
+        self.enabled = definition.enabled
+    }
+
+    public func asDefinition() -> EffectDefinition {
+        EffectDefinition(
+            id: id,
+            name: name,
+            kind: kind.rawValue,
+            rateHz: rateHz,
+            size: size,
+            phase: phase,
+            spread: spread,
+            attribute: attribute,
+            fixtureIDs: fixtureIDs,
+            order: order,
+            enabled: enabled
+        )
     }
 }

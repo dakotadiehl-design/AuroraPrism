@@ -15,6 +15,8 @@ public struct ShowProject: Codable, Equatable, Sendable {
     public var songs: [Song]
     public var mediaAssets: [MediaAssetRef]
     public var midiMappings: [MIDIMapping]
+    /// Durable effect definitions (P1-4); order field defines apply stack.
+    public var effects: [EffectDefinition]
     public var workspaceLayoutId: UUID?
 
     public init(
@@ -31,6 +33,7 @@ public struct ShowProject: Codable, Equatable, Sendable {
         songs: [Song] = [],
         mediaAssets: [MediaAssetRef] = [],
         midiMappings: [MIDIMapping] = [],
+        effects: [EffectDefinition] = [],
         workspaceLayoutId: UUID? = nil
     ) {
         self.schemaVersion = schemaVersion
@@ -46,6 +49,7 @@ public struct ShowProject: Codable, Equatable, Sendable {
         self.songs = songs
         self.mediaAssets = mediaAssets
         self.midiMappings = midiMappings
+        self.effects = effects
         self.workspaceLayoutId = workspaceLayoutId
     }
 

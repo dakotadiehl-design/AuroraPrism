@@ -129,6 +129,54 @@ final class EffectRunnerTests: XCTestCase {
         XCTAssertEqual(runner.snapshot().count, 0)
     }
 
+    func testExplicitOrderNotUUIDOrder() {
+        let lowID = UUID(uuidString: "ffffffff-ffff-4fff-8fff-ffffffffffff")!
+        let highID = UUID(uuidString: "00000000-0000-4000-8000-000000000001")!
+        let later = EffectInstance(id: lowID, name: "Later", fixtureIDs: [f1], order: 10)
+        let earlier = EffectInstance(id: highID, name: "Earlier", fixtureIDs: [f1], order: 1)
+        let runner = EffectRunner()
+        runner.upsert(later)
+        runner.upsert(earlier)
+        XCTAssertEqual(runner.snapshot().map(\.name), ["Earlier", "Later"])
+    }
+
+    func testLoadExportDefinitionsRoundTrip() {
+        let defs = [
+            EffectDefinition(name: "P", kind: "pulse", fixtureIDs: [f1], order: 0),
+            EffectDefinition(name: "C", kind: "chase", fixtureIDs: [f2, f1], order: 1, enabled: false),
+        ]
+        let runner = EffectRunner()
+        runner.load(definitions: defs)
+        let exported = runner.exportDefinitions()
+        XCTAssertEqual(exported.map(\.name), ["P", "C"])
+        XCTAssertEqual(exported[1].fixtureIDs, [f2, f1])
+        XCTAssertFalse(exported[1].enabled)
+    }
+
+    func testApplyRespectsOrderNotUUID() {
+        // Two chases: lower order writes first, higher order overwrites on same fixture.
+        let a = EffectInstance(
+            id: UUID(uuidString: "ffffffff-ffff-4fff-8fff-ffffffffffff")!,
+            kind: .chase,
+            rateHz: 0,
+            size: 0.25,
+            attribute: "intensity",
+            fixtureIDs: [f1],
+            order: 0
+        )
+        let b = EffectInstance(
+            id: UUID(uuidString: "00000000-0000-4000-8000-000000000099")!,
+            kind: .chase,
+            rateHz: 0,
+            size: 0.75,
+            attribute: "intensity",
+            fixtureIDs: [f1],
+            order: 1
+        )
+        let out = EffectRunner.apply(look: .empty, time: 0, effects: [a, b])
+        XCTAssertEqual(out.fixtureAttributes[f1]?["intensity"], 0.75)
+    }
+
     // MARK: - Engine layer order: effects under programmer
 
     func testEngineEffectsUnderProgrammer() {

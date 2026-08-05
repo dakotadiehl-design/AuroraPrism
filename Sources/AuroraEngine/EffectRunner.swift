@@ -1,16 +1,27 @@
+import AuroraModel
 import Foundation
 
-/// Owns live effect instances and applies them to an `ActiveLook` (PR22).
+/// Owns live effect instances and applies them to an `ActiveLook` (PR22 / P1-4).
 ///
-/// Thread-safe for engine tick + main-thread control. Apply is pure given a snapshot of instances.
+/// Thread-safe for engine tick + main-thread control. Apply order is explicit
+/// `EffectInstance.order` (not UUID).
 public final class EffectRunner: @unchecked Sendable {
     private let lock = NSLock()
     private var effects: [UUID: EffectInstance] = [:]
+    private var nextOrder: Int = 0
 
     public init() {}
 
     public func upsert(_ effect: EffectInstance) {
         lock.lock()
+        var effect = effect
+        if effects[effect.id] == nil {
+            // New effect: append to end of stack when order left at default 0 and stack non-empty.
+            if effect.order == 0, let maxOrder = effects.values.map(\.order).max() {
+                effect.order = maxOrder + 1
+            }
+            nextOrder = max(nextOrder, effect.order + 1)
+        }
         effects[effect.id] = effect
         lock.unlock()
     }
@@ -24,6 +35,7 @@ public final class EffectRunner: @unchecked Sendable {
     public func clear() {
         lock.lock()
         effects.removeAll()
+        nextOrder = 0
         lock.unlock()
     }
 
@@ -36,11 +48,30 @@ public final class EffectRunner: @unchecked Sendable {
         lock.unlock()
     }
 
-    /// Stable ordered snapshot (by insertion is not guaranteed; sorted by id for determinism).
+    /// Replace runtime set from durable project definitions.
+    public func load(definitions: [EffectDefinition]) {
+        lock.lock()
+        effects = Dictionary(uniqueKeysWithValues: definitions.map { def in
+            let instance = EffectInstance(definition: def)
+            return (instance.id, instance)
+        })
+        nextOrder = (effects.values.map(\.order).max() ?? -1) + 1
+        lock.unlock()
+    }
+
+    /// Export durable definitions in apply order.
+    public func exportDefinitions() -> [EffectDefinition] {
+        snapshot().map { $0.asDefinition() }
+    }
+
+    /// Ordered snapshot: lower `order` first, then stable id.
     public func snapshot() -> [EffectInstance] {
         lock.lock()
         defer { lock.unlock() }
-        return effects.values.sorted { $0.id.uuidString < $1.id.uuidString }
+        return effects.values.sorted {
+            if $0.order != $1.order { return $0.order < $1.order }
+            return $0.id.uuidString < $1.id.uuidString
+        }
     }
 
     public var runningCount: Int {
@@ -63,7 +94,11 @@ public final class EffectRunner: @unchecked Sendable {
         effects: [EffectInstance]
     ) -> ActiveLook {
         var result = look
-        for effect in effects where effect.enabled {
+        let ordered = effects.sorted {
+            if $0.order != $1.order { return $0.order < $1.order }
+            return $0.id.uuidString < $1.id.uuidString
+        }
+        for effect in ordered where effect.enabled {
             guard !effect.fixtureIDs.isEmpty else { continue }
             result = applyOne(look: result, time: time, effect: effect)
         }
@@ -89,7 +124,6 @@ public final class EffectRunner: @unchecked Sendable {
         return effect.phase + effect.spread * (Double(index) / Double(span))
     }
 
-    /// Relative sine: clamp(base + size * sin(2π · (rate·t + phase_i))).
     private static func applySine(look: ActiveLook, time: TimeInterval, effect: EffectInstance) -> ActiveLook {
         var result = look
         let attr = effect.attribute
@@ -105,13 +139,11 @@ public final class EffectRunner: @unchecked Sendable {
         return result
     }
 
-    /// Absolute chase on `attribute`: one fixture at `size`, others at 0.
     private static func applyChase(look: ActiveLook, time: TimeInterval, effect: EffectInstance) -> ActiveLook {
         var result = look
         let n = effect.fixtureIDs.count
         guard n > 0 else { return result }
         let attr = effect.attribute
-        // Advance through fixtures at rateHz full cycles per second.
         let step = effect.rateHz * time + effect.phase
         let active = Int(floor(step * Double(n)).truncatingRemainder(dividingBy: Double(n)))
         let activeIndex = ((active % n) + n) % n
@@ -124,7 +156,6 @@ public final class EffectRunner: @unchecked Sendable {
         return result
     }
 
-    /// Writes colorR/G/B from rotating hue.
     private static func applyRainbow(look: ActiveLook, time: TimeInterval, effect: EffectInstance) -> ActiveLook {
         var result = look
         let value = max(0.5, effect.size)
