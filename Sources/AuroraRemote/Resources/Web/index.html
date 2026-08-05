@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Aurora Remote</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+    body { margin: 0; background: #0d0f12; color: #f2f4f8; }
+    header { padding: 12px 16px; background: #161a20; border-bottom: 1px solid #2a3140; }
+    h1 { font-size: 1.1rem; margin: 0; }
+    .status { font-size: 0.85rem; color: #9aa4b2; margin-top: 4px; }
+    main { padding: 16px; display: grid; gap: 12px; max-width: 480px; margin: 0 auto; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    button {
+      font-size: 1.25rem; padding: 18px 12px; border: 0; border-radius: 12px;
+      background: #2b6cef; color: white; font-weight: 600;
+    }
+    button.stop { background: #c0392b; }
+    button.secondary { background: #3a4454; }
+    input {
+      width: 100%; box-sizing: border-box; font-size: 1.1rem; padding: 12px;
+      border-radius: 10px; border: 1px solid #3a4454; background: #12161c; color: #fff;
+    }
+    .card { background: #161a20; border-radius: 12px; padding: 12px; border: 1px solid #2a3140; }
+    .err { color: #ff8e8e; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Aurora Live Ops</h1>
+    <div class="status" id="status">Disconnected</div>
+  </header>
+  <main>
+    <div class="card" id="auth">
+      <label>PIN</label>
+      <input id="pin" type="password" inputmode="numeric" placeholder="0000" value="0000" />
+      <div style="height:10px"></div>
+      <button id="connectBtn" style="width:100%">Connect</button>
+      <p class="err" id="err"></p>
+    </div>
+    <div id="ops" hidden>
+      <div class="card">
+        <div id="showline">—</div>
+        <div class="status" id="cueline">Cue idle</div>
+      </div>
+      <div class="row">
+        <button id="go">GO</button>
+        <button id="stop" class="stop">Stop</button>
+        <button id="back" class="secondary">Back</button>
+        <button id="next" class="secondary">Next</button>
+      </div>
+      <div class="row">
+        <button id="songPrev" class="secondary">Song ◀</button>
+        <button id="songNext" class="secondary">Song ▶</button>
+      </div>
+      <div class="row">
+        <button id="fire0" class="secondary">Fire cue 0</button>
+        <button id="fire1" class="secondary">Fire cue 1</button>
+      </div>
+    </div>
+  </main>
+  <script>
+    let token = null;
+    const $ = (id) => document.getElementById(id);
+    async function api(path, body) {
+      const res = await fetch(path, {
+        method: body ? 'POST' : 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'X-Aurora-Token': token } : {})
+        },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || res.statusText);
+      return json;
+    }
+    async function connect() {
+      $('err').textContent = '';
+      try {
+        const r = await api('/api/hello', {
+          clientId: 'web-' + Math.random().toString(36).slice(2, 8),
+          pin: $('pin').value,
+          displayName: 'iPad Web'
+        });
+        token = r.token;
+        $('auth').hidden = true;
+        $('ops').hidden = false;
+        $('status').textContent = 'Connected · ' + r.role;
+        poll();
+      } catch (e) {
+        $('err').textContent = e.message;
+      }
+    }
+    async function cmd(action) {
+      try {
+        await api('/api/command', { action });
+      } catch (e) {
+        $('status').textContent = e.message;
+      }
+    }
+    async function poll() {
+      if (!token) return;
+      try {
+        const s = await api('/api/snapshot');
+        $('showline').textContent = s.showName + (s.locked ? ' · LOCKED' : '');
+        $('cueline').textContent = (s.cueIndex >= 0 ? ('Cue ' + (s.cueIndex + 1) + ' ' + (s.cueName || '')) : 'Cue idle')
+          + ' · ch ' + s.activeChannelCount;
+        $('status').textContent = (s.engineRunning ? 'Engine on' : 'Engine off') + ' · ' + s.role;
+      } catch (e) {
+        $('status').textContent = 'Snapshot error';
+      }
+      setTimeout(poll, 250);
+    }
+    $('connectBtn').onclick = connect;
+    $('go').onclick = () => cmd({ name: 'go' });
+    $('stop').onclick = () => cmd({ name: 'stop' });
+    $('back').onclick = () => cmd({ name: 'back' });
+    $('next').onclick = () => cmd({ name: 'next' });
+    $('songPrev').onclick = () => cmd({ name: 'songPrevious' });
+    $('songNext').onclick = () => cmd({ name: 'songNext' });
+    $('fire0').onclick = () => cmd({ name: 'fireCueIndex', intValue: 0 });
+    $('fire1').onclick = () => cmd({ name: 'fireCueIndex', intValue: 1 });
+  </script>
+</body>
+</html>

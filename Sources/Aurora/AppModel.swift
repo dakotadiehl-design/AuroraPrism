@@ -48,6 +48,7 @@ final class AppModel: ObservableObject {
     /// In-process plugin registry (PR29 skeleton; no dylib loading).
     let pluginHost = PluginHost()
     let remoteHost = RemoteHost()
+    private(set) var remoteWeb: RemoteWebServer?
     @Published private(set) var remoteStatus: String = "Remote: off"
     private var statusTimer: Timer?
     private var remoteSnapshotTimer: Timer?
@@ -97,6 +98,7 @@ final class AppModel: ObservableObject {
         midi.stop()
         oscServer.stop()
         remoteHost.stop()
+        remoteWeb?.stop()
     }
 
     var panelContext: WorkspacePanelContext {
@@ -595,15 +597,20 @@ final class AppModel: ObservableObject {
         config.pin = pin
         remoteHost.sessions.updateConfig(config)
         if enabled {
-            remoteHost.setActionHandler { [weak self] action in
+            let action: @Sendable (RemoteShowAction) -> Void = { [weak self] action in
                 Task { @MainActor in
                     self?.performRemote(action)
                 }
             }
+            remoteHost.setActionHandler(action)
+            let web = RemoteWebServer(sessions: remoteHost.sessions, port: 8743)
+            web.setActionHandler(action)
+            remoteWeb = web
             do {
                 try remoteHost.start()
-                remoteStatus = "Remote: :\(config.port) PIN set"
-                log("Remote host on port \(config.port)")
+                try web.start()
+                remoteStatus = "Remote TCP :\(config.port) · Web :8743 · PIN set"
+                log("Remote TCP \(config.port) + web 8743")
                 startRemoteSnapshotTimer()
             } catch {
                 remoteStatus = "Remote: error"
@@ -613,6 +620,8 @@ final class AppModel: ObservableObject {
             remoteSnapshotTimer?.invalidate()
             remoteSnapshotTimer = nil
             remoteHost.stop()
+            remoteWeb?.stop()
+            remoteWeb = nil
             remoteStatus = "Remote: off"
             log("Remote stopped")
         }
@@ -626,6 +635,7 @@ final class AppModel: ObservableObject {
                 guard let self else { return }
                 let snap = self.makeRemoteSnapshot()
                 self.remoteHost.setSnapshotProvider { snap }
+                self.remoteWeb?.setSnapshotProvider { snap }
                 self.remoteHost.broadcastSnapshot()
             }
         }

@@ -63,6 +63,9 @@ let package = Package(
         .target(
             name: "AuroraRemote",
             dependencies: ["AuroraCore", "AuroraModel"],
+            resources: [
+                .process("Resources"),
+            ],
             linkerSettings: [
                 .linkedFramework("Network"),
             ]
