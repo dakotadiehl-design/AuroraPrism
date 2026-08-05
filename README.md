@@ -30,6 +30,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 | [`docs/design/pr25-artnet.md`](./docs/design/pr25-artnet.md) | **PR25** Art-Net output |
 | [`docs/design/remote-companion.md`](./docs/design/remote-companion.md) | Stage iPad remote (web first, native later) |
 | [`docs/development-workflow.md`](./docs/development-workflow.md) | Mac toolchain & dual-host notes |
+| [`docs/PROJECT_HANDOFF.md`](./docs/PROJECT_HANDOFF.md) | **Session handoff** — full memory for new chats / post-compress |
 
 ## Development environments
 
