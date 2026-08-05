@@ -9,6 +9,7 @@ import AuroraUI
 import Combine
 import Foundation
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Owns the live show session, workspace layout, fixture library, engine, MIDI, and document path.
 @MainActor
@@ -118,6 +119,29 @@ final class AppModel: ObservableObject {
         wireEvents()
         reloadEngine()
         bump()
+    }
+
+    func importFixtureDefinition() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.json]
+        panel.title = "Import Fixture Definition"
+        panel.message = "Aurora native JSON or OFL-lite JSON"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let defs = try FixtureImporter.importDefinitions(from: url)
+            for def in defs {
+                try session.perform(EmbedFixtureDefinitionCommand(definition: def))
+            }
+            statusMessage = "Imported \(defs.count) definition(s) from \(url.lastPathComponent)"
+            log(statusMessage)
+            reloadEngine()
+            bump()
+        } catch {
+            statusMessage = "Import failed: \(error.localizedDescription)"
+            presentError(error, title: "Import Failed")
+        }
     }
 
     func openShow() {

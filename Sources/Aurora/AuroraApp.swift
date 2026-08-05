@@ -45,6 +45,12 @@ struct AuroraApp: App {
                     appModel.saveShowAs()
                 }
                 .keyboardShortcut("s", modifiers: [.command, .shift])
+
+                Divider()
+
+                Button("Import Fixture Definition…") {
+                    appModel.importFixtureDefinition()
+                }
             }
 
             CommandGroup(replacing: .undoRedo) {
