@@ -91,7 +91,7 @@ File: `App/Aurora.entitlements`
 | `com.apple.security.network.client` | `true` | Outbound Art-Net, sACN, OSC, remote, RTP-MIDI |
 | `com.apple.security.network.server` | `true` | Listen: OSC :9000, remote TCP :8742, web :8743; multicast/session needs |
 | `com.apple.security.files.user-selected.read-write` | `true` | Open/Save `.aurora` and fixture import via panels |
-| `com.apple.security.files.bookmarks.app-scope` | `true` | Security-scoped bookmarks for autosave of user-selected packages |
+| `com.apple.security.files.bookmarks.app-scope` | `true` | **Reserved** for future security-scoped bookmark persistence. **Not implemented yet** — open/save use the panel sandbox extension for the current session only. Do not document Recent Shows as bookmark-backed until a store exists. |
 | `com.apple.security.device.usb` | `true` | ENTTEC USB DMX Pro / local USB serial DMX |
 
 ### Explicitly not enabled

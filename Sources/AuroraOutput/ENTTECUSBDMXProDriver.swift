@@ -132,7 +132,12 @@ public final class ENTTECUSBDMXProDriver: OutputDriver, OutputHealthReporting, @
     public let id: UUID
     public let name: String
     public let outputProtocol: UniverseProtocolHint = .local
-    public private(set) var isRunning = false
+    private var _isRunning = false
+    /// Thread-safe running flag (PRE-UI-2).
+    public var isRunning: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return _isRunning
+    }
 
     private let lock = NSLock()
     private let transport: ENTTECSerialTransport
@@ -163,13 +168,13 @@ public final class ENTTECUSBDMXProDriver: OutputDriver, OutputHealthReporting, @
         do {
             try transport.open()
             lock.lock()
-            isRunning = true
+            _isRunning = true
             _state = .ready
             _lastError = nil
             lock.unlock()
         } catch {
             lock.lock()
-            isRunning = false
+            _isRunning = false
             _state = .failed
             _lastError = error.localizedDescription
             lock.unlock()
@@ -180,15 +185,15 @@ public final class ENTTECUSBDMXProDriver: OutputDriver, OutputHealthReporting, @
     public func stop() {
         transport.close()
         lock.lock()
-        isRunning = false
+        _isRunning = false
         _state = .disabled
         lock.unlock()
     }
 
     public func send(universe: UInt16, dmx: UnsafeBufferPointer<UInt8>) {
         lock.lock()
-        guard isRunning, universeFilter.contains(universe) else {
-            if isRunning { _packetsDropped &+= 1 }
+        guard _isRunning, universeFilter.contains(universe) else {
+            if _isRunning { _packetsDropped &+= 1 }
             lock.unlock()
             return
         }

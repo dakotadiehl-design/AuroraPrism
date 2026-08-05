@@ -63,6 +63,53 @@ final class CompiledShowTests: XCTestCase {
         XCTAssertEqual(dim?.invert, false)
     }
 
+    /// UI-FOUNDATION-5: home/highlight use full 16-bit coarse|fine, not coarse/255 alone.
+    func testHomeHighlightUsesFull16BitDefaults() {
+        var project = ShowProject.empty(name: "H")
+        let u = UUID()
+        let d = UUID()
+        let f = UUID()
+        project.universes = [Universe(id: u, number: 1)]
+        project.fixtureDefinitions = [
+            FixtureDefinition(
+                id: d,
+                manufacturer: "G",
+                model: "16",
+                channelCount: 2,
+                channels: [
+                    ChannelDef(
+                        offset: 1,
+                        name: "Pan",
+                        attribute: "pan",
+                        resolution: .coarse,
+                        defaultValue: 0x80,
+                        highlightValue: 0x40
+                    ),
+                    ChannelDef(
+                        offset: 2,
+                        name: "Pan Fine",
+                        attribute: "pan",
+                        resolution: .fine,
+                        defaultValue: 0x10,
+                        highlightValue: 0x20
+                    ),
+                ],
+                hasPanTilt: true
+            )
+        ]
+        project.fixtures = [
+            PatchedFixture(id: f, name: "F", definitionId: d, universeId: u, address: 1)
+        ]
+        let compiled = CompiledShow.compile(project)
+        let fixture = compiled.fixtures[0]
+        let expectedHome = Double((UInt16(0x80) << 8) | 0x10) / 65535.0
+        let expectedHigh = Double((UInt16(0x40) << 8) | 0x20) / 65535.0
+        XCTAssertEqual(fixture.homeValues["pan"] ?? -1, expectedHome, accuracy: 1e-12)
+        XCTAssertEqual(fixture.highlightValues["pan"] ?? -1, expectedHigh, accuracy: 1e-12)
+        // Must not equal coarse-only normalization when fine is non-zero.
+        XCTAssertNotEqual(fixture.homeValues["pan"] ?? 0, 0x80 / 255.0, accuracy: 1e-9)
+    }
+
     func testCompiledMergeMatchesProjectMerge() {
         let (project, fixtureID, _) = makeShow()
         var look = ActiveLook()

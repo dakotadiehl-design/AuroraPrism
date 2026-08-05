@@ -2,7 +2,7 @@
 
 **Purpose:** Authoritative API and domain contract for the **visual UI redesign**.  
 **Read with:** `docs/PROJECT_HANDOFF.md`, `docs/STAGE_C_UI_STATE_HANDOFF.md`.  
-**Last updated:** 2026-08-05 (post Final Backend UI Gate fixes)
+**Last updated:** 2026-08-05 (post Pre-UI blockers: save coordinator + output health)
 
 Do **not** invent controls for unimplemented behavior. Do **not** bypass commands / `ControlActionRouter` / controllers.
 
@@ -60,11 +60,13 @@ Never use a single replaceable callback for two consumers.
 | Kind | Owner | Notes |
 |------|--------|------|
 | Show document | `ProjectController` / `DocumentSession` | Dirty = unique state IDs; groups mark dirty on first mutation |
+| Package I/O | `ProjectSaveCoordinator` (via `ProjectController`) | **All** Save / Save As / autosave for a destination are serialized; stale autosave never overwrites a newer manual save on disk |
 | Engine / playback | `ShowControlController` / `LightingEngine` | `updateProject` preserves look; `load` is destructive |
 | Selection | `DocumentSession.selection` | `orderedFixtureIDs` is phase order |
 | Workspace layout / mode | `WorkspaceController` | `WorkspaceMode.build` \| `.perform` |
 | App prefs | `AppSettingsStore` | Frame rate **is** applied to engine |
 | Project prefs | `ShowProject.preferences` | Cue defaults; `preferredFrameRateHz` is **deprecated / unused by engine** |
+| Output status chrome | `OutputController.presentationSnapshot()` | Built from live `healthSnapshots()` each poll — not a stale config-time string |
 
 ---
 
@@ -113,11 +115,19 @@ Do not label `none` as “all drivers”. Mock drivers with protocol `.none` are
 - Parser preserves running status **and** incomplete messages across packets
 - Realtime (`0xF8+`) may interleave without destroying pending channel messages
 
-### Autosave
+### Package save / autosave
 
-- Package I/O runs off MainActor
-- Document marked clean only if state ID still matches the snapshot that was written
-- Concurrent edits during autosave leave the document dirty
+- All writes go through `ProjectSaveCoordinator` (per-destination serial actor)
+- Manual Save and autosave never run concurrent I/O to the same package path
+- Stale autosave after a newer manual write is **skipped** (does not call `ProjectPackage.save`)
+- Document marked clean only if the written state ID still matches current `documentGeneration`
+- Concurrent edits during a save leave the document dirty
+- Quit uses `prepareToTerminate()` → await save → idempotent `shutdown()`
+
+### Output health presentation
+
+- Prefer `OutputPresentationSnapshot` aggregates: `healthy` / `warning` / `failed` / `disabled`
+- Refresh from driver health on the presentation timer; do not trust a string set only at config change
 
 ---
 
@@ -148,9 +158,16 @@ Web/iPad remote ≈ Perform, not Build.
 - Real ENTTEC serial transport / device enumeration
 - Hardware Art-Net/sACN soak proof
 - Automatic song entry progression
+- Security-scoped bookmark store (entitlement reserved only)
+- App integration XCTest target for controller wiring
 - Full GDTF, TLS remote, native iPad app
 - Dynamic dylib plugins (protocols exist)
 - Notarization / Team signing
+- Production AppIcon artwork (placeholder catalog)
+
+### UI composition (UI-FOUNDATION-1 Option A)
+
+`AuroraUI` = design-system + pure views. Controller-aware screens live in the **app target**. Do not make `AuroraUI` depend on the executable or re-bind every view to full `AppModel`.
 
 ---
 

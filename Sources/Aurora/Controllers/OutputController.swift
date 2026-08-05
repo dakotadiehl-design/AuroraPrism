@@ -78,6 +78,27 @@ final class OutputController: ObservableObject {
         outputManager.healthSnapshots()
     }
 
+    /// Live presentation from driver health (PRE-UI-1). Always re-reads health.
+    func presentationSnapshot() -> OutputPresentationSnapshot {
+        var health = healthSnapshots()
+        // Include config-enabled drivers even if health list is thin.
+        if artNetConfig.enabled,
+           !health.contains(where: { $0.driverID == artNetDriver.id }) {
+            health.append(artNetDriver.healthSnapshot())
+        }
+        if sacnConfig.enabled,
+           !health.contains(where: { $0.driverID == sacnDriver.id }) {
+            health.append(sacnDriver.healthSnapshot())
+        }
+        let snap = OutputPresentationSnapshot.from(health: health)
+        // Keep published string in sync for any observers of `outputStatus`.
+        if outputStatus != snap.statusLine {
+            outputStatus = snap.statusLine
+            objectWillChange.send()
+        }
+        return snap
+    }
+
     func promptArtNetDestination(engineRunning: Bool, enableIfNeeded: (Bool) -> Void) {
         let alert = NSAlert()
         alert.messageText = "Art-Net Destination"
@@ -147,26 +168,6 @@ final class OutputController: ObservableObject {
     }
 
     func refreshOutputStatus() {
-        let health = healthSnapshots()
-        var parts: [String] = []
-        for h in health where h.outputProtocol == .artNet || h.outputProtocol == .sACN {
-            if h.state == .disabled { continue }
-            let err = h.lastError.map { " err:\($0)" } ?? ""
-            parts.append("\(h.name) \(h.state.rawValue)\(err)")
-        }
-        if artNetConfig.enabled {
-            let err = artNetDriver.lastError.map { " err:\($0)" } ?? ""
-            if !parts.contains(where: { $0.contains("Art") }) {
-                parts.append("Art-Net \(artNetConfig.destinationHost):\(artNetConfig.destinationPort)\(err)")
-            }
-        }
-        if sacnConfig.enabled {
-            let dest = sacnConfig.destinationHost ?? "multicast"
-            let err = sacnDriver.lastError.map { " err:\($0)" } ?? ""
-            if !parts.contains(where: { $0.contains("sACN") || $0.contains("sACN") }) {
-                parts.append("sACN \(dest):\(sacnConfig.destinationPort)\(err)")
-            }
-        }
-        outputStatus = parts.isEmpty ? "Output: Null only" : parts.joined(separator: " · ")
+        _ = presentationSnapshot()
     }
 }

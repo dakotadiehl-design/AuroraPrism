@@ -7,7 +7,12 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
     public let id: UUID
     public let name: String
     public let outputProtocol: UniverseProtocolHint = .sACN
-    public private(set) var isRunning = false
+    private var _isRunning = false
+    /// Thread-safe running flag (PRE-UI-2).
+    public var isRunning: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return _isRunning
+    }
 
     private var config: SACNConfig
     private let cid: UUID
@@ -49,7 +54,7 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
     public func updateConfig(_ config: SACNConfig) throws {
         lock.lock()
         self.config = config
-        let wasRunning = isRunning
+        let wasRunning = _isRunning
         lock.unlock()
         if wasRunning {
             stop()
@@ -70,7 +75,7 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
 
     public func start() throws {
         lock.lock()
-        isRunning = true
+        _isRunning = true
         sequences.removeAll()
         _lastError = nil
         _state = .ready
@@ -83,14 +88,14 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
             conn.cancel()
         }
         connections.removeAll()
-        isRunning = false
+        _isRunning = false
         _state = .disabled
         lock.unlock()
     }
 
     public func send(universe: UInt16, dmx: UnsafeBufferPointer<UInt8>) {
         lock.lock()
-        guard isRunning else {
+        guard _isRunning else {
             _packetsDropped &+= 1
             lock.unlock()
             return
@@ -161,7 +166,7 @@ extension SACNOutputDriver: OutputHealthReporting {
             driverID: id,
             name: name,
             outputProtocol: outputProtocol,
-            state: isRunning ? _state : .disabled,
+            state: _isRunning ? _state : .disabled,
             target: "\(dest):\(config.destinationPort)",
             lastError: _lastError,
             lastSuccessAt: _lastSuccessAt,

@@ -6,7 +6,12 @@ public final class NullOutputDriver: OutputDriver, @unchecked Sendable {
     public let id: UUID
     public let name: String
     public let outputProtocol: UniverseProtocolHint = .local
-    public private(set) var isRunning = false
+    private let lock = NSLock()
+    private var _isRunning = false
+    public var isRunning: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return _isRunning
+    }
 
     public init(id: UUID = UUID(), name: String = "Null") {
         self.id = id
@@ -14,11 +19,15 @@ public final class NullOutputDriver: OutputDriver, @unchecked Sendable {
     }
 
     public func start() throws {
-        isRunning = true
+        lock.lock()
+        _isRunning = true
+        lock.unlock()
     }
 
     public func stop() {
-        isRunning = false
+        lock.lock()
+        _isRunning = false
+        lock.unlock()
     }
 
     public func send(universe: UInt16, dmx: UnsafeBufferPointer<UInt8>) {

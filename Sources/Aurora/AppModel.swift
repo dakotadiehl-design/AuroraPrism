@@ -147,7 +147,10 @@ final class AppModel: ObservableObject {
         }
         input.applySavedRTPMIDI { [weak self] msg in self?.diagnostics.log(msg, subsystem: .midi) }
         showControl.startStatusPolling(
-            outputStatus: { [weak self] in self?.output.outputStatus ?? "Output: Null" },
+            outputStatus: { [weak self] in
+                // PRE-UI-1: re-read driver health each poll (not a stale cached string).
+                self?.output.presentationSnapshot().statusLine ?? "Output: Null"
+            },
             project: { [weak self] in self?.document.session.project ?? .empty() },
             isDirty: { [weak self] in self?.document.isDirty ?? false }
         )
@@ -155,7 +158,10 @@ final class AppModel: ObservableObject {
         // PRE-UI-2: app frame-rate preference drives the real engine scheduler.
         applyPreferredFrameRate(settings.preferredFrameRateHz, persist: false)
         autosave.onAutosave = { [weak self] in
-            self?.performBackgroundAutosave()
+            guard let self else { return }
+            Task { @MainActor in
+                await self.performBackgroundAutosave()
+            }
         }
         autosave.start()
         notifyUI()
@@ -183,8 +189,30 @@ final class AppModel: ObservableObject {
 
     @discardableResult
     func confirmDiscardIfDirty(actionName: String) -> Bool {
+        // Menu-driven new/open: kick async save if user chooses Save (best-effort).
         document.confirmDiscardIfDirty(actionName: actionName) { [weak self] in
             self?.saveShow()
+        }
+    }
+
+    /// Quit flow: prompt, await save if needed, then caller shuts down.
+    /// Returns `true` if termination should proceed.
+    func prepareToTerminate() async -> Bool {
+        guard document.isDirty else { return true }
+        let alert = NSAlert()
+        alert.messageText = "Do you want to save the changes to this show before quitting?"
+        alert.informativeText = "Your changes will be lost if you don't save them."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Don't Save")
+        alert.addButton(withTitle: "Cancel")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            return await saveShowAsync()
+        case .alertSecondButtonReturn:
+            return true
+        default:
+            return false
         }
     }
 
@@ -245,32 +273,49 @@ final class AppModel: ObservableObject {
     }
 
     func saveShow() {
-        if let documentURL = document.documentURL {
-            save(to: documentURL)
-        } else {
-            saveShowAs()
+        Task { @MainActor in
+            await saveShowAsync()
         }
     }
 
     func saveShowAs() {
+        Task { @MainActor in
+            await saveShowAsAsync()
+        }
+    }
+
+    /// Awaitable save for quit / discard flows (BLOCKER-1).
+    @discardableResult
+    func saveShowAsync() async -> Bool {
+        if let documentURL = document.documentURL {
+            return await saveAsync(to: documentURL)
+        }
+        return await saveShowAsAsync()
+    }
+
+    @discardableResult
+    private func saveShowAsAsync() async -> Bool {
         let panel = NSSavePanel()
         panel.title = "Save Aurora Show"
         panel.nameFieldStringValue = "\(session.project.metadata.name).aurora"
         panel.prompt = "Save"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard panel.runModal() == .OK, let url = panel.url else { return false }
         let packageURL = url.pathExtension == ProjectPackage.packageExtension
             ? url
             : url.appendingPathExtension(ProjectPackage.packageExtension)
-        save(to: packageURL)
+        return await saveAsync(to: packageURL)
     }
 
-    private func save(to url: URL) {
+    @discardableResult
+    private func saveAsync(to url: URL) async -> Bool {
         do {
-            try document.save(to: url)
+            try await document.save(to: url)
             notifyUI()
+            return !document.isDirty
         } catch {
             document.statusMessage = "Save failed: \(error.localizedDescription)"
             document.presentError(error, title: "Save Failed")
+            return false
         }
     }
 
@@ -398,44 +443,16 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// UI-GATE-7: package I/O off MainActor; only mark clean if state ID still matches.
-    private func performBackgroundAutosave() {
-        guard let url = document.documentURL, document.isDirty else { return }
-        let snapshotProject = session.project
-        let snapshotStateID = session.documentGeneration
-        let assetSource = url
-        diagnostics.log("Autosave begin \(url.lastPathComponent)", subsystem: .project)
-        Task.detached(priority: .utility) { [weak self] in
-            do {
-                let writtenAt = try ProjectPackage.save(
-                    snapshotProject,
-                    to: url,
-                    preservingAssetsFrom: assetSource
-                )
-                await MainActor.run { [weak self] in
-                    guard let self else { return }
-                    // Only clear dirty if the document is still the same state we saved.
-                    if self.session.documentGeneration == snapshotStateID,
-                       self.document.documentURL?.standardizedFileURL == url.standardizedFileURL {
-                        self.session.applySavedMetadata(modifiedAt: writtenAt)
-                        self.document.statusMessage = "Autosaved \(url.lastPathComponent)"
-                        self.diagnostics.log("Autosave ok \(url.lastPathComponent)", subsystem: .project)
-                        self.notifyUI()
-                    } else {
-                        self.diagnostics.log(
-                            "Autosave completed for stale state — document remains dirty",
-                            subsystem: .project
-                        )
-                    }
-                }
-            } catch {
-                await MainActor.run { [weak self] in
-                    self?.diagnostics.log(
-                        "Autosave failed: \(error.localizedDescription)",
-                        subsystem: .project
-                    )
-                }
-            }
+    /// BLOCKER-1 / UI-GATE-7: autosave through `ProjectSaveCoordinator` (serialized per destination).
+    private func performBackgroundAutosave() async {
+        guard document.documentURL != nil, document.isDirty else { return }
+        diagnostics.log("Autosave begin", subsystem: .project)
+        let cleaned = await document.autosaveIfPossible()
+        if cleaned {
+            diagnostics.log("Autosave ok", subsystem: .project)
+            notifyUI()
+        } else if document.isDirty {
+            diagnostics.log("Autosave skipped or stale — document remains dirty", subsystem: .project)
         }
     }
 
@@ -610,8 +627,12 @@ final class AppModel: ObservableObject {
         notifyUI()
     }
 
-    /// Shutdown hook for app delegate if needed later.
+    /// Orderly teardown (PRE-UI-3). Idempotent.
+    private var didShutdown = false
+
     func shutdown() {
+        guard !didShutdown else { return }
+        didShutdown = true
         autosave.stop()
         showControl.stopTimers()
         input.stopAll()

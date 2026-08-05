@@ -16,10 +16,21 @@ final class AuroraAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let appModel else { return .terminateNow }
-        if appModel.confirmDiscardIfDirty(actionName: "quitting") {
-            return .terminateNow
+        // PRE-UI-3 / BLOCKER-1: await save via coordinator, then orderly shutdown.
+        Task { @MainActor in
+            let proceed = await appModel.prepareToTerminate()
+            if proceed {
+                appModel.shutdown()
+                NSApp.reply(toApplicationShouldTerminate: true)
+            } else {
+                NSApp.reply(toApplicationShouldTerminate: false)
+            }
         }
-        return .terminateCancel
+        return .terminateLater
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        appModel?.shutdown()
     }
 
     /// Finder / Launch Services double-click of a `.aurora` package.

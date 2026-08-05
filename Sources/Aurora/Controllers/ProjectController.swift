@@ -6,12 +6,15 @@ import AuroraUI
 import Foundation
 import UniformTypeIdentifiers
 
-/// Document lifecycle: session, URL, dirty, save/open/new, validation hook (Stage C).
+/// Document lifecycle: session, URL, dirty, save/open/new, validation hook (Stage C / BLOCKER-1).
 @MainActor
 final class ProjectController: ObservableObject {
     @Published private(set) var session: DocumentSession
     @Published private(set) var documentURL: URL?
     @Published var statusMessage: String = ""
+
+    /// Serializes all package writes (manual, Save As, autosave) per destination.
+    let saveCoordinator = ProjectSaveCoordinator()
 
     private(set) var fixtureLibrary: FixtureLibrary?
     private var eventToken: EventSubscriptionToken?
@@ -90,6 +93,7 @@ final class ProjectController: ObservableObject {
         switch alert.runModal() {
         case .alertFirstButtonReturn:
             save()
+            // Save is async via coordinator; caller that needs completion (quit) must await save separately.
             return !session.isDirty
         case .alertSecondButtonReturn:
             return true
@@ -106,7 +110,8 @@ final class ProjectController: ObservableObject {
         objectWillChange.send()
     }
 
-    func save(to url: URL) throws {
+    /// Manual Save / Save As through the shared coordinator (BLOCKER-1).
+    func save(to url: URL) async throws {
         let assetSource: URL?
         if let documentURL,
            documentURL.standardizedFileURL != url.standardizedFileURL {
@@ -114,14 +119,71 @@ final class ProjectController: ObservableObject {
         } else {
             assetSource = nil
         }
-        // Crash recovery for orphan bak/tmp near destination (P2-8).
+        let resolvedKind: ProjectSaveKind = {
+            guard let documentURL else { return .manual }
+            return documentURL.standardizedFileURL == url.standardizedFileURL ? .manual : .saveAs
+        }()
+
         _ = try? ProjectPackage.recoverOrphanedPackages(around: url)
-        let writtenAt = try ProjectPackage.save(session.project, to: url, preservingAssetsFrom: assetSource)
-        documentURL = url
-        session.applySavedMetadata(modifiedAt: writtenAt)
-        statusMessage = "Saved \(url.lastPathComponent)"
-        NSDocumentController.shared.noteNewRecentDocumentURL(url)
-        objectWillChange.send()
+
+        let snapshot = ProjectSaveSnapshot(
+            project: session.project,
+            documentStateID: session.documentGeneration,
+            destinationURL: url,
+            preservingAssetsFrom: assetSource,
+            kind: resolvedKind
+        )
+        let result = try await saveCoordinator.save(snapshot)
+        switch result {
+        case .written(let writtenAt, let stateID, let destination):
+            // Only mark clean if this state is still current.
+            if session.documentGeneration == stateID {
+                documentURL = destination
+                session.applySavedMetadata(modifiedAt: writtenAt)
+                statusMessage = "Saved \(destination.lastPathComponent)"
+            } else {
+                documentURL = destination
+                statusMessage = "Saved \(destination.lastPathComponent) (document edited since save)"
+            }
+            NSDocumentController.shared.noteNewRecentDocumentURL(destination)
+            objectWillChange.send()
+        case .skippedStale:
+            // Manual save should not skip; treat as soft failure.
+            statusMessage = "Save skipped (stale)"
+            objectWillChange.send()
+        }
+    }
+
+    /// Autosave via coordinator. Returns whether the document was marked clean.
+    @discardableResult
+    func autosaveIfPossible() async -> Bool {
+        guard let url = documentURL, session.isDirty else { return false }
+        let snapshot = ProjectSaveSnapshot(
+            project: session.project,
+            documentStateID: session.documentGeneration,
+            destinationURL: url,
+            preservingAssetsFrom: url,
+            kind: .autosave
+        )
+        do {
+            let result = try await saveCoordinator.autosave(snapshot)
+            switch result {
+            case .written(let writtenAt, let stateID, let destination):
+                if session.documentGeneration == stateID,
+                   documentURL?.standardizedFileURL == destination.standardizedFileURL {
+                    session.applySavedMetadata(modifiedAt: writtenAt)
+                    statusMessage = "Autosaved \(destination.lastPathComponent)"
+                    objectWillChange.send()
+                    return true
+                }
+                return false
+            case .skippedStale:
+                return false
+            }
+        } catch {
+            onLog?("Autosave failed: \(error.localizedDescription)")
+            return false
+        }
     }
 
     func openShow(from url: URL) throws {

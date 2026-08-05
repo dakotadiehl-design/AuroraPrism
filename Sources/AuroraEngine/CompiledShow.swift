@@ -246,24 +246,32 @@ public struct CompiledShow: Sendable, Equatable {
         var home: [String: Double] = [:]
         var highlight: [String: Double] = [:]
 
+        // Index channels by attribute for 16-bit coarse+fine pairing (UI-FOUNDATION-5).
+        var byAttribute: [String: [ChannelDef]] = [:]
         for channel in definition.channels {
-            // Prefer coarse / eightBit for normalized home; skip fine-only duplicates.
-            if channel.resolution == .fine { continue }
-            let homeNorm: Double
-            let highNorm: Double
-            if channel.resolution == .coarse {
-                // Coarse default is high byte of 16-bit home; approximate with coarse/255.
-                homeNorm = Double(channel.defaultValue) / 255.0
-                highNorm = Double(channel.highlightValue) / 255.0
-            } else {
-                homeNorm = Double(channel.defaultValue) / 255.0
-                highNorm = Double(channel.highlightValue) / 255.0
-            }
-            if home[channel.attribute] == nil {
-                home[channel.attribute] = homeNorm
-            }
-            if highlight[channel.attribute] == nil {
-                highlight[channel.attribute] = highNorm
+            byAttribute[channel.attribute, default: []].append(channel)
+        }
+
+        for (attribute, channels) in byAttribute {
+            let coarse = channels.first(where: { $0.resolution == .coarse })
+            let fine = channels.first(where: { $0.resolution == .fine })
+            let eight = channels.first(where: { $0.resolution == .eightBit })
+
+            if let coarse, let fine {
+                let home16 = (UInt16(coarse.defaultValue) << 8) | UInt16(fine.defaultValue)
+                let high16 = (UInt16(coarse.highlightValue) << 8) | UInt16(fine.highlightValue)
+                home[attribute] = Double(home16) / 65535.0
+                highlight[attribute] = Double(high16) / 65535.0
+            } else if let coarse {
+                home[attribute] = Double(coarse.defaultValue) / 255.0
+                highlight[attribute] = Double(coarse.highlightValue) / 255.0
+            } else if let eight {
+                home[attribute] = Double(eight.defaultValue) / 255.0
+                highlight[attribute] = Double(eight.highlightValue) / 255.0
+            } else if let fine {
+                // Fine-only (unusual): treat as low byte of 16-bit scale.
+                home[attribute] = Double(fine.defaultValue) / 65535.0
+                highlight[attribute] = Double(fine.highlightValue) / 65535.0
             }
         }
 

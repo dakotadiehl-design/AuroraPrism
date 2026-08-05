@@ -7,7 +7,12 @@ public final class ArtNetOutputDriver: OutputDriver, @unchecked Sendable {
     public let id: UUID
     public let name: String
     public let outputProtocol: UniverseProtocolHint = .artNet
-    public private(set) var isRunning = false
+    private var _isRunning = false
+    /// Thread-safe running flag (PRE-UI-2); engine flush may read concurrently with start/stop.
+    public var isRunning: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return _isRunning
+    }
 
     private var config: ArtNetConfig
     private var connection: NWConnection?
@@ -42,7 +47,7 @@ public final class ArtNetOutputDriver: OutputDriver, @unchecked Sendable {
     public func updateConfig(_ config: ArtNetConfig) throws {
         lock.lock()
         self.config = config
-        let wasRunning = isRunning
+        let wasRunning = _isRunning
         lock.unlock()
         if wasRunning {
             stop()
@@ -107,7 +112,7 @@ public final class ArtNetOutputDriver: OutputDriver, @unchecked Sendable {
             _state = .ready
         }
         connection = conn
-        isRunning = true
+        _isRunning = true
         sequences.removeAll()
         lock.unlock()
     }
@@ -116,14 +121,14 @@ public final class ArtNetOutputDriver: OutputDriver, @unchecked Sendable {
         lock.lock()
         connection?.cancel()
         connection = nil
-        isRunning = false
+        _isRunning = false
         _state = .disabled
         lock.unlock()
     }
 
     public func send(universe: UInt16, dmx: UnsafeBufferPointer<UInt8>) {
         lock.lock()
-        guard isRunning, let connection else {
+        guard _isRunning, let connection else {
             _packetsDropped &+= 1
             lock.unlock()
             return
@@ -167,7 +172,7 @@ extension ArtNetOutputDriver: OutputHealthReporting {
             driverID: id,
             name: name,
             outputProtocol: outputProtocol,
-            state: isRunning ? _state : .disabled,
+            state: _isRunning ? _state : .disabled,
             target: "\(config.destinationHost):\(config.destinationPort)",
             lastError: _lastError,
             lastSuccessAt: _lastSuccessAt,
