@@ -4,7 +4,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 ## Status
 
-**PR11–13 live core** is in tree: cue playback with fades/follows, cue list UI, and programmer layer. MIDI and effects still ahead.
+**PR14/16/19 live desk** is in tree: programmer UI, CoreMIDI input, and large Live transport. MIDI Learn (PR17) and effects still ahead.
 
 | Doc | Description |
 |-----|-------------|
@@ -23,6 +23,9 @@ Professional-grade **lighting control** for macOS — live performance show cont
 | [`docs/design/pr11-cue-engine.md`](./docs/design/pr11-cue-engine.md) | **PR11** cue timing / tracking |
 | [`docs/design/pr12-cue-list-ui.md`](./docs/design/pr12-cue-list-ui.md) | **PR12** cue list UI |
 | [`docs/design/pr13-programmer-core.md`](./docs/design/pr13-programmer-core.md) | **PR13** programmer core |
+| [`docs/design/pr14-programmer-ui.md`](./docs/design/pr14-programmer-ui.md) | **PR14** programmer UI |
+| [`docs/design/pr16-coremidi.md`](./docs/design/pr16-coremidi.md) | **PR16** CoreMIDI |
+| [`docs/design/pr19-live-playback-ui.md`](./docs/design/pr19-live-playback-ui.md) | **PR19** live ops UI |
 | [`docs/design/remote-companion.md`](./docs/design/remote-companion.md) | Stage iPad remote (web first, native later) |
 | [`docs/development-workflow.md`](./docs/development-workflow.md) | Mac toolchain & dual-host notes |
 
@@ -72,4 +75,4 @@ Dependency rules are documented in [PR1 scaffold](./docs/design/pr1-project-scaf
 
 ## Next
 
-See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR14** adds programmer UI; **PR16** adds CoreMIDI.
+See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR17** maps MIDI to actions; **PR15** deepens color tools.

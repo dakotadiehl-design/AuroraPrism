@@ -34,7 +34,7 @@ public struct WorkspaceLayout: Codable, Equatable, Sendable {
     public static let `default` = WorkspaceLayout()
 
     public static let defaultVisible: Set<WorkspacePanelID> = [
-        .fixtureBrowser, .patch, .cueList, .programmer,
+        .fixtureBrowser, .patch, .cueList, .programmer, .livePlayback,
         .universeMonitor, .inspector, .console,
     ]
 

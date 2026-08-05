@@ -127,7 +127,7 @@ public struct WorkspaceView: View {
     }
 
     private var centerTabs: [WorkspacePanelID] {
-        [.patch, .cueList, .programmer].filter { layout.isVisible($0) }
+        [.livePlayback, .patch, .cueList, .programmer].filter { layout.isVisible($0) }
     }
 
     private var bottomTabs: [WorkspacePanelID] {
