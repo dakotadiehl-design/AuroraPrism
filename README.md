@@ -4,7 +4,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 ## Status
 
-**PR3 command/undo** is in tree: `DocumentSession`, reversible commands, sample fixture/rename commands. Event bus and selection land in PR4. Engine and MIDI are still stubs.
+**PR4 core foundation** is in tree: commands/undo, event bus, multi-select selection, domain model, and package I/O. Engine, MIDI, docking, and remote companion are still ahead.
 
 | Doc | Description |
 |-----|-------------|
@@ -13,6 +13,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 | [`docs/design/pr1-project-scaffold.md`](./docs/design/pr1-project-scaffold.md) | **PR1** module layout, dependencies, acceptance |
 | [`docs/design/pr2-domain-model.md`](./docs/design/pr2-domain-model.md) | **PR2** domain model & package format |
 | [`docs/design/pr3-command-undo.md`](./docs/design/pr3-command-undo.md) | **PR3** commands & undo |
+| [`docs/design/pr4-events-selection.md`](./docs/design/pr4-events-selection.md) | **PR4** event bus & selection |
 | [`docs/design/remote-companion.md`](./docs/design/remote-companion.md) | Stage iPad remote (web first, native later) |
 | [`docs/development-workflow.md`](./docs/development-workflow.md) | Mac toolchain & dual-host notes |
 
@@ -62,4 +63,4 @@ Dependency rules are documented in [PR1 scaffold](./docs/design/pr1-project-scaf
 
 ## Next
 
-See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR4** adds the event bus and selection.
+See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR5** adds the fixture library seed format.

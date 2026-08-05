@@ -795,13 +795,17 @@ Command system and undo:
 - **`DocumentSession`**, `Command`, sample add/remove fixture + rename  
 - Groups, coalescing renames, atomic failed perform  
 
-### PR4
+### PR4 (done — see dedicated doc)
 
-1. Event bus & selection manager (PR4).  
-2. Wire `projectModified` / `selectionChanged` from `DocumentSession`.  
-3. Wire document open/save UI when the app shell lands (PR7).
+Event bus and selection:
 
-Engine, MIDI, and docking remain stubs until their PRs.
+- **Spec:** [`pr4-events-selection.md`](./pr4-events-selection.md)  
+- **`EventBus`**, `SelectionManager`, session publishes `projectModified` / `selectionChanged`  
+- Selection pruned when entities disappear; **not** restored on undo  
+
+### After PR4
+
+Wire document open/save UI and menus to session undo/selection when the app shell lands (PR7). Engine, MIDI, and docking remain stubs until their PRs.
 
 ---
 
@@ -815,3 +819,4 @@ Engine, MIDI, and docking remain stubs until their PRs.
 | 0.4 | 2026-08-04 | PR2 domain model & package format; link to `pr2-domain-model.md` |
 | 0.5 | 2026-08-04 | KD16 stage remote companion (web first, native later); §4.16; Phase H PR31–34; `remote-companion.md` |
 | 0.6 | 2026-08-04 | PR3 command system & undo; link to `pr3-command-undo.md` |
+| 0.7 | 2026-08-04 | PR4 event bus & selection; link to `pr4-events-selection.md` |

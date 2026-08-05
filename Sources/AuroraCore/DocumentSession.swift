@@ -1,13 +1,16 @@
 import AuroraModel
 import Foundation
 
-/// Owns the live `ShowProject`, undo stack, and (PR4) events/selection wiring points.
+/// Owns the live `ShowProject`, undo stack, event bus, and selection.
 ///
 /// All show mutations should go through `perform(_:)`.
 @MainActor
 public final class DocumentSession {
     public private(set) var project: ShowProject
     public private(set) var isDirty: Bool = false
+
+    public let eventBus = EventBus()
+    public let selection = SelectionManager()
 
     private let undoStack = UndoStack()
     private var groupingName: String?
@@ -23,6 +26,24 @@ public final class DocumentSession {
     public var canRedo: Bool { undoStack.canRedo }
     public var undoActionName: String? { undoStack.undoActionName }
     public var redoActionName: String? { undoStack.redoActionName }
+
+    // MARK: - Selection (publishes events)
+
+    public func selectFixtures(_ ids: Set<UUID>, extending: Bool = false) {
+        selection.selectFixtures(ids, extending: extending)
+        publishSelectionChanged()
+    }
+
+    public func clearSelection() {
+        guard !selection.snapshot.isEmpty else { return }
+        selection.clear()
+        publishSelectionChanged()
+    }
+
+    public func toggleFixtureSelection(_ id: UUID) {
+        selection.toggleFixture(id)
+        publishSelectionChanged()
+    }
 
     // MARK: - Commands
 
@@ -42,7 +63,6 @@ public final class DocumentSession {
         isDirty = true
 
         if var buffer = groupBuffer {
-            // New user action invalidates redo even while grouping.
             if buffer.isEmpty {
                 undoStack.clearRedo()
             }
@@ -117,28 +137,34 @@ public final class DocumentSession {
         }
 
         let group = CommandGroup(name: name, commands: buffer)
-        // Commands already applied during perform; only push the composite for undo.
         undoStack.push(group)
         didMutateProject()
     }
 
     public func cancelGroup() throws {
         guard groupBuffer != nil else { throw CommandError.notGrouping }
-        // Cannot easily roll back already-applied group members without reverse order undo.
-        // Policy: cancel is only valid before any perform in the group, or we undo buffer.
         if let buffer = groupBuffer, !buffer.isEmpty {
             let context = CommandContext(project: project)
             for command in buffer.reversed() {
                 try command.undo(context: context)
             }
             project = context.project
+            didMutateProject()
         }
         groupBuffer = nil
         groupingName = nil
     }
 
-    /// Hook for PR4 event publication / selection prune. PR3 default is a no-op override point.
+    /// Publishes project events and prunes selection after a successful mutation.
+    /// Selection is not restored on undo/redo (by design).
     public func didMutateProject() {
-        // Overridden behavior layered in PR4 via same method body update.
+        eventBus.publish(.projectModified)
+        if selection.prune(against: project) {
+            publishSelectionChanged()
+        }
+    }
+
+    private func publishSelectionChanged() {
+        eventBus.publish(.selectionChanged(selection.snapshot))
     }
 }
