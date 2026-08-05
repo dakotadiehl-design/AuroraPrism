@@ -28,11 +28,73 @@ public enum ProjectValidator {
             cueIDs.formUnion(list.cues.map(\.id))
         }
 
-        // Duplicate IDs
+        // Duplicate IDs for every first-class entity (PRE-UI-1)
         issues.append(contentsOf: duplicateIDIssues(project.fixtures.map(\.id), label: "fixture"))
         issues.append(contentsOf: duplicateIDIssues(project.universes.map(\.id), label: "universe"))
         issues.append(contentsOf: duplicateIDIssues(project.groups.map(\.id), label: "group"))
         issues.append(contentsOf: duplicateIDIssues(project.palettes.map(\.id), label: "palette"))
+        issues.append(contentsOf: duplicateIDIssues(project.fixtureDefinitions.map(\.id), label: "fixture-definition"))
+        issues.append(contentsOf: duplicateIDIssues(project.presets.map(\.id), label: "preset"))
+        issues.append(contentsOf: duplicateIDIssues(project.cueLists.map(\.id), label: "cue-list"))
+        issues.append(contentsOf: duplicateIDIssues(project.songs.map(\.id), label: "song"))
+        issues.append(contentsOf: duplicateIDIssues(project.midiMappings.map(\.id), label: "midi-mapping"))
+        issues.append(contentsOf: duplicateIDIssues(project.effects.map(\.id), label: "effect"))
+
+        // Cue IDs unique across all lists
+        var allCueIDs: [UUID] = []
+        for list in project.cueLists {
+            allCueIDs.append(contentsOf: list.cues.map(\.id))
+        }
+        issues.append(contentsOf: duplicateIDIssues(allCueIDs, label: "cue"))
+
+        // Song entry IDs
+        var songEntryIDs: [UUID] = []
+        for song in project.songs {
+            songEntryIDs.append(contentsOf: song.entries.map(\.id))
+        }
+        issues.append(contentsOf: duplicateIDIssues(songEntryIDs, label: "song-entry"))
+
+        // Unique universe numbers (output/buffer key)
+        var seenNumbers = Set<UInt16>()
+        for universe in project.universes {
+            if !seenNumbers.insert(universe.number).inserted {
+                issues.append(stableIssue(
+                    code: "duplicate-universe-number",
+                    entity: universe.id,
+                    message: "Duplicate universe number \(universe.number)"
+                ))
+            }
+            if universe.channelCount == 0 {
+                issues.append(stableIssue(
+                    code: "invalid-channel-count",
+                    entity: universe.id,
+                    message: "Universe \(universe.number) channelCount must be > 0"
+                ))
+            } else if universe.channelCount > 512 {
+                issues.append(stableIssue(
+                    code: "channel-count-high",
+                    entity: universe.id,
+                    message: "Universe \(universe.number) channelCount \(universe.channelCount) exceeds typical DMX 512"
+                ))
+            }
+        }
+
+        // Effect order uniqueness (tie is undefined if duplicated)
+        var seenEffectOrders = Set<Int>()
+        for effect in project.effects {
+            if !seenEffectOrders.insert(effect.order).inserted {
+                issues.append(stableIssue(
+                    code: "duplicate-effect-order",
+                    entity: effect.id,
+                    message: "Duplicate effect order \(effect.order) on \(effect.name)"
+                ))
+            }
+        }
+
+        // Fixture definitions: channel offsets unique and in range; wheels
+        for def in project.fixtureDefinitions {
+            issues.append(contentsOf: validateDefinition(def))
+        }
 
         // Fixtures
         for fixture in project.fixtures {
@@ -193,6 +255,70 @@ public enum ProjectValidator {
         return ProjectValidationSnapshot(issues: issues)
     }
 
+    private static func validateDefinition(_ def: FixtureDefinition) -> [ResolutionIssue] {
+        var issues: [ResolutionIssue] = []
+        var seenOffsets = Set<UInt16>()
+        var coarseCount: [String: Int] = [:]
+        var fineCount: [String: Int] = [:]
+
+        for ch in def.channels {
+            if ch.offset < 1 || ch.offset > def.channelCount {
+                issues.append(stableIssue(
+                    code: "channel-offset-oob",
+                    entity: def.id,
+                    message: "Definition \(def.model) channel \(ch.name) offset \(ch.offset) outside 1…\(def.channelCount)"
+                ))
+            }
+            if !seenOffsets.insert(ch.offset).inserted {
+                issues.append(stableIssue(
+                    code: "duplicate-channel-offset",
+                    entity: def.id,
+                    message: "Definition \(def.model) duplicate channel offset \(ch.offset)"
+                ))
+            }
+            switch ch.resolution {
+            case .coarse:
+                coarseCount[ch.attribute, default: 0] += 1
+            case .fine:
+                fineCount[ch.attribute, default: 0] += 1
+            case .eightBit:
+                break
+            }
+        }
+
+        for (attr, count) in coarseCount where count > 1 {
+            issues.append(stableIssue(
+                code: "duplicate-coarse-attribute",
+                entity: def.id,
+                message: "Definition \(def.model) has \(count) coarse channels for \(attr)",
+                attribute: attr
+            ))
+        }
+        for (attr, count) in fineCount where count > 1 {
+            issues.append(stableIssue(
+                code: "duplicate-fine-attribute",
+                entity: def.id,
+                message: "Definition \(def.model) has \(count) fine channels for \(attr)",
+                attribute: attr
+            ))
+        }
+
+        for wheel in def.wheels {
+            var seenIdx = Set<UInt16>()
+            for slot in wheel.slots {
+                if !seenIdx.insert(slot.index).inserted {
+                    issues.append(stableIssue(
+                        code: "duplicate-wheel-index",
+                        entity: def.id,
+                        message: "Definition \(def.model) wheel \(wheel.name) duplicate index \(slot.index)"
+                    ))
+                }
+            }
+        }
+
+        return issues
+    }
+
     private static func duplicateIDIssues(_ ids: [UUID], label: String) -> [ResolutionIssue] {
         var seen = Set<UUID>()
         var issues: [ResolutionIssue] = []
@@ -210,7 +336,6 @@ public enum ProjectValidator {
 
     private static func patchOverlapIssues(_ project: ShowProject) -> [ResolutionIssue] {
         var issues: [ResolutionIssue] = []
-        // Per universe: collect occupied ranges
         var byUniverse: [UUID: [(UUID, ClosedRange<UInt16>)]] = [:]
         for fixture in project.fixtures {
             guard let def = project.definition(id: fixture.definitionId) else { continue }
@@ -263,7 +388,8 @@ public enum ProjectValidator {
         for i in 0..<8 {
             bytes[i] = UInt8((hash >> (UInt64(i) * 8)) & 0xFF)
         }
-        var hash2 = hash &* 0x9E3779B97F4A7C15
+        // Cosmetic: was `var hash2` never mutated (review warning).
+        let hash2 = hash &* 0x9E3779B97F4A7C15
         for i in 0..<8 {
             bytes[8 + i] = UInt8((hash2 >> (UInt64(i) * 8)) & 0xFF)
         }

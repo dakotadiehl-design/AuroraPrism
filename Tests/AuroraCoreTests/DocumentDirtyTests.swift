@@ -110,6 +110,20 @@ final class DocumentDirtyTests: XCTestCase {
         XCTAssertTrue(session.isDirty)
     }
 
+    /// PRE-UI-5: first mutation inside an open command group marks dirty immediately.
+    func testGroupMutationIsDirtyBeforeEndGroup() throws {
+        let session = DocumentSession(project: .empty(name: "T"))
+        session.markSaved()
+        XCTAssertFalse(session.isDirty)
+        try session.beginGroup(named: "Batch")
+        try addList(session, name: "Inside")
+        XCTAssertTrue(session.isDirty, "Open group with mutations must report dirty before endGroup")
+        try session.endGroup()
+        XCTAssertTrue(session.isDirty)
+        session.markSaved()
+        XCTAssertFalse(session.isDirty)
+    }
+
     /// P0-1: coalescible renames must not merge across a save-point.
     func testCoalesceDoesNotCrossSaveBoundary() throws {
         let session = DocumentSession(project: .empty(name: "Original"))

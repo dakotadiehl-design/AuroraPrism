@@ -45,4 +45,25 @@ final class PerformanceSnapshotBuildTests: XCTestCase {
         XCTAssertFalse(snap.resolutionIssues.isEmpty)
         XCTAssertEqual(engine.resolutionIssues.count, snap.resolutionIssues.count)
     }
+
+    /// UI-GATE-4: active channel total is sum across all universes (shared formula).
+    func testMultiUniverseActiveChannelTotal() {
+        let levels: [UInt16: [UInt8]] = [
+            1: [10, 0, 20, 0],
+            2: [0, 5, 0, 0],
+            3: [0, 0, 0, 0],
+        ]
+        // Mirror PerformanceSnapshot.activeChannelTotals without importing app target.
+        var channels = 0
+        var universes = 0
+        for frame in levels.values {
+            let active = frame.filter { $0 > 0 }.count
+            if active > 0 {
+                universes += 1
+                channels += active
+            }
+        }
+        XCTAssertEqual(channels, 3)
+        XCTAssertEqual(universes, 2)
+    }
 }

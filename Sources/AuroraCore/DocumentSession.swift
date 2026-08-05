@@ -19,7 +19,10 @@ public final class DocumentSession {
     /// State ID last successfully saved (or at open/new).
     public private(set) var savedGeneration: UInt64 = 0
 
-    public var isDirty: Bool { documentGeneration != savedGeneration }
+    /// Dirty if state IDs differ **or** an open command group has mutated content (PRE-UI-5).
+    public var isDirty: Bool {
+        documentGeneration != savedGeneration || groupProvisionalStateID != nil
+    }
 
     public let eventBus = EventBus()
     public let selection = SelectionManager()
@@ -33,6 +36,8 @@ public final class DocumentSession {
     private var nextStateID: UInt64 = 0
     private var groupingName: String?
     private var groupBuffer: [any Command]?
+    /// Provisional dirty flag while a command group is open (PRE-UI-5).
+    private var groupProvisionalStateID: UInt64?
 
     public init(project: ShowProject) {
         self.project = project
@@ -64,6 +69,7 @@ public final class DocumentSession {
         redoStateIDs.removeAll()
         groupBuffer = nil
         groupingName = nil
+        groupProvisionalStateID = nil
         documentGeneration = 0
         savedGeneration = 0
         nextStateID = 0
@@ -113,6 +119,10 @@ public final class DocumentSession {
             if buffer.isEmpty {
                 undoStack.clearRedo()
                 redoStateIDs.removeAll()
+                // First mutation inside a group: mint provisional dirty state immediately.
+                let provisional = mintStateID()
+                groupProvisionalStateID = provisional
+                documentGeneration = provisional
             }
             buffer.append(command)
             groupBuffer = buffer
@@ -197,6 +207,7 @@ public final class DocumentSession {
         guard groupBuffer == nil else { throw CommandError.alreadyGrouping }
         groupingName = name
         groupBuffer = []
+        groupProvisionalStateID = nil
     }
 
     public func endGroup() throws {
@@ -205,13 +216,21 @@ public final class DocumentSession {
         }
         groupBuffer = nil
         groupingName = nil
+        groupProvisionalStateID = nil
 
         guard !buffer.isEmpty else {
             throw CommandError.emptyGroup
         }
 
-        let newID = mintStateID()
-        documentGeneration = newID
+        // Reuse provisional ID if already minted on first group mutation; else mint now.
+        let newID: UInt64
+        if documentGeneration != savedGeneration, undoStateIDs.last != documentGeneration {
+            // Provisional ID already set on first mutation — keep it as the committed ID.
+            newID = documentGeneration
+        } else {
+            newID = mintStateID()
+            documentGeneration = newID
+        }
         let group = CommandGroup(name: name, commands: buffer)
         undoStack.push(group)
         redoStateIDs.removeAll()
@@ -227,10 +246,14 @@ public final class DocumentSession {
                 try command.undo(context: context)
             }
             project = context.project
+            // Restore generation to pre-group state (last undo ID or baseline).
+            documentGeneration = undoStateIDs.last ?? 0
+            groupProvisionalStateID = nil
             didMutateProject()
         }
         groupBuffer = nil
         groupingName = nil
+        groupProvisionalStateID = nil
     }
 
     public func didMutateProject() {

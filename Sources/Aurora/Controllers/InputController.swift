@@ -4,7 +4,7 @@ import AuroraMIDI
 import AuroraModel
 import Foundation
 
-/// CoreMIDI, RTP-MIDI, OSC, learn, and MIDI log (Stage C).
+/// CoreMIDI, RTP-MIDI, OSC, learn, and MIDI log (Stage C / UI-GATE-1 / UI-GATE-2).
 @MainActor
 final class InputController: ObservableObject {
     private let midi = MIDIInputManager()
@@ -21,15 +21,22 @@ final class InputController: ObservableObject {
     @Published private(set) var midiLog: [String] = []
 
     private let maxMIDILog = 100
+    private var midiObserverToken: ControlEventObserverToken?
 
     func stopAll() {
         midi.stop()
         oscServer.stop()
     }
 
+    /// Installs a **dedicated** MIDI log observer (does not replace other observers).
     func startMIDI(router: ControlActionRouter, session: @escaping () -> DocumentSession, onLog: @escaping (String) -> Void) {
         let learnFlag = midiLearnFlag
-        router.setUINotify { [weak self] action, summary in
+        // Remove prior subscription if re-started.
+        if let token = midiObserverToken {
+            router.removeUIObserver(token)
+            midiObserverToken = nil
+        }
+        midiObserverToken = router.addUIObserver { [weak self] _, summary in
             Task { @MainActor in
                 self?.appendMIDILog(summary)
                 self?.lastMIDIEvent = summary
@@ -74,15 +81,25 @@ final class InputController: ObservableObject {
         objectWillChange.send()
     }
 
+    /// OSC live dispatch runs on the network callback thread first (UI-GATE-2).
+    /// Presentation updates hop to MainActor afterward only.
     func setOSCEnabled(
         _ enabled: Bool,
-        onAction: @escaping (ShowAction, Float?) -> Void,
+        router: ControlActionRouter,
+        onUINotify: @escaping @MainActor (ShowAction, Float?) -> Void,
         onLog: (String) -> Void
     ) {
         if enabled {
             oscServer.setHandler { action, value in
+                // Immediate live path — no MainActor wait.
+                if let value {
+                    let control = MIDIControlValue(normalized: Double(value), isTrigger: false)
+                    router.dispatch(action, control: control, notifySummary: "OSC \(action.storageKey)")
+                } else {
+                    router.dispatch(action, notifySummary: "OSC \(action.storageKey)")
+                }
                 Task { @MainActor in
-                    onAction(action, value)
+                    onUINotify(action, value)
                 }
             }
             do {

@@ -122,31 +122,64 @@ public enum ProjectPackage {
         }
     }
 
-    /// Recover orphan `.tmp-` / `.bak-` packages after crash during save (P2-8).
+    /// Recover orphan `.tmp-` / `.bak-` packages after crash during save (P2-8 / PRE-UI-7).
     /// Returns recovered package URL if a backup was restored into a missing destination.
+    /// Chooses the newest backup by **file modification date**, not UUID lexical order.
     @discardableResult
     public static func recoverOrphanedPackages(around url: URL) throws -> URL? {
         let fm = FileManager.default
         let parent = url.deletingLastPathComponent()
         let base = url.lastPathComponent
-        let contents = try fm.contentsOfDirectory(at: parent, includingPropertiesForKeys: nil)
+        let keys: [URLResourceKey] = [.contentModificationDateKey, .creationDateKey]
+        let contents = try fm.contentsOfDirectory(
+            at: parent,
+            includingPropertiesForKeys: keys,
+            options: []
+        )
         let bak = contents.filter { $0.lastPathComponent.hasPrefix(".\(base).bak-") }
         let tmp = contents.filter { $0.lastPathComponent.hasPrefix(".\(base).tmp-") }
 
-        // Prefer restoring newest valid backup if destination missing.
-        if !fm.fileExists(atPath: url.path), let newestBak = bak.sorted(by: { $0.lastPathComponent > $1.lastPathComponent }).first {
-            _ = try load(from: newestBak)
-            try fm.moveItem(at: newestBak, to: url)
-            for t in tmp { try? fm.removeItem(at: t) }
-            for b in bak where b != newestBak { try? fm.removeItem(at: b) }
-            return url
+        // Prefer restoring chronologically newest valid backup if destination missing.
+        if !fm.fileExists(atPath: url.path) {
+            let sorted = bak.sorted { a, b in
+                Self.packageTimestamp(a) > Self.packageTimestamp(b)
+            }
+            for candidate in sorted {
+                do {
+                    _ = try load(from: candidate)
+                    try fm.moveItem(at: candidate, to: url)
+                    for t in tmp { try? fm.removeItem(at: t) }
+                    for b in bak where b != candidate { try? fm.removeItem(at: b) }
+                    return url
+                } catch {
+                    // Try next-newest valid backup.
+                    continue
+                }
+            }
         }
-        // Clean leftover temps when destination is healthy.
+        // Destination exists: only clean orphans after destination validates.
         if fm.fileExists(atPath: url.path) {
-            for t in tmp { try? fm.removeItem(at: t) }
-            for b in bak { try? fm.removeItem(at: b) }
+            do {
+                _ = try load(from: url)
+                for t in tmp { try? fm.removeItem(at: t) }
+                for b in bak { try? fm.removeItem(at: b) }
+            } catch {
+                // Leave backups if destination is corrupt.
+            }
         }
         return nil
+    }
+
+    /// Best-effort chronological ranking for orphan package directories.
+    private static func packageTimestamp(_ url: URL) -> TimeInterval {
+        let values = try? url.resourceValues(forKeys: [.contentModificationDateKey, .creationDateKey])
+        if let mod = values?.contentModificationDate {
+            return mod.timeIntervalSince1970
+        }
+        if let created = values?.creationDate {
+            return created.timeIntervalSince1970
+        }
+        return 0
     }
 
     private static func writePackageContents(

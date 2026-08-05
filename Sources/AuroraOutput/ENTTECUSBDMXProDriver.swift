@@ -1,16 +1,73 @@
 import AuroraModel
 import Foundation
 
-/// ENTTEC DMX USB Pro / Open DMX compatible serial framing (P3-1).
+/// ENTTEC **DMX USB Pro** framed serial protocol (label-6 Send DMX Packet).
+///
+/// This is **not** ENTTEC Open DMX. Open DMX uses a continuous FTDI-style bit stream
+/// and different timing; do not present this driver as Open DMX capable (PRE-UI-3).
 ///
 /// Physical USB I/O is abstracted behind `ENTTECSerialTransport` so unit tests can
-/// validate packets without hardware. Wire a real serial port transport on macOS
-/// via IOKit/ORSSerial when deploying to a desk machine.
+/// validate packets without hardware. A real macOS serial transport is not yet
+/// wired; UI should enumerate `LocalDMXDeviceDescriptor` and only enable devices
+/// whose `connectionState` is openable.
 public protocol ENTTECSerialTransport: AnyObject {
     var isOpen: Bool { get }
     func open() throws
     func close()
     func write(_ data: Data) throws
+}
+
+/// UI-facing local DMX hardware descriptor (PRE-UI-3).
+/// Enumeration/open of real USB Pro devices is scheduled separately; mock layer
+/// can populate these for Settings UI development.
+public struct LocalDMXDeviceDescriptor: Equatable, Sendable, Identifiable, Hashable {
+    public enum DeviceType: String, Sendable, Hashable {
+        case enttecUSBDMXPro
+        /// Reserved — not implemented by `ENTTECUSBDMXProDriver`.
+        case enttecOpenDMX
+        case other
+    }
+
+    public enum ConnectionState: String, Sendable, Hashable {
+        case unavailable
+        case available
+        case open
+        case failed
+    }
+
+    public var id: String
+    public var displayName: String
+    public var serialPath: String?
+    public var hardwareIdentifier: String?
+    public var deviceType: DeviceType
+    public var connectionState: ConnectionState
+    public var supportedUniverses: [UInt16]
+
+    public init(
+        id: String,
+        displayName: String,
+        serialPath: String? = nil,
+        hardwareIdentifier: String? = nil,
+        deviceType: DeviceType = .enttecUSBDMXPro,
+        connectionState: ConnectionState = .unavailable,
+        supportedUniverses: [UInt16] = [1]
+    ) {
+        self.id = id
+        self.displayName = displayName
+        self.serialPath = serialPath
+        self.hardwareIdentifier = hardwareIdentifier
+        self.deviceType = deviceType
+        self.connectionState = connectionState
+        self.supportedUniverses = supportedUniverses
+    }
+}
+
+/// Placeholder enumerator until macOS IOKit serial transport lands.
+public enum LocalDMXDeviceEnumerator {
+    /// Returns discovered local DMX devices. Currently empty (no physical transport).
+    public static func enumerate() -> [LocalDMXDeviceDescriptor] {
+        []
+    }
 }
 
 /// In-memory transport for tests / offline.

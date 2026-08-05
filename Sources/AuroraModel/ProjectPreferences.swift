@@ -8,7 +8,9 @@ public struct ProjectPreferences: Codable, Equatable, Sendable, Hashable {
     public var defaultFadeOut: TimeInterval
     /// Default tracking mode for new cues.
     public var defaultTracking: TrackingMode
-    /// Default engine frame rate hint stored with the show (Hz). Engine may override.
+    /// Deprecated show-scoped frame-rate hint (PRE-UI-2).
+    /// Engine frame rate is owned by `AppSettingsStore.preferredFrameRateHz`.
+    /// Retained for package Codable compatibility; not applied by the engine.
     public var preferredFrameRateHz: Double
 
     public init(

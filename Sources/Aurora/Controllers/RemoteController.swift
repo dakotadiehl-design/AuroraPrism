@@ -102,8 +102,8 @@ final class RemoteController: ObservableObject {
     ) -> RemoteSnapshot {
         let engineSnap = engine.currentSnapshot()
         let pb = engineSnap.playback
-        let levels = engineSnap.universeLevels[1] ?? []
-        let active = levels.filter { $0 > 0 }.count
+        // UI-GATE-4: total active channels across all universes (matches PerformanceSnapshot).
+        let active = PerformanceSnapshot.activeChannelTotals(universeLevels: engineSnap.universeLevels).channels
         var cueName: String?
         if pb.cueIndex >= 0,
            let list = project.cueLists.first(where: { $0.id == pb.listID })

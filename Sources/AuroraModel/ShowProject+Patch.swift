@@ -48,30 +48,34 @@ public extension ShowProject {
     }
 
     /// First 1-based start address in the universe that fits `channelCount` without overlap.
+    /// Uses `Int` math throughout to avoid UInt16 overflow traps on corrupt data (PRE-UI-6).
     func nextFreeAddress(in universeId: UUID, channelCount requested: UInt16) -> UInt16? {
         guard let universe = universe(id: universeId), requested >= 1 else { return nil }
-        let capacity = universe.channelCount
-        guard requested <= capacity else { return nil }
+        let capacity = Int(universe.channelCount)
+        let need = Int(requested)
+        guard need <= capacity else { return nil }
 
-        let occupied: [(UInt16, UInt16)] = fixtures
+        let occupied: [(start: Int, end: Int)] = fixtures
             .filter { $0.universeId == universeId }
             .map { f in
-                let c = channelCount(for: f)
-                return (f.address, f.endAddress(channelCount: c))
+                let c = Int(channelCount(for: f))
+                let start = Int(f.address)
+                let end = Int(f.endAddress(channelCount: UInt16(clamping: c)))
+                return (start, end)
             }
-            .sorted { $0.0 < $1.0 }
+            .sorted { $0.start < $1.start }
 
-        var candidate: UInt16 = 1
+        var candidate = 1
         for (start, end) in occupied {
-            if candidate + requested - 1 < start {
-                return candidate
+            if candidate + need - 1 < start {
+                return UInt16(candidate)
             }
             if end + 1 > candidate {
                 candidate = end + 1
             }
         }
-        if candidate + requested - 1 <= capacity {
-            return candidate
+        if candidate + need - 1 <= capacity {
+            return UInt16(candidate)
         }
         return nil
     }

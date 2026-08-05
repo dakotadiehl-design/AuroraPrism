@@ -4,10 +4,15 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 ## Status
 
-**Roadmap through PR34 + code-review P0/P1 fixes are in tree.** See [`docs/PROJECT_HANDOFF.md`](./docs/PROJECT_HANDOFF.md) before new work. Remote: Enable Remote (random PIN) → `http://<mac>:8743`.
+**Backend is UI-gate ready.** Stages A–E (P0–P3), Xcode packaging, and the Final Backend UI Gate review are implemented. See [`docs/PROJECT_HANDOFF.md`](./docs/PROJECT_HANDOFF.md) and [`docs/UI_BACKEND_CONTRACT.md`](./docs/UI_BACKEND_CONTRACT.md) before new work.
+
+Remote: Enable Remote (random PIN) → `http://<mac>:8743`.
 
 | Doc | Description |
 |-----|-------------|
+| [`docs/PROJECT_HANDOFF.md`](./docs/PROJECT_HANDOFF.md) | **Session handoff** — current architecture & status |
+| [`docs/UI_BACKEND_CONTRACT.md`](./docs/UI_BACKEND_CONTRACT.md) | **UI redesign contract** — controllers, routes, what not to bypass |
+| [`docs/STAGE_C_UI_STATE_HANDOFF.md`](./docs/STAGE_C_UI_STATE_HANDOFF.md) | Controller ownership map |
 | [`Aurora Lighting Control System.pdf`](./Aurora%20Lighting%20Control%20System.pdf) | Original high-level overview |
 | [`docs/design/aurora-system-design.md`](./docs/design/aurora-system-design.md) | System architecture & full PR plan |
 | [`docs/design/pr1-project-scaffold.md`](./docs/design/pr1-project-scaffold.md) | **PR1** module layout, dependencies, acceptance |
@@ -42,7 +47,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 | [`docs/design/pr34-aurora-pad.md`](./docs/design/pr34-aurora-pad.md) | **PR34** Pad scaffold |
 | [`docs/design/remote-companion.md`](./docs/design/remote-companion.md) | Stage iPad remote (web first, native later) |
 | [`docs/development-workflow.md`](./docs/development-workflow.md) | Mac toolchain & dual-host notes |
-| [`docs/PROJECT_HANDOFF.md`](./docs/PROJECT_HANDOFF.md) | **Session handoff** — full memory for new chats / post-compress |
+| [`docs/xcode-project.md`](./docs/xcode-project.md) | Xcode app target, entitlements, schemes |
 
 ## Development environments
 
@@ -97,8 +102,8 @@ Libraries are always composed from `Package.swift`; the app target does **not** 
 | `AuroraUI` | Panels & workspace views |
 | `Aurora` (executable) | App entry (design name: **AuroraApp**) |
 
-Dependency rules are documented in [PR1 scaffold](./docs/design/pr1-project-scaffold.md#6-dependency-graph). UI must not depend on Output or MIDI.
+Dependency rules are documented in [PR1 scaffold](./docs/design/pr1-project-scaffold.md#6-dependency-graph). `AuroraUI` may import `AuroraMIDI` (mappings panel); it must not import `AuroraOutput`.
 
 ## Next
 
-See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR17** maps MIDI to actions; **PR15** deepens color tools.
+**Visual UI redesign** when requested — bind to Stage C controllers and follow [`docs/UI_BACKEND_CONTRACT.md`](./docs/UI_BACKEND_CONTRACT.md). Do not re-open completed review MDs as active backlog. Parallel hardware soak (Art-Net/sACN/ENTTEC) does not block UI design.

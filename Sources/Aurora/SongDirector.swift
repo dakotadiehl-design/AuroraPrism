@@ -2,9 +2,14 @@ import AuroraEngine
 import AuroraModel
 import Foundation
 
-/// Progression mode for Song Mode (P1-3).
+/// Progression mode for Song Mode (P1-3 / UI-GATE-6).
+///
+/// Only **manual** progression is implemented. `.automatic` is retained for Codable /
+/// snapshot forward-compat but is rejected by `setProgressionMode` until completion
+/// semantics are designed (cue-list follow vs song entry, loops, GO cancel rules).
 enum SongProgressionMode: String, Sendable {
     case manual
+    /// Not implemented — do not expose as a working UI control.
     case automatic
 }
 
@@ -44,6 +49,7 @@ struct SongPerformanceSnapshot: Equatable, Sendable {
 final class SongDirector {
     private(set) var songID: UUID?
     private(set) var entryIndex: Int = -1
+    /// Always `.manual` until automatic progression is implemented (UI-GATE-6).
     private(set) var progressionMode: SongProgressionMode = .manual
 
     var statusLine: String {
@@ -65,8 +71,16 @@ final class SongDirector {
         applyEntry(song.entries[0], project: project, engine: engine)
     }
 
-    func setProgressionMode(_ mode: SongProgressionMode) {
-        progressionMode = mode
+    /// Only `.manual` is accepted. `.automatic` is ignored (not yet implemented).
+    @discardableResult
+    func setProgressionMode(_ mode: SongProgressionMode) -> Bool {
+        guard mode == .manual else {
+            // Keep truthful: do not flip a control that does nothing.
+            progressionMode = .manual
+            return false
+        }
+        progressionMode = .manual
+        return true
     }
 
     func next(project: ShowProject, engine: LightingEngine) {

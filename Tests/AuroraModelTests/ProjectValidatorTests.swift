@@ -51,4 +51,36 @@ final class ProjectValidatorTests: XCTestCase {
         let issues = ProjectValidator.validate(project).issues
         XCTAssertTrue(issues.contains { $0.message.contains("diverge") })
     }
+
+    /// PRE-UI-1: duplicate universe numbers are integrity errors.
+    func testDuplicateUniverseNumberDetected() {
+        var project = ShowProject.empty()
+        project.universes = [
+            Universe(id: UUID(), number: 1, name: "A"),
+            Universe(id: UUID(), number: 1, name: "B"),
+        ]
+        let issues = ProjectValidator.validate(project).issues
+        XCTAssertTrue(issues.contains { $0.message.contains("Duplicate universe number") })
+    }
+
+    func testDuplicateCueIDsAcrossListsDetected() {
+        var project = ShowProject.empty()
+        let cueID = UUID()
+        project.cueLists = [
+            CueList(name: "A", cues: [Cue(id: cueID, number: 1, name: "1")]),
+            CueList(name: "B", cues: [Cue(id: cueID, number: 1, name: "dup")]),
+        ]
+        let issues = ProjectValidator.validate(project).issues
+        XCTAssertTrue(issues.contains { $0.message.contains("Duplicate cue") })
+    }
+
+    func testDuplicateEffectOrderDetected() {
+        var project = ShowProject.empty()
+        project.effects = [
+            EffectDefinition(name: "E1", order: 1),
+            EffectDefinition(name: "E2", order: 1),
+        ]
+        let issues = ProjectValidator.validate(project).issues
+        XCTAssertTrue(issues.contains { $0.message.contains("Duplicate effect order") })
+    }
 }

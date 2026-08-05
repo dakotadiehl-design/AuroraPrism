@@ -1,6 +1,9 @@
 # Aurora Post-Remediation Deep Code Review
 ## Backend Hardening and UI Readiness Plan
 
+> **STATUS: HISTORICAL / COMPLETED** — Stages A–C and P2/P3 implemented; final gate in `Aurora_Final_Backend_UI_Gate_Review.md` also completed 2026-08-05.  
+> Active memory: `docs/PROJECT_HANDOFF.md` + `docs/UI_BACKEND_CONTRACT.md`.
+
 **Repository reviewed:** `Aurora_post_codereview`  
 **Review date:** 2026-08-05  
 **Review scope:** Full repository after Grok's remediation of the prior P0-P3 review, with special attention to live-show reliability and the upcoming Aurora UI redesign.  

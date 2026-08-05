@@ -1,5 +1,8 @@
 # Aurora Deep Code Review — Required Fixes Before UI Phase
 
+> **STATUS: HISTORICAL / COMPLETED** — Superseded by post-remediation and final UI-gate reviews (all implemented).  
+> Active memory: `docs/PROJECT_HANDOFF.md` + `docs/UI_BACKEND_CONTRACT.md`.
+
 **Review date:** 2026-08-05  
 **Repository reviewed:** `Aurora(1).zip`  
 **HEAD:** `068e161` — *Refresh handoff next-work and git arc after full roadmap*  

@@ -37,6 +37,16 @@ final class PatchManagementTests: XCTestCase {
         XCTAssertEqual(session.project.fixtures.count, 1)
     }
 
+    /// PRE-UI-1: AddUniverseCommand rejects duplicate universe numbers.
+    func testAddUniverseRejectsDuplicateNumber() throws {
+        let session = DocumentSession(project: ShowProject.empty(name: "Show"))
+        try session.perform(AddUniverseCommand(universe: Universe(number: 1, name: "A")))
+        XCTAssertThrowsError(
+            try session.perform(AddUniverseCommand(universe: Universe(number: 1, name: "B")))
+        )
+        XCTAssertEqual(session.project.universes.count, 1)
+    }
+
     func testCloneFixture() throws {
         let session = DocumentSession(project: ShowProject.empty())
         let universe = Universe(number: 1)

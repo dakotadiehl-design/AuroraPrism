@@ -150,15 +150,25 @@ public final class OutputManager: @unchecked Sendable {
         }
     }
 
-    /// Route filter: `.none` → all drivers (legacy); typed hints → matching protocol only.
-    /// Mock drivers with `.none` still receive all routes (tests / monitoring).
+    /// Route filter (UI-GATE-3):
+    /// - `.none` → no physical drivers (safe default)
+    /// - `.local` / `.artNet` / `.sACN` → matching protocol only
+    /// - `.mirror` → all physical protocol drivers
+    ///
+    /// Mock/test drivers with `outputProtocol == .none` still receive every route so
+    /// unit tests and monitors can observe frames without redefining production semantics.
     public static func driver(_ driver: OutputDriver, accepts route: UniverseProtocolHint) -> Bool {
+        // Test/monitor sink: always observes.
         if driver.outputProtocol == .none {
             return true
         }
         switch route {
         case .none:
-            return true
+            return false
+        case .mirror:
+            return driver.outputProtocol == .local
+                || driver.outputProtocol == .artNet
+                || driver.outputProtocol == .sACN
         case .local:
             return driver.outputProtocol == .local
         case .artNet:

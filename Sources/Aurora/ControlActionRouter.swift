@@ -13,10 +13,17 @@ final class MIDILearnFlag: @unchecked Sendable {
     }
 }
 
-/// Unified show-control dispatcher for MIDI / OSC / UI / remote (P1-9).
+/// Token for a control-event UI observer subscription (UI-GATE-1).
+struct ControlEventObserverToken: Hashable, Sendable {
+    let id: UUID
+}
+
+/// Unified show-control dispatcher for MIDI / OSC / UI / remote (P1-9 / UI-GATE-1).
 ///
 /// Live paths avoid MainActor. `fireCueIndex` targets the **active** playback list,
 /// not `cueLists.first`.
+///
+/// UI observation is multi-subscriber: installing a second observer never replaces the first.
 final class ControlActionRouter: @unchecked Sendable {
     private let lock = NSLock()
     private weak var engine: LightingEngine?
@@ -24,15 +31,35 @@ final class ControlActionRouter: @unchecked Sendable {
     private var project: ShowProject = .empty()
     private var selectedFixtureIDs: Set<UUID> = []
     private var orderedFixtureIDs: [UUID] = []
-    private var onUINotify: (@Sendable (ShowAction, String) -> Void)?
+    /// Multi-observer map (replaces single replaceable callback).
+    private var uiObservers: [UUID: @Sendable (ShowAction, String) -> Void] = [:]
 
     init(engine: LightingEngine) {
         self.engine = engine
     }
 
+    /// Register a UI/diagnostics observer. Returns a token for later removal.
+    /// Multiple observers fire for each live action; none overwrites another.
+    @discardableResult
+    func addUIObserver(_ handler: @escaping @Sendable (ShowAction, String) -> Void) -> ControlEventObserverToken {
+        let id = UUID()
+        lock.lock()
+        uiObservers[id] = handler
+        lock.unlock()
+        return ControlEventObserverToken(id: id)
+    }
+
+    func removeUIObserver(_ token: ControlEventObserverToken) {
+        lock.lock()
+        uiObservers[token.id] = nil
+        lock.unlock()
+    }
+
+    /// Compatibility: clears existing observers and installs a single handler.
+    /// Prefer `addUIObserver` so MIDI status and show-control both stay subscribed.
     func setUINotify(_ handler: @escaping @Sendable (ShowAction, String) -> Void) {
         lock.lock()
-        onUINotify = handler
+        uiObservers = [UUID(): handler]
         lock.unlock()
     }
 
@@ -64,7 +91,7 @@ final class ControlActionRouter: @unchecked Sendable {
         lock.lock()
         let maps = mappings
         let eng = engine
-        let notify = onUINotify
+        let observers = Array(uiObservers.values)
         let selection = selectedFixtureIDs
         let ordered = orderedFixtureIDs
         let proj = project
@@ -83,22 +110,27 @@ final class ControlActionRouter: @unchecked Sendable {
                     selection: selection,
                     orderedSelection: ordered
                 )
-                notify?(action, event.summary)
+                for notify in observers {
+                    notify(action, event.summary)
+                }
             }
         }
     }
 
     /// Dispatch a show action from any control surface (MIDI/OSC/UI/remote).
+    /// Safe from non-MainActor threads (UI-GATE-2).
     func dispatch(
         _ action: ShowAction,
         control: MIDIControlValue? = nil,
-        midiValue: UInt8? = nil
+        midiValue: UInt8? = nil,
+        notifySummary: String? = nil
     ) {
         lock.lock()
         let eng = engine
         let proj = project
         let selection = selectedFixtureIDs
         let ordered = orderedFixtureIDs
+        let observers = Array(uiObservers.values)
         lock.unlock()
         guard let eng else { return }
 
@@ -119,6 +151,12 @@ final class ControlActionRouter: @unchecked Sendable {
             selection: selection,
             orderedSelection: ordered
         )
+
+        if let summary = notifySummary {
+            for notify in observers {
+                notify(action, summary)
+            }
+        }
     }
 
     /// Live actions that must not require MainActor.

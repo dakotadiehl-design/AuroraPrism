@@ -131,43 +131,31 @@ final class AppModel: ObservableObject {
 
         reloadEngine()
         showControl.startEngineIfPossible()
+        // UI-GATE-1: multi-observer — MIDI log and show-control both subscribe; neither replaces the other.
         input.startMIDI(
             router: showControl.controlRouter,
             session: { [weak self] in self?.document.session ?? DocumentSession(project: .empty()) },
-            onLog: { [weak self] msg in self?.diagnostics.log(msg) }
+            onLog: { [weak self] msg in self?.diagnostics.log(msg, subsystem: .midi) }
         )
-        // P2-17: MIDI subsystem diagnostics bridge
-        // (InputController can log connect/disconnect via setDiagnosticsLogger when wired)
-        showControl.setUINotify { [weak self] action, summary in
+        _ = showControl.addUIObserver { [weak self] action, _ in
             Task { @MainActor in
-                self?.input.objectWillChange.send()
                 self?.showControl.refreshEngineStatus()
                 if case .programmerAttribute = action {
                     self?.notifyUI()
                 }
             }
         }
-        input.applySavedRTPMIDI { [weak self] msg in self?.diagnostics.log(msg) }
+        input.applySavedRTPMIDI { [weak self] msg in self?.diagnostics.log(msg, subsystem: .midi) }
         showControl.startStatusPolling(
             outputStatus: { [weak self] in self?.output.outputStatus ?? "Output: Null" },
             project: { [weak self] in self?.document.session.project ?? .empty() },
             isDirty: { [weak self] in self?.document.isDirty ?? false }
         )
         output.refreshOutputStatus()
-        // P2-22: preferred frame rate from app settings affects engine when possible.
-        if let period = Optional(1.0 / max(1, settings.preferredFrameRateHz)) {
-            showControl.engine.frameMetrics.setTargetPeriodMs(period * 1000)
-        }
+        // PRE-UI-2: app frame-rate preference drives the real engine scheduler.
+        applyPreferredFrameRate(settings.preferredFrameRateHz, persist: false)
         autosave.onAutosave = { [weak self] in
-            guard let self, let url = self.document.documentURL, self.document.isDirty else { return false }
-            do {
-                try self.document.save(to: url)
-                self.diagnostics.log("Autosave \(url.lastPathComponent)")
-                return true
-            } catch {
-                self.diagnostics.log("Autosave failed: \(error.localizedDescription)")
-                return false
-            }
+            self?.performBackgroundAutosave()
         }
         autosave.start()
         notifyUI()
@@ -362,20 +350,93 @@ final class AppModel: ObservableObject {
     }
 
     func setOSCEnabled(_ enabled: Bool) {
-        input.setOSCEnabled(enabled, onAction: { [weak self] action, value in
-            guard let self else { return }
-            if case .programmerAttribute(let attr) = action, let value {
-                for id in self.session.selection.snapshot.fixtureIDs {
-                    self.engine.programmer.set(fixtureID: id, attribute: attr, value: Double(value))
-                }
-                self.notifyUI()
-            } else {
-                let midiVal: UInt8? = value.map { UInt8(min(127, max(0, Int((Double($0) * 127).rounded())))) }
-                self.perform(action: action, midiValue: midiVal)
-            }
-            self.diagnostics.log("OSC \(action.storageKey)")
-        }, onLog: { [weak self] msg in self?.diagnostics.log(msg) })
+        // UI-GATE-2: live dispatch is on the OSC callback thread via ControlActionRouter;
+        // this closure is presentation-only (MainActor).
+        input.setOSCEnabled(
+            enabled,
+            router: showControl.controlRouter,
+            onUINotify: { [weak self] action, _ in
+                self?.showControl.refreshEngineStatus()
+                self?.diagnostics.log("OSC \(action.storageKey)", subsystem: .midi)
+                self?.notifyUI()
+            },
+            onLog: { [weak self] msg in self?.diagnostics.log(msg, subsystem: .midi) }
+        )
+        // Ensure router has current selection/mappings before live OSC arrives.
+        showControl.controlRouter.updateMappings(session.project.midiMappings, project: session.project)
+        showControl.controlRouter.updateOrderedSelection(session.selection.snapshot.orderedFixtureIDs)
         notifyUI()
+    }
+
+    /// PRE-UI-2: change engine frame rate from the app-global preference and persist it.
+    func setPreferredFrameRateHz(_ hz: Double) {
+        applyPreferredFrameRate(hz, persist: true)
+        notifyUI()
+    }
+
+    private func applyPreferredFrameRate(_ hz: Double, persist: Bool) {
+        let clamped = EngineConfiguration.clampFrameRate(hz)
+        settings.preferredFrameRateHz = clamped
+        if persist {
+            settings.save()
+        }
+        let config = EngineConfiguration(frameRateHz: clamped)
+        do {
+            try showControl.engine.updateConfiguration(config)
+            showControl.engine.frameMetrics.setTargetPeriodMs(config.framePeriod * 1000)
+            diagnostics.log(
+                String(format: "Engine frame rate %.0f Hz", clamped),
+                subsystem: .engine
+            )
+        } catch {
+            // Still set metrics target if restart failed mid-flight.
+            showControl.engine.frameMetrics.setTargetPeriodMs((1.0 / max(1, clamped)) * 1000)
+            diagnostics.log(
+                "Frame rate apply failed: \(error.localizedDescription)",
+                subsystem: .engine
+            )
+        }
+    }
+
+    /// UI-GATE-7: package I/O off MainActor; only mark clean if state ID still matches.
+    private func performBackgroundAutosave() {
+        guard let url = document.documentURL, document.isDirty else { return }
+        let snapshotProject = session.project
+        let snapshotStateID = session.documentGeneration
+        let assetSource = url
+        diagnostics.log("Autosave begin \(url.lastPathComponent)", subsystem: .project)
+        Task.detached(priority: .utility) { [weak self] in
+            do {
+                let writtenAt = try ProjectPackage.save(
+                    snapshotProject,
+                    to: url,
+                    preservingAssetsFrom: assetSource
+                )
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    // Only clear dirty if the document is still the same state we saved.
+                    if self.session.documentGeneration == snapshotStateID,
+                       self.document.documentURL?.standardizedFileURL == url.standardizedFileURL {
+                        self.session.applySavedMetadata(modifiedAt: writtenAt)
+                        self.document.statusMessage = "Autosaved \(url.lastPathComponent)"
+                        self.diagnostics.log("Autosave ok \(url.lastPathComponent)", subsystem: .project)
+                        self.notifyUI()
+                    } else {
+                        self.diagnostics.log(
+                            "Autosave completed for stale state — document remains dirty",
+                            subsystem: .project
+                        )
+                    }
+                }
+            } catch {
+                await MainActor.run { [weak self] in
+                    self?.diagnostics.log(
+                        "Autosave failed: \(error.localizedDescription)",
+                        subsystem: .project
+                    )
+                }
+            }
+        }
     }
 
     func armMIDILearn(_ action: ShowAction) {
@@ -436,9 +497,36 @@ final class AppModel: ObservableObject {
     // MARK: - Remote
 
     func setRemoteEnabled(_ enabled: Bool, pin: String? = nil) {
+        // UI-GATE-2: capture router for live path off MainActor.
+        let router = showControl.controlRouter
         let action: @Sendable (RemoteShowAction) -> Void = { [weak self] action in
+            // Transport / programmer / fire — immediate, no MainActor hop.
+            switch action {
+            case .go:
+                router.dispatch(.go)
+            case .stop:
+                router.dispatch(.stop)
+            case .back:
+                router.dispatch(.back)
+            case .next:
+                router.dispatch(.go)
+            case .fireCueIndex(let i):
+                router.dispatch(.fireCueIndex(i))
+            case .fireCue(let id):
+                router.dispatch(.fireCue(id))
+            case .setProgrammerAttribute(let attr, let value):
+                let control = MIDIControlValue(normalized: value, isTrigger: false)
+                router.dispatch(.programmerAttribute(attr), control: control)
+            case .songNext, .songPrevious:
+                // SongDirector is MainActor; hop only for song navigation.
+                Task { @MainActor in
+                    self?.performRemoteSong(action)
+                }
+                return
+            }
+            // Presentation / log only after live dispatch.
             Task { @MainActor in
-                self?.performRemote(action)
+                self?.noteRemoteAction(action)
             }
         }
         remote.setRemoteEnabled(
@@ -466,54 +554,59 @@ final class AppModel: ObservableObject {
                     songStatusFallback: self.songStatus
                 )
             },
-            onLog: { [weak self] msg in self?.diagnostics.log(msg) }
+            onLog: { [weak self] msg in self?.diagnostics.log(msg, subsystem: .remote) }
         )
         notifyUI()
     }
 
-    private func performRemote(_ action: RemoteShowAction) {
-        // Live transport/programmer via ControlActionRouter (not MainActor-bound engine wait) — P2-15.
+    private func performRemoteSong(_ action: RemoteShowAction) {
         switch action {
-        case .go:
-            showControl.controlRouter.dispatch(.go)
-        case .stop:
-            showControl.controlRouter.dispatch(.stop)
-        case .back:
-            showControl.controlRouter.dispatch(.back)
-        case .next:
-            showControl.controlRouter.dispatch(.go)
-        case .fireCueIndex(let i):
-            showControl.controlRouter.dispatch(.fireCueIndex(i))
-        case .fireCue(let id):
-            showControl.controlRouter.dispatch(.fireCue(id))
         case .songNext:
             showControl.songNext(project: session.project)
         case .songPrevious:
             showControl.songPrevious(project: session.project)
-        case .setProgrammerAttribute(let attr, let value):
-            let control = MIDIControlValue(normalized: value, isTrigger: false)
-            showControl.controlRouter.dispatch(
-                .programmerAttribute(attr),
-                control: control
-            )
+        default:
+            break
         }
+        noteRemoteAction(action)
+    }
+
+    private func noteRemoteAction(_ action: RemoteShowAction) {
         showControl.refreshEngineStatus()
-        diagnostics.log("Remote \(String(describing: action))")
+        diagnostics.log("Remote \(String(describing: action))", subsystem: .remote)
         notifyUI()
     }
 
     func setRemoteLockedToViewer(_ locked: Bool) {
         remote.setLockedToViewer(locked)
+        diagnostics.log(locked ? "Remote locked to viewer" : "Remote operators allowed", subsystem: .remote)
         notifyUI()
     }
 
     func kickAllRemoteClients() {
+        let router = showControl.controlRouter
         let action: @Sendable (RemoteShowAction) -> Void = { [weak self] action in
-            Task { @MainActor in
-                self?.performRemote(action)
+            switch action {
+            case .go: router.dispatch(.go)
+            case .stop: router.dispatch(.stop)
+            case .back: router.dispatch(.back)
+            case .next: router.dispatch(.go)
+            case .fireCueIndex(let i): router.dispatch(.fireCueIndex(i))
+            case .fireCue(let id): router.dispatch(.fireCue(id))
+            case .setProgrammerAttribute(let attr, let value):
+                router.dispatch(
+                    .programmerAttribute(attr),
+                    control: MIDIControlValue(normalized: value, isTrigger: false)
+                )
+            case .songNext, .songPrevious:
+                Task { @MainActor in self?.performRemoteSong(action) }
+                return
             }
+            Task { @MainActor in self?.noteRemoteAction(action) }
         }
-        remote.kickAll(onAction: action) { [weak self] msg in self?.diagnostics.log(msg) }
+        remote.kickAll(onAction: action) { [weak self] msg in
+            self?.diagnostics.log(msg, subsystem: .remote)
+        }
         notifyUI()
     }
 

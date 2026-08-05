@@ -163,6 +163,13 @@ final class ShowControlController: ObservableObject {
         objectWillChange.send()
     }
 
+    /// Adds a show-control presentation observer without replacing MIDI log observers (UI-GATE-1).
+    @discardableResult
+    func addUIObserver(_ handler: @escaping @Sendable (ShowAction, String) -> Void) -> ControlEventObserverToken {
+        controlRouter.addUIObserver(handler)
+    }
+
+    /// Compatibility — prefer `addUIObserver`.
     func setUINotify(_ handler: @escaping @Sendable (ShowAction, String) -> Void) {
         controlRouter.setUINotify(handler)
     }
