@@ -231,7 +231,7 @@ Scaffold → model → core → fixtures/patch → UI shell → engine/cues/prog
 | `ac1e154` | P0: Save As preserves source media/layouts |
 | `eba6370` | P0: preserve playback on non-destructive project updates |
 | `2ff023d` | P0: 16-bit coarse/fine DMX compilation |
-| *(A5)* | P0: required schema v1 package files on load |
+| `acd97a7` | P0: required schema v1 package files on load |
 
 ### Stage A (post-remediation P0) — complete when A5 lands
 
