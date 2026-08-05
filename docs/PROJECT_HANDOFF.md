@@ -7,7 +7,7 @@
 | **Last updated** | 2026-08-05 (**UI-03 PASS 2 COMPLETE**) |
 | **Workspace** | `/Users/dakota/code/Aurora` |
 | **Branch** | `main` (local only; no remote assumed) |
-| **HEAD** | uncommitted UI-03 Pass 2 on top of `dbdd891` / `ui-02-complete` |
+| **HEAD** | `dd131db` — tag `ui-03-complete` |
 | **Tests** | **304** passing (`swift test`) |
 | **Xcode app** | Debug build green after UI-03 Pass 2 |
 
