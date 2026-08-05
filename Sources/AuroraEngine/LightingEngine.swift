@@ -11,6 +11,8 @@ public final class LightingEngine: @unchecked Sendable {
 
     private var configuration: EngineConfiguration
     private var project: ShowProject = .empty(name: "Engine")
+    /// Immutable runtime indexes + channel write plans (P1-12).
+    private var compiledShow: CompiledShow = .empty
     private var manualLook: ActiveLook?
     private var frameIndex: UInt64 = 0
     private var snapshot = EngineFrameSnapshot.idle
@@ -52,11 +54,20 @@ public final class LightingEngine: @unchecked Sendable {
         }
     }
 
+    /// Snapshot of the last compiled runtime show (for tests / diagnostics).
+    public var compiledShowSnapshot: CompiledShow {
+        lock.lock()
+        defer { lock.unlock() }
+        return compiledShow
+    }
+
     /// Destructive show load: resets playback and reconciles universes.
     /// Use for New / Open / replacing the entire document.
     public func load(project: ShowProject) {
+        let compiled = CompiledShow.compile(project)
         lock.lock()
         self.project = project
+        self.compiledShow = compiled
         lock.unlock()
 
         reconcileOutputUniverses(for: project)
@@ -72,8 +83,10 @@ public final class LightingEngine: @unchecked Sendable {
     /// Non-destructive model update: keeps active playback and stage look.
     /// Use for ordinary document edits (rename, MIDI map, notes, unrelated cues).
     public func updateProject(_ project: ShowProject) {
+        let compiled = CompiledShow.compile(project)
         lock.lock()
         self.project = project
+        self.compiledShow = compiled
         lock.unlock()
 
         reconcileOutputUniverses(for: project)
@@ -157,6 +170,7 @@ public final class LightingEngine: @unchecked Sendable {
         let frameStart = CFAbsoluteTimeGetCurrent()
         lock.lock()
         let project = self.project
+        let compiled = self.compiledShow
         let manual = self.manualLook
         let config = self.configuration
         frameIndex &+= 1
@@ -176,7 +190,7 @@ public final class LightingEngine: @unchecked Sendable {
         let look = programmer.apply(onPlayback: effectedLook, project: project)
         let playbackSnap = playback.snapshot()
 
-        let levels = MergeStub.merge(project: project, look: look, channelCount: config.channelCount)
+        let levels = MergeStub.merge(compiled: compiled, look: look, channelCount: config.channelCount)
 
         for (universeNumber, channels) in levels {
             output.ensureUniverse(universeNumber, channelCount: channels.count)

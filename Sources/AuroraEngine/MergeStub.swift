@@ -20,116 +20,123 @@ public enum MergeStub {
         (UInt8(value >> 8), UInt8(value & 0xFF))
     }
 
-    /// Merge into universe-number-keyed channel arrays.
+    /// Merge using a precompiled show (engine hot path).
     public static func merge(
-        project: ShowProject,
+        compiled: CompiledShow,
         look: ActiveLook,
         channelCount: Int = 512
     ) -> [UInt16: [UInt8]] {
         var result: [UInt16: [UInt8]] = [:]
 
-        for universe in project.universes {
-            let count = Int(universe.channelCount)
-            result[universe.number] = Array(repeating: 0, count: max(count, channelCount))
+        for (number, count) in compiled.channelCountByUniverse {
+            result[number] = Array(repeating: 0, count: max(count, channelCount))
         }
 
-        // Ensure universes referenced only by fixtures still exist.
-        for fixture in project.fixtures {
-            guard let universe = project.universe(id: fixture.universeId) else { continue }
-            if result[universe.number] == nil {
-                result[universe.number] = Array(repeating: 0, count: channelCount)
+        for fixture in compiled.fixtures {
+            if result[fixture.universeNumber] == nil {
+                result[fixture.universeNumber] = Array(repeating: 0, count: channelCount)
             }
-        }
-
-        for fixture in project.fixtures {
-            guard let universe = project.universe(id: fixture.universeId) else { continue }
-            guard let definition = project.definition(id: fixture.definitionId) else { continue }
-            guard var buffer = result[universe.number] else { continue }
-
+            guard var buffer = result[fixture.universeNumber] else { continue }
             let attrs = look.fixtureAttributes[fixture.id] ?? [:]
-            let baseAddress = Int(fixture.address) // 1-based
-
-            writeFixtureChannels(
-                channels: definition.channels,
-                attributes: attrs,
-                baseAddress: baseAddress,
-                into: &buffer
-            )
-
-            result[universe.number] = buffer
+            writeCompiledFixture(fixture, attributes: attrs, into: &buffer)
+            result[fixture.universeNumber] = buffer
         }
 
         return result
     }
 
-    /// Compiles channel defs + normalized attributes into a DMX buffer.
-    public static func writeFixtureChannels(
-        channels: [ChannelDef],
+    /// Convenience: compile then merge (tests / one-shot callers).
+    public static func merge(
+        project: ShowProject,
+        look: ActiveLook,
+        channelCount: Int = 512
+    ) -> [UInt16: [UInt8]] {
+        merge(compiled: .compile(project), look: look, channelCount: channelCount)
+    }
+
+    /// Apply compiled attribute writes for one fixture into a universe buffer.
+    public static func writeCompiledFixture(
+        _ fixture: CompiledFixture,
         attributes: [String: Double],
-        baseAddress: Int,
         into buffer: inout [UInt8]
     ) {
-        // Group by attribute so coarse/fine pairs share one 16-bit encoding.
-        var byAttribute: [String: [ChannelDef]] = [:]
-        for channel in channels {
-            byAttribute[channel.attribute, default: []].append(channel)
-        }
-
-        var writtenOffsets = Set<Int>()
-
-        for (attribute, group) in byAttribute {
-            let coarse = group.first(where: { $0.resolution == .coarse })
-            let fine = group.first(where: { $0.resolution == .fine })
-
-            if let coarse, let fine, let normalized = attributes[attribute] {
-                let raw16 = dmx16Value(normalized: normalized)
-                let (c, f) = split16(raw16)
-                writeByte(c, channel: coarse, baseAddress: baseAddress, into: &buffer, written: &writtenOffsets)
-                writeByte(f, channel: fine, baseAddress: baseAddress, into: &buffer, written: &writtenOffsets)
-                // Any extra channels for the same attribute fall through below.
+        let base = Int(fixture.baseAddress)
+        for write in fixture.attributeWrites {
+            let raw = attributes[write.attribute]
+            let normalized: Double?
+            if let raw {
+                normalized = write.invert ? (1.0 - raw) : raw
+            } else {
+                normalized = nil
             }
 
-            for channel in group {
-                let index = dmxIndex(baseAddress: baseAddress, offset: channel.offset)
-                guard !writtenOffsets.contains(index) else { continue }
-
-                if let normalized = attributes[attribute] {
-                    // Unpaired coarse/fine or eight-bit: independent 8-bit encode.
-                    writeByte(
-                        dmxValue(normalized: normalized),
-                        channel: channel,
-                        baseAddress: baseAddress,
-                        into: &buffer,
-                        written: &writtenOffsets
-                    )
+            switch write.kind {
+            case .eightBit(let offset, let defaultValue):
+                let value: UInt8
+                if let normalized {
+                    value = dmxValue(normalized: normalized)
                 } else {
-                    writeByte(
-                        channel.defaultValue,
-                        channel: channel,
-                        baseAddress: baseAddress,
-                        into: &buffer,
-                        written: &writtenOffsets
-                    )
+                    value = defaultValue
+                }
+                writeByte(value, baseAddress: base, offset: offset, into: &buffer)
+
+            case .sixteenBit(let coarseOffset, let fineOffset, let coarseDefault, let fineDefault):
+                if let normalized {
+                    let (c, f) = split16(dmx16Value(normalized: normalized))
+                    writeByte(c, baseAddress: base, offset: coarseOffset, into: &buffer)
+                    writeByte(f, baseAddress: base, offset: fineOffset, into: &buffer)
+                } else {
+                    writeByte(coarseDefault, baseAddress: base, offset: coarseOffset, into: &buffer)
+                    writeByte(fineDefault, baseAddress: base, offset: fineOffset, into: &buffer)
                 }
             }
         }
     }
 
-    private static func dmxIndex(baseAddress: Int, offset: UInt16) -> Int {
-        // address 1, offset 1 → index 0
-        baseAddress + Int(offset) - 2
+    /// Legacy path: compile channel defs on the fly (kept for unit tests of write planning).
+    public static func writeFixtureChannels(
+        channels: [ChannelDef],
+        attributes: [String: Double],
+        baseAddress: Int,
+        into buffer: inout [UInt8],
+        panInvert: Bool = false,
+        tiltInvert: Bool = false
+    ) {
+        let definition = FixtureDefinition(
+            manufacturer: "",
+            model: "",
+            channels: channels,
+            panInvert: panInvert,
+            tiltInvert: tiltInvert
+        )
+        let writes = CompiledShow.compileAttributeWrites(definition: definition)
+        let fixture = CompiledFixture(
+            id: UUID(),
+            universeNumber: 1,
+            baseAddress: UInt16(baseAddress),
+            definitionId: UUID(),
+            attributeWrites: writes
+        )
+        // baseAddress in writeFixtureChannels is already 1-based fixture address;
+        // CompiledFixture.baseAddress is the same. But writeCompiledFixture uses
+        // fixture.baseAddress — callers pass address as baseAddress (1-based).
+        // Old API used baseAddress as fixture address; writeByte used baseAddress + offset - 2.
+        // CompiledFixture uses baseAddress as fixture address. Good.
+        // Wait: old writeFixtureChannels took baseAddress as Int fixture address.
+        // New CompiledFixture.baseAddress is UInt16 fixture address.
+        // But if someone passes baseAddress that was already computed... old tests use fixture.address.
+        writeCompiledFixture(fixture, attributes: attributes, into: &buffer)
     }
 
     private static func writeByte(
         _ value: UInt8,
-        channel: ChannelDef,
         baseAddress: Int,
-        into buffer: inout [UInt8],
-        written: inout Set<Int>
+        offset: UInt16,
+        into buffer: inout [UInt8]
     ) {
-        let index = dmxIndex(baseAddress: baseAddress, offset: channel.offset)
+        // address 1, offset 1 → index 0
+        let index = baseAddress + Int(offset) - 2
         guard index >= 0, index < buffer.count else { return }
         buffer[index] = value
-        written.insert(index)
     }
 }
