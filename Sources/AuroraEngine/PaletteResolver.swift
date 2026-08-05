@@ -17,10 +17,21 @@ public enum PaletteResolver {
         var fixtures: [FixtureCueLevels] = []
         for fx in levels.fixtures {
             var attrs: [String: Double] = [:]
-            for (key, paletteID) in fx.paletteRefs {
+            // Deterministic ref order (sorted keys) — P1-10.
+            for (key, paletteID) in fx.paletteRefs.sorted(by: { $0.key < $1.key }) {
                 guard let palette = paletteByID[paletteID] else {
                     issues.append(ResolutionIssue(
                         message: "Missing palette \(paletteID)",
+                        cueID: cueID,
+                        paletteID: paletteID,
+                        attribute: key
+                    ))
+                    continue
+                }
+                // Family/type compatibility (P1-10).
+                if let slotType = PaletteType(rawValue: key), slotType != palette.type, palette.type != .general {
+                    issues.append(ResolutionIssue(
+                        message: "Palette type \(palette.type.rawValue) incompatible with slot \(key)",
                         cueID: cueID,
                         paletteID: paletteID,
                         attribute: key
@@ -31,7 +42,7 @@ public enum PaletteResolver {
                 if let v = palette.values[key] {
                     attrs[key] = v
                 } else {
-                    for (pk, pv) in palette.values {
+                    for (pk, pv) in palette.values.sorted(by: { $0.key < $1.key }) {
                         attrs[pk] = pv
                     }
                 }

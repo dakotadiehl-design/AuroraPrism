@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 public struct RemoteClientInfo: Equatable, Sendable, Identifiable {
     public var id: UUID
@@ -22,23 +23,33 @@ public struct RemoteClientInfo: Equatable, Sendable, Identifiable {
     }
 }
 
+public enum RemoteBindPolicy: String, Codable, Sendable, Equatable {
+    /// Listen on all interfaces (explicit opt-in).
+    case allInterfaces
+    /// Prefer private/LAN (still may bind 0.0.0.0 with documentation; v1 marks intent).
+    case privateLAN
+    case loopbackOnly
+}
+
 public struct RemoteHostConfig: Equatable, Sendable {
     public var enabled: Bool
     public var pin: String
     public var maxClients: Int
-    /// When true, only viewer role is granted (Mac lock).
     public var lockedToViewer: Bool
     public var port: UInt16
-    /// Max authorized commands per session per rolling second (PR33).
     public var maxCommandsPerSecond: Int
+    public var maxAuthFailuresPerMinute: Int
+    public var bindPolicy: RemoteBindPolicy
 
     public init(
         enabled: Bool = false,
-        pin: String = "0000",
+        pin: String = "",
         maxClients: Int = 8,
         lockedToViewer: Bool = false,
         port: UInt16 = 8742,
-        maxCommandsPerSecond: Int = 20
+        maxCommandsPerSecond: Int = 20,
+        maxAuthFailuresPerMinute: Int = 10,
+        bindPolicy: RemoteBindPolicy = .privateLAN
     ) {
         self.enabled = enabled
         self.pin = pin
@@ -46,15 +57,29 @@ public struct RemoteHostConfig: Equatable, Sendable {
         self.lockedToViewer = lockedToViewer
         self.port = port
         self.maxCommandsPerSecond = max(1, maxCommandsPerSecond)
+        self.maxAuthFailuresPerMinute = max(1, maxAuthFailuresPerMinute)
+        self.bindPolicy = bindPolicy
+    }
+
+    /// Cryptographically random 6-digit PIN (never "0000" as a product default) — P1-5.
+    public static func generatePIN() -> String {
+        var bytes = [UInt8](repeating: 0, count: 4)
+        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        let n = bytes.reduce(0) { ($0 << 8) | Int($1) }
+        let pin = abs(n) % 1_000_000
+        return String(format: "%06d", pin)
     }
 }
 
-/// Auth, roles, lock, and command authorization for remote clients (PR31/PR33).
+/// Auth, roles, lock, tokens, and command authorization (PR31/PR33 + review P1).
 public final class RemoteSessionManager: @unchecked Sendable {
     private let lock = NSLock()
     private var config: RemoteHostConfig
     private var clients: [UUID: RemoteClientInfo] = [:]
     private var commandTimestamps: [UUID: [TimeInterval]] = [:]
+    private var authFailureTimestamps: [TimeInterval] = []
+    /// HTTP/web tokens → session id (P1-6).
+    private var tokens: [String: UUID] = [:]
 
     public init(config: RemoteHostConfig = RemoteHostConfig()) {
         self.config = config
@@ -74,11 +99,15 @@ public final class RemoteSessionManager: @unchecked Sendable {
 
     public func updateConfig(_ config: RemoteHostConfig) {
         lock.lock()
+        let pinChanged = self.config.pin != config.pin
         self.config = config
         if config.lockedToViewer {
             for id in clients.keys {
                 clients[id]?.role = .viewer
             }
+        }
+        if pinChanged || !config.enabled {
+            tokens.removeAll()
         }
         lock.unlock()
     }
@@ -103,7 +132,8 @@ public final class RemoteSessionManager: @unchecked Sendable {
         clientId: String,
         protocolVersion: Int,
         pin: String?,
-        displayName: String?
+        displayName: String?,
+        now: TimeInterval = Date().timeIntervalSince1970
     ) -> HelloResult {
         lock.lock()
         defer { lock.unlock() }
@@ -117,7 +147,15 @@ public final class RemoteSessionManager: @unchecked Sendable {
         guard !config.pin.isEmpty else {
             return .reject("PIN not configured")
         }
+
+        // Auth failure rate limit (P1-5).
+        authFailureTimestamps = authFailureTimestamps.filter { now - $0 < 60 }
+        if authFailureTimestamps.count >= config.maxAuthFailuresPerMinute {
+            return .reject("too many failed attempts")
+        }
+
         guard (pin ?? "") == config.pin else {
+            authFailureTimestamps.append(now)
             return .reject("invalid PIN")
         }
         guard clients.count < config.maxClients else {
@@ -134,10 +172,41 @@ public final class RemoteSessionManager: @unchecked Sendable {
         return .welcome(info)
     }
 
+    // MARK: - Tokens (P1-6)
+
+    public func issueToken(for sessionId: UUID) -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard clients[sessionId] != nil else { return nil }
+        let token = UUID().uuidString
+        tokens[token] = sessionId
+        return token
+    }
+
+    public func sessionID(forToken token: String) -> UUID? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let sid = tokens[token], clients[sid] != nil else { return nil }
+        return sid
+    }
+
+    public func invalidateToken(_ token: String) {
+        lock.lock()
+        tokens[token] = nil
+        lock.unlock()
+    }
+
+    public func invalidateAllTokens() {
+        lock.lock()
+        tokens.removeAll()
+        lock.unlock()
+    }
+
     public func disconnect(sessionId: UUID) {
         lock.lock()
         clients[sessionId] = nil
         commandTimestamps[sessionId] = nil
+        tokens = tokens.filter { $0.value != sessionId }
         lock.unlock()
     }
 
@@ -146,6 +215,7 @@ public final class RemoteSessionManager: @unchecked Sendable {
         lock.lock()
         let existed = clients.removeValue(forKey: sessionId) != nil
         commandTimestamps[sessionId] = nil
+        tokens = tokens.filter { $0.value != sessionId }
         lock.unlock()
         return existed
     }
@@ -155,12 +225,12 @@ public final class RemoteSessionManager: @unchecked Sendable {
         let ids = Array(clients.keys)
         clients.removeAll()
         commandTimestamps.removeAll()
+        tokens.removeAll()
         lock.unlock()
         _ = reason
         return ids
     }
 
-    /// Returns authorized action or nil if forbidden / rate-limited.
     public func authorize(sessionId: UUID, action: RemoteShowAction, now: TimeInterval = Date().timeIntervalSince1970) -> RemoteShowAction? {
         lock.lock()
         defer { lock.unlock() }

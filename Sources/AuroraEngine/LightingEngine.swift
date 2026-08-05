@@ -187,13 +187,16 @@ public final class LightingEngine: @unchecked Sendable {
         }
 
         if shouldPublish {
+            // Surface project reference issues without blocking output (P1-11).
+            let issues = project.validateReferences()
             let snap = EngineFrameSnapshot(
                 frameIndex: index,
                 time: time,
                 frameRateHz: config.frameRateHz,
                 universeLevels: levels,
                 isRunning: running || publishSnapshotAlways,
-                playback: playbackSnap
+                playback: playbackSnap,
+                resolutionIssues: issues
             )
             lock.lock()
             snapshot = snap

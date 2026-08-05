@@ -116,9 +116,9 @@ struct AuroraApp: App {
             }
 
             CommandMenu("Remote") {
-                Button(appModel.remoteHost.sessions.configSnapshot.enabled ? "Disable Remote" : "Enable Remote (PIN 0000)") {
+                Button(appModel.remoteHost.sessions.configSnapshot.enabled ? "Disable Remote" : "Enable Remote (random PIN)") {
                     let on = appModel.remoteHost.sessions.configSnapshot.enabled
-                    appModel.setRemoteEnabled(!on, pin: "0000")
+                    appModel.setRemoteEnabled(!on)
                 }
                 Button("Lock Remotes to Viewer") {
                     appModel.setRemoteLockedToViewer(true)

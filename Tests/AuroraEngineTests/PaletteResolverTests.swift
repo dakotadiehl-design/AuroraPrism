@@ -59,7 +59,7 @@ final class PaletteResolverTests: XCTestCase {
         let fixtureID = UUID()
         var project = ShowProject.empty()
         project.palettes = [
-            Palette(id: paletteID, name: "Warm", type: .color, values: ["intensity": 0.8])
+            Palette(id: paletteID, name: "Warm", type: .intensity, values: ["intensity": 0.8])
         ]
         let cue = Cue(
             number: 1,
@@ -69,5 +69,20 @@ final class PaletteResolverTests: XCTestCase {
         )
         let look = CueResolver.resolveLook(cues: [cue], index: 0, project: project)
         XCTAssertEqual(look.fixtureAttributes[fixtureID]?["intensity"], 0.8)
+    }
+
+    func testIncompatiblePaletteTypeSkipped() {
+        let paletteID = UUID()
+        let fixtureID = UUID()
+        var project = ShowProject.empty()
+        project.palettes = [
+            Palette(id: paletteID, name: "Warm", type: .color, values: ["colorR": 1])
+        ]
+        let levels = CueLevelData(fixtures: [
+            FixtureCueLevels(fixtureId: fixtureID, paletteRefs: ["intensity": paletteID])
+        ])
+        let r = PaletteResolver.resolve(levels: levels, project: project)
+        XCTAssertFalse(r.issues.isEmpty)
+        XCTAssertNil(r.levels.fixtures[0].attributes["colorR"])
     }
 }

@@ -9,10 +9,12 @@ public final class RemoteWebServer: @unchecked Sendable {
     private let lock = NSLock()
     private var listener: NWListener?
     private var _isRunning = false
-    private var tokens: [String: UUID] = [:]
     private var actionHandler: (@Sendable (RemoteShowAction) -> Void)?
     private var snapshotProvider: (@Sendable () -> RemoteSnapshot)?
     private let indexHTML: Data
+    /// Max HTTP body accepted (P2-9).
+    public static let maxBodyBytes = 64 * 1024
+    public static let maxHeaderBytes = 16 * 1024
 
     public init(
         sessions: RemoteSessionManager,
@@ -76,9 +78,9 @@ public final class RemoteWebServer: @unchecked Sendable {
         lock.lock()
         listener?.cancel()
         listener = nil
-        tokens.removeAll()
         _isRunning = false
         lock.unlock()
+        sessions.invalidateAllTokens()
     }
 
     /// Testable request handler (no sockets).
@@ -125,10 +127,9 @@ public final class RemoteWebServer: @unchecked Sendable {
             displayName: hello.displayName
         ) {
         case .welcome(let info):
-            let token = UUID().uuidString
-            lock.lock()
-            tokens[token] = info.id
-            lock.unlock()
+            guard let token = sessions.issueToken(for: info.id) else {
+                return json(500, ["error": "token issue failed"])
+            }
             return json(200, [
                 "token": token,
                 "sessionId": info.id.uuidString,
@@ -215,9 +216,7 @@ public final class RemoteWebServer: @unchecked Sendable {
     private func session(from headers: [String: String]) -> UUID? {
         let token = headers["X-Aurora-Token"] ?? headers["x-aurora-token"]
         guard let token else { return nil }
-        lock.lock()
-        defer { lock.unlock() }
-        return tokens[token]
+        return sessions.sessionID(forToken: token)
     }
 
     private func json(_ status: Int, _ object: [String: Any]) -> (Int, String, Data) {
@@ -256,7 +255,15 @@ public final class RemoteWebServer: @unchecked Sendable {
                         headers[key] = value
                     }
                 }
-                let contentLength = Int(headers["Content-Length"] ?? headers["content-length"] ?? "0") ?? 0
+                if headerData.count > Self.maxHeaderBytes {
+                    connection.cancel()
+                    return
+                }
+                let lengthStr = headers["Content-Length"] ?? headers["content-length"] ?? "0"
+                guard let contentLength = Int(lengthStr), contentLength >= 0, contentLength <= Self.maxBodyBytes else {
+                    connection.cancel()
+                    return
+                }
                 var bodyStart = headerEnd.upperBound
                 var body = Data()
                 if contentLength > 0 {

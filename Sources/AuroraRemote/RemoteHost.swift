@@ -156,20 +156,19 @@ public final class RemoteHost: @unchecked Sendable {
                 if line.isEmpty { continue }
                 if let msg = try? RemoteCodec.decodeClient(line) {
                     if case .hello = msg {
-                        if let response = self.handle(sessionId: nil, message: msg),
-                           case .welcome(let sid, _, _) = response {
+                        // Evaluate authentication exactly once (P1-7).
+                        let response = self.handle(sessionId: nil, message: msg)
+                        if case .welcome(let sid, _, _)? = response {
                             currentSession = sid
                             self.lock.lock()
                             self.connections[sid] = connection
                             self.sessionByConnection[ObjectIdentifier(connection)] = sid
                             self.lock.unlock()
-                            if let data = try? RemoteCodec.encodeServer(response) {
+                            if let data = try? RemoteCodec.encodeServer(response!) {
                                 self.sendLine(data, on: connection)
                             }
-                            // Send initial snapshot
                             self.broadcastSnapshot()
-                        } else if let response = self.handle(sessionId: nil, message: msg),
-                                  let data = try? RemoteCodec.encodeServer(response) {
+                        } else if let response, let data = try? RemoteCodec.encodeServer(response) {
                             self.sendLine(data, on: connection)
                             connection.cancel()
                             return

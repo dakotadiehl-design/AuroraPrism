@@ -26,6 +26,39 @@ final class RemoteHardeningTests: XCTestCase {
         )
     }
 
+    func testAuthFailureRateLimit() {
+        let sessions = RemoteSessionManager(
+            config: RemoteHostConfig(enabled: true, pin: "999999", maxAuthFailuresPerMinute: 3)
+        )
+        let t0 = 5000.0
+        XCTAssertEqual(sessions.handleHello(clientId: "a", protocolVersion: 1, pin: "0", displayName: nil, now: t0), .reject("invalid PIN"))
+        XCTAssertEqual(sessions.handleHello(clientId: "a", protocolVersion: 1, pin: "0", displayName: nil, now: t0 + 1), .reject("invalid PIN"))
+        XCTAssertEqual(sessions.handleHello(clientId: "a", protocolVersion: 1, pin: "0", displayName: nil, now: t0 + 2), .reject("invalid PIN"))
+        XCTAssertEqual(
+            sessions.handleHello(clientId: "a", protocolVersion: 1, pin: "0", displayName: nil, now: t0 + 3),
+            .reject("too many failed attempts")
+        )
+    }
+
+    func testTokenInvalidatedOnKick() {
+        let sessions = RemoteSessionManager(config: RemoteHostConfig(enabled: true, pin: "123456"))
+        guard case .welcome(let info) = sessions.handleHello(clientId: "w", protocolVersion: 1, pin: "123456", displayName: nil) else {
+            return XCTFail("welcome")
+        }
+        let token = sessions.issueToken(for: info.id)!
+        XCTAssertEqual(sessions.sessionID(forToken: token), info.id)
+        sessions.kick(sessionId: info.id)
+        XCTAssertNil(sessions.sessionID(forToken: token))
+    }
+
+    func testGeneratedPINNotTrivial() {
+        for _ in 0..<20 {
+            let pin = RemoteHostConfig.generatePIN()
+            XCTAssertEqual(pin.count, 6)
+            XCTAssertNotEqual(pin, "0000")
+        }
+    }
+
     func testRateLimit() {
         let sessions = RemoteSessionManager(
             config: RemoteHostConfig(enabled: true, pin: "1", maxCommandsPerSecond: 3)

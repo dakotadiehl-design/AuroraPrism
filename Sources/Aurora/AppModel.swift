@@ -4,6 +4,7 @@ import AuroraEngine
 import AuroraFixtureLib
 import AuroraMIDI
 import AuroraModel
+import AuroraDiagnostics
 import AuroraOutput
 import AuroraRemote
 import AuroraUI
@@ -49,6 +50,7 @@ final class AppModel: ObservableObject {
     let songDirector = SongDirector()
     /// In-process plugin registry (PR29 skeleton; no dylib loading).
     let pluginHost = PluginHost()
+    let diagnostics = DiagnosticsStore()
     let remoteHost = RemoteHost()
     private(set) var remoteWeb: RemoteWebServer?
     @Published private(set) var remoteStatus: String = "Remote: off"
@@ -534,6 +536,7 @@ final class AppModel: ObservableObject {
         if consoleLog.count > 200 {
             consoleLog.removeFirst(consoleLog.count - 200)
         }
+        diagnostics.info(message, subsystem: .app)
     }
 
     private func appendMIDILog(_ message: String) {
@@ -642,10 +645,14 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func setRemoteEnabled(_ enabled: Bool, pin: String = "0000") {
+    func setRemoteEnabled(_ enabled: Bool, pin: String? = nil) {
         var config = remoteHost.sessions.configSnapshot
         config.enabled = enabled
-        config.pin = pin
+        if enabled {
+            // P1-5: never default to trivial 0000; generate unless operator supplies.
+            let chosen = (pin?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 }
+            config.pin = chosen ?? RemoteHostConfig.generatePIN()
+        }
         remoteHost.sessions.updateConfig(config)
         if enabled {
             let action: @Sendable (RemoteShowAction) -> Void = { [weak self] action in
@@ -660,8 +667,9 @@ final class AppModel: ObservableObject {
             do {
                 try remoteHost.start()
                 try web.start()
-                remoteStatus = "Remote TCP :\(config.port) · Web :8743 · PIN set"
-                log("Remote TCP \(config.port) + web 8743")
+                let activePIN = remoteHost.sessions.configSnapshot.pin
+                remoteStatus = "Remote TCP :\(config.port) · Web :8743 · PIN \(activePIN)"
+                log("Remote TCP \(config.port) + web 8743 · PIN \(activePIN)")
                 startRemoteSnapshotTimer()
             } catch {
                 remoteStatus = "Remote: error"

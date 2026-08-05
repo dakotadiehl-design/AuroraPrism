@@ -24,6 +24,7 @@ public struct PalettesPanel: View {
                 Text("Palettes").font(.headline)
                 Spacer()
                 Button("New Color from Prog") { createColorPalette() }
+                Button("New Preset from Prog") { createPresetFromProgrammer() }
             }
             List(context.project.palettes) { palette in
                 HStack {
@@ -40,6 +41,21 @@ public struct PalettesPanel: View {
                         requestDelete(palette)
                     }
                 }
+            }
+            if !context.project.presets.isEmpty {
+                Text("Presets").font(.subheadline.weight(.semibold))
+                List(context.project.presets) { preset in
+                    HStack {
+                        Text(preset.name)
+                        Spacer()
+                        Button("Apply") { applyPreset(preset) }
+                        Button("Delete", role: .destructive) {
+                            try? context.session.perform(RemovePresetCommand(presetID: preset.id))
+                            onChanged()
+                        }
+                    }
+                }
+                .frame(minHeight: 80)
             }
             if let statusText {
                 Text(statusText)
@@ -171,6 +187,32 @@ public struct PalettesPanel: View {
     private func performDelete(_ palette: Palette) {
         try? context.session.perform(RemovePaletteCommand(paletteID: palette.id))
         statusText = "Deleted \(palette.name)"
+        onChanged()
+    }
+
+    private func createPresetFromProgrammer() {
+        let levels = programmer.captureLevels()
+        guard !levels.fixtures.isEmpty else {
+            statusText = "Programmer empty — set values first"
+            return
+        }
+        let preset = Preset(
+            name: "Preset \(context.project.presets.count + 1)",
+            levels: levels
+        )
+        try? context.session.perform(AddPresetCommand(preset: preset))
+        statusText = "Created \(preset.name)"
+        onChanged()
+    }
+
+    private func applyPreset(_ preset: Preset) {
+        let resolved = PaletteResolver.resolve(levels: preset.levels, project: context.project)
+        for fx in resolved.levels.fixtures {
+            for (attr, value) in fx.attributes {
+                programmer.set(fixtureID: fx.fixtureId, attribute: attr, value: value)
+            }
+        }
+        statusText = "Applied \(preset.name)"
         onChanged()
     }
 }

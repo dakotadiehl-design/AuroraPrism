@@ -5,18 +5,21 @@ public struct EngineFrameMetrics: Equatable, Sendable {
     public var sampleCount: Int
     public var lastFrameMs: Double
     public var meanFrameMs: Double
-    public var maxFrameMs: Double
+    /// Maximum since last `reset()` (not rolling-window) — P2-4.
+    public var lifetimeMaxFrameMs: Double
+    /// Alias for clarity in older call sites.
+    public var maxFrameMs: Double { lifetimeMaxFrameMs }
 
     public init(
         sampleCount: Int = 0,
         lastFrameMs: Double = 0,
         meanFrameMs: Double = 0,
-        maxFrameMs: Double = 0
+        lifetimeMaxFrameMs: Double = 0
     ) {
         self.sampleCount = sampleCount
         self.lastFrameMs = lastFrameMs
         self.meanFrameMs = meanFrameMs
-        self.maxFrameMs = maxFrameMs
+        self.lifetimeMaxFrameMs = lifetimeMaxFrameMs
     }
 
     public static let empty = EngineFrameMetrics()
@@ -58,7 +61,7 @@ public final class FrameMetricsRecorder: @unchecked Sendable {
             sampleCount: count,
             lastFrameMs: lastMs,
             meanFrameMs: mean,
-            maxFrameMs: maxMs
+            lifetimeMaxFrameMs: maxMs
         )
     }
 

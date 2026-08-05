@@ -83,6 +83,7 @@ let package = Package(
                 "AuroraOutput",
                 "AuroraMIDI",
                 "AuroraRemote",
+                "AuroraDiagnostics",
             ]
         ),
 
