@@ -59,6 +59,7 @@ let package = Package(
                 "AuroraUI",
                 "AuroraCore",
                 "AuroraModel",
+                "AuroraFixtureLib",
             ]
         ),
 
@@ -78,6 +79,10 @@ let package = Package(
         .testTarget(
             name: "AuroraUITests",
             dependencies: ["AuroraUI", "AuroraCore", "AuroraModel"]
+        ),
+        .testTarget(
+            name: "AuroraOutputTests",
+            dependencies: ["AuroraOutput"]
         ),
         .testTarget(
             name: "AuroraPackageSmokeTests",
