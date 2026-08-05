@@ -233,7 +233,7 @@ Scaffold → model → core → fixtures/patch → UI shell → engine/cues/prog
 | `2ff023d` | P0: 16-bit coarse/fine DMX compilation |
 | `acd97a7` | P0: required schema v1 package files on load |
 
-### Stage A (post-remediation P0) — complete when A5 lands
+### Stage A (post-remediation P0) — complete
 
 1. Dirty state-ID / save-point identity  
 2. True Save As asset preservation  
@@ -241,7 +241,17 @@ Scaffold → model → core → fixtures/patch → UI shell → engine/cues/prog
 4. 16-bit coarse/fine output  
 5. Required package files fail load  
 
-**Next:** Stage B UI Gate (domain semantics) — see review §10. Visual UI redesign still blocked.
+### Stage B Wave B1 (UI Gate engine truth) — complete
+
+| Item | Status |
+|------|--------|
+| P1-12 CompiledShow | Done — frame merge uses compiled write plans |
+| P1-2 Personality | Done — invert/highlight/home/locate/wheels |
+| P1-1 fadeOut/loop | Done — max(fadeOut,fadeIn); Follow re-enters loop |
+| P1-4 Persistent effects | Done — EffectDefinition + order stack |
+| P1-5 Ordered selection | Done — orderedFixtureIDs |
+
+**Next:** Stage B Wave B2 (MIDI velocity, mapping policy, ShowActionDispatcher), then B3 (routing, validator, groups, palettes, song). Visual UI redesign still blocked.
 
 ### Intentionally incomplete
 
