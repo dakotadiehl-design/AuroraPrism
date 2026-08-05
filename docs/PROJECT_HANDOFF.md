@@ -7,7 +7,7 @@
 | **Last updated** | 2026-08-05 (Final Backend UI Gate complete) |
 | **Workspace** | `/Users/dakota/code/Aurora` |
 | **Branch** | `main` (local only; no remote assumed) |
-| **HEAD** | *(see `git log -1`)* — Final UI-gate backend fixes |
+| **HEAD** | `904aebc` — Final Backend UI Gate (UI-GATE-1…7 + PRE-UI-1…8) |
 | **Tests** | **255** passing (`swift test`) |
 | **Xcode app** | `Aurora.xcodeproj` — composes SPM libraries |
 
