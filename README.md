@@ -4,7 +4,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 ## Status
 
-**PR7–PR9 workspace path** is in tree: multi-pane shell, fixture browser + patch UI, DMX output buffers/drivers. Engine loop (PR10) is next.
+**PR10 engine** is in tree: ~40 Hz scheduler, merge stub, DMX output, multi-pane patch UI. Cue timing (PR11) is next.
 
 | Doc | Description |
 |-----|-------------|
@@ -19,6 +19,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 | [`docs/design/pr7-app-shell.md`](./docs/design/pr7-app-shell.md) | **PR7** app shell |
 | [`docs/design/pr8-patch-fixture-browser.md`](./docs/design/pr8-patch-fixture-browser.md) | **PR8** patch + fixture browser |
 | [`docs/design/pr9-output-layer.md`](./docs/design/pr9-output-layer.md) | **PR9** output / DMX |
+| [`docs/design/pr10-playback-engine.md`](./docs/design/pr10-playback-engine.md) | **PR10** engine / scheduler |
 | [`docs/design/remote-companion.md`](./docs/design/remote-companion.md) | Stage iPad remote (web first, native later) |
 | [`docs/development-workflow.md`](./docs/development-workflow.md) | Mac toolchain & dual-host notes |
 
@@ -68,4 +69,4 @@ Dependency rules are documented in [PR1 scaffold](./docs/design/pr1-project-scaf
 
 ## Next
 
-See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR10** adds the playback engine and scheduler.
+See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR11** adds cue timing, fades, and tracking.

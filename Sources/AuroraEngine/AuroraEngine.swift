@@ -3,12 +3,12 @@ import AuroraOutput
 
 /// Lighting engine: cue, effect, playback, programmer, and scheduler.
 ///
-/// Real-time logic arrives in later PRs. PR1 only exposes module identity.
+/// PR10 provides scheduler, merge stub, snapshots, and output flush.
+/// Cue timing (PR11) and programmer (PR13) build on this skeleton.
 public enum AuroraEngineModule {
     public static let name = "AuroraEngine"
-    public static let version = "0.1.0-pr1"
+    public static let version = "0.10.0-pr10"
 
-    /// Touchpoints so Model/Output stay in the link graph.
     public static var modelModuleName: String { AuroraModelModule.name }
     public static var outputModuleName: String { AuroraOutputModule.name }
 }
