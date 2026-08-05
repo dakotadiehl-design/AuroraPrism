@@ -5,7 +5,7 @@ import AuroraModel
 /// UI panels, workspace layout, and views (SwiftUI + AppKit bridges as needed).
 public enum AuroraUIModule {
     public static let name = "AuroraUI"
-    public static let version = "0.12.0-pr12"
+    public static let version = "0.14.0-pr14"
 }
 
 /// One row in the scaffold module list (kept for smoke tests).

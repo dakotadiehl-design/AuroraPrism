@@ -43,6 +43,17 @@ public final class Programmer: @unchecked Sendable {
         lock.unlock()
     }
 
+    /// Batch set one attribute across fixtures (e.g. fan/align results).
+    public func setMany(attribute: String, values: [UUID: Double]) {
+        lock.lock()
+        for (fixtureID, value) in values {
+            var attrs = state.values[fixtureID] ?? [:]
+            attrs[attribute] = min(1, max(0, value))
+            state.values[fixtureID] = attrs
+        }
+        lock.unlock()
+    }
+
     public func clear(fixtureIDs: Set<UUID>) {
         lock.lock()
         for id in fixtureIDs {

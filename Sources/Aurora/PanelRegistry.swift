@@ -27,6 +27,15 @@ enum PanelRegistry {
                     }
                 )
             )
+        case .programmer:
+            return AnyView(
+                ProgrammerPanel(
+                    context: context,
+                    programmer: appModel.engine.programmer,
+                    project: appModel.session.project,
+                    onChanged: { appModel.bump() }
+                )
+            )
         default:
             return WorkspaceView.defaultPanel(id: id, context: context)
         }

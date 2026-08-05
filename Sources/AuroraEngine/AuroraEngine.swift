@@ -7,7 +7,7 @@ import AuroraOutput
 /// PR13: programmer layer.
 public enum AuroraEngineModule {
     public static let name = "AuroraEngine"
-    public static let version = "0.13.0-pr13"
+    public static let version = "0.14.0-pr14"
 
     public static var modelModuleName: String { AuroraModelModule.name }
     public static var outputModuleName: String { AuroraOutputModule.name }
