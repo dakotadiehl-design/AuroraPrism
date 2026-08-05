@@ -4,7 +4,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 ## Status
 
-**PR4 core foundation** is in tree: commands/undo, event bus, multi-select selection, domain model, and package I/O. Engine, MIDI, docking, and remote companion are still ahead.
+**PR5 fixture library** is in tree: bundled seed personalities, lookup API, plus PR1–PR4 foundation. Patch commands (PR6), engine, and UI docking are still ahead.
 
 | Doc | Description |
 |-----|-------------|
@@ -14,6 +14,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 | [`docs/design/pr2-domain-model.md`](./docs/design/pr2-domain-model.md) | **PR2** domain model & package format |
 | [`docs/design/pr3-command-undo.md`](./docs/design/pr3-command-undo.md) | **PR3** commands & undo |
 | [`docs/design/pr4-events-selection.md`](./docs/design/pr4-events-selection.md) | **PR4** event bus & selection |
+| [`docs/design/pr5-fixture-library.md`](./docs/design/pr5-fixture-library.md) | **PR5** fixture library seed |
 | [`docs/design/remote-companion.md`](./docs/design/remote-companion.md) | Stage iPad remote (web first, native later) |
 | [`docs/development-workflow.md`](./docs/development-workflow.md) | Mac toolchain & dual-host notes |
 
@@ -63,4 +64,4 @@ Dependency rules are documented in [PR1 scaffold](./docs/design/pr1-project-scaf
 
 ## Next
 
-See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR5** adds the fixture library seed format.
+See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR6** adds patch management commands.

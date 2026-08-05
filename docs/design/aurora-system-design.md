@@ -803,9 +803,16 @@ Event bus and selection:
 - **`EventBus`**, `SelectionManager`, session publishes `projectModified` / `selectionChanged`  
 - Selection pruned when entities disappear; **not** restored on undo  
 
-### After PR4
+### PR5 (done — see dedicated doc)
 
-Wire document open/save UI and menus to session undo/selection when the app shell lands (PR7). Engine, MIDI, and docking remain stubs until their PRs.
+Fixture library seed:
+
+- **Spec:** [`pr5-fixture-library.md`](./pr5-fixture-library.md)  
+- Bundled Generic personalities; `FixtureLibrary` load/lookup/search  
+
+### After PR4–PR5
+
+PR6 patch commands; wire document UI when the app shell lands (PR7). Engine, MIDI, and docking remain stubs until their PRs.
 
 ---
 
@@ -820,3 +827,4 @@ Wire document open/save UI and menus to session undo/selection when the app shel
 | 0.5 | 2026-08-04 | KD16 stage remote companion (web first, native later); §4.16; Phase H PR31–34; `remote-companion.md` |
 | 0.6 | 2026-08-04 | PR3 command system & undo; link to `pr3-command-undo.md` |
 | 0.7 | 2026-08-04 | PR4 event bus & selection; link to `pr4-events-selection.md` |
+| 0.8 | 2026-08-04 | PR5 fixture library seed; link to `pr5-fixture-library.md` |

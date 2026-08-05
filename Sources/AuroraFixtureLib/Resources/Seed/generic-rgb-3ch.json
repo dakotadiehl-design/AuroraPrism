@@ -1,0 +1,41 @@
+{
+  "id": "20000000-0000-4000-8000-000000000002",
+  "manufacturer": "Generic",
+  "model": "RGB Par",
+  "modeName": "3-channel",
+  "channelCount": 3,
+  "channels": [
+    {
+      "id": "21000000-0000-4000-8000-000000000011",
+      "offset": 1,
+      "name": "Red",
+      "attribute": "colorR",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 255
+    },
+    {
+      "id": "21000000-0000-4000-8000-000000000012",
+      "offset": 2,
+      "name": "Green",
+      "attribute": "colorG",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 255
+    },
+    {
+      "id": "21000000-0000-4000-8000-000000000013",
+      "offset": 3,
+      "name": "Blue",
+      "attribute": "colorB",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 255
+    }
+  ],
+  "colorModel": "rgb",
+  "hasPanTilt": false,
+  "panInvert": false,
+  "tiltInvert": false,
+  "wheels": []
+}

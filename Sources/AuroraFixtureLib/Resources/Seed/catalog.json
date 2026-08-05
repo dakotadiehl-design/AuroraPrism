@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "id": "20000000-0000-4000-8000-000000000001",
+      "manufacturer": "Generic",
+      "model": "Dimmer",
+      "modeName": "1-channel",
+      "file": "generic-dimmer-1ch.json"
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000002",
+      "manufacturer": "Generic",
+      "model": "RGB Par",
+      "modeName": "3-channel",
+      "file": "generic-rgb-3ch.json"
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000003",
+      "manufacturer": "Generic",
+      "model": "RGBW Par",
+      "modeName": "4-channel",
+      "file": "generic-rgbw-4ch.json"
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000004",
+      "manufacturer": "Generic",
+      "model": "Moving Head",
+      "modeName": "16-channel",
+      "file": "generic-moving-head-16ch.json"
+    }
+  ]
+}

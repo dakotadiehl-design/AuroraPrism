@@ -1,0 +1,178 @@
+{
+  "id": "20000000-0000-4000-8000-000000000004",
+  "manufacturer": "Generic",
+  "model": "Moving Head",
+  "modeName": "16-channel",
+  "channelCount": 16,
+  "channels": [
+    {
+      "id": "21000000-0000-4000-8000-000000000031",
+      "offset": 1,
+      "name": "Pan",
+      "attribute": "pan",
+      "resolution": "coarse",
+      "defaultValue": 128,
+      "highlightValue": 128
+    },
+    {
+      "id": "21000000-0000-4000-8000-000000000032",
+      "offset": 2,
+      "name": "Pan Fine",
+      "attribute": "pan",
+      "resolution": "fine",
+      "defaultValue": 0,
+      "highlightValue": 0
+    },
+    {
+      "id": "21000000-0000-4000-8000-000000000033",
+      "offset": 3,
+      "name": "Tilt",
+      "attribute": "tilt",
+      "resolution": "coarse",
+      "defaultValue": 128,
+      "highlightValue": 128
+    },
+    {
+      "id": "21000000-0000-4000-8000-000000000034",
+      "offset": 4,
+      "name": "Tilt Fine",
+      "attribute": "tilt",
+      "resolution": "fine",
+      "defaultValue": 0,
+      "highlightValue": 0
+    },
+    {
+      "id": "21000000-0000-4000-8000-000000000035",
+      "offset": 5,
+      "name": "Intensity",
+      "attribute": "intensity",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 255
+    },
+    {
+      "id": "21000000-0000-4000-8000-000000000036",
+      "offset": 6,
+      "name": "Shutter",
+      "attribute": "shutter",
+      "resolution": "eightBit",
+      "defaultValue": 255,
+      "highlightValue": 255
+    },
+    {
+      "id": "21000000-0000-4000-8000-000000000037",
+      "offset": 7,
+      "name": "Red",
+      "attribute": "colorR",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 255
+    },
+    {
+      "id": "21000000-0000-4000-8000-000000000038",
+      "offset": 8,
+      "name": "Green",
+      "attribute": "colorG",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 255
+    },
+    {
+      "id": "21000000-0000-4000-8000-000000000039",
+      "offset": 9,
+      "name": "Blue",
+      "attribute": "colorB",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 255
+    },
+    {
+      "id": "21000000-0000-4000-8000-00000000003a",
+      "offset": 10,
+      "name": "White",
+      "attribute": "colorW",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 255
+    },
+    {
+      "id": "21000000-0000-4000-8000-00000000003b",
+      "offset": 11,
+      "name": "Color Wheel",
+      "attribute": "colorWheel",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 0
+    },
+    {
+      "id": "21000000-0000-4000-8000-00000000003c",
+      "offset": 12,
+      "name": "Gobo",
+      "attribute": "gobo",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 0
+    },
+    {
+      "id": "21000000-0000-4000-8000-00000000003d",
+      "offset": 13,
+      "name": "Zoom",
+      "attribute": "zoom",
+      "resolution": "eightBit",
+      "defaultValue": 128,
+      "highlightValue": 128
+    },
+    {
+      "id": "21000000-0000-4000-8000-00000000003e",
+      "offset": 14,
+      "name": "Focus",
+      "attribute": "focus",
+      "resolution": "eightBit",
+      "defaultValue": 128,
+      "highlightValue": 128
+    },
+    {
+      "id": "21000000-0000-4000-8000-00000000003f",
+      "offset": 15,
+      "name": "Control",
+      "attribute": "unknown",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 0
+    },
+    {
+      "id": "21000000-0000-4000-8000-000000000040",
+      "offset": 16,
+      "name": "Reset",
+      "attribute": "unknown",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 0
+    }
+  ],
+  "colorModel": "rgbw",
+  "hasPanTilt": true,
+  "panInvert": false,
+  "tiltInvert": false,
+  "wheels": [
+    {
+      "id": "22000000-0000-4000-8000-000000000001",
+      "name": "Color",
+      "kind": "color",
+      "slots": [
+        {
+          "id": "22000000-0000-4000-8000-000000000011",
+          "index": 0,
+          "name": "Open",
+          "dmxValue": 0
+        },
+        {
+          "id": "22000000-0000-4000-8000-000000000012",
+          "index": 1,
+          "name": "Red",
+          "dmxValue": 16
+        }
+      ]
+    }
+  ]
+}

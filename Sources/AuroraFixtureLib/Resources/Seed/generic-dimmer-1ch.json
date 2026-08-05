@@ -1,0 +1,23 @@
+{
+  "id": "20000000-0000-4000-8000-000000000001",
+  "manufacturer": "Generic",
+  "model": "Dimmer",
+  "modeName": "1-channel",
+  "channelCount": 1,
+  "channels": [
+    {
+      "id": "21000000-0000-4000-8000-000000000001",
+      "offset": 1,
+      "name": "Intensity",
+      "attribute": "intensity",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 255
+    }
+  ],
+  "colorModel": null,
+  "hasPanTilt": false,
+  "panInvert": false,
+  "tiltInvert": false,
+  "wheels": []
+}

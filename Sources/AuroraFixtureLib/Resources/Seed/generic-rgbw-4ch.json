@@ -1,0 +1,50 @@
+{
+  "id": "20000000-0000-4000-8000-000000000003",
+  "manufacturer": "Generic",
+  "model": "RGBW Par",
+  "modeName": "4-channel",
+  "channelCount": 4,
+  "channels": [
+    {
+      "id": "21000000-0000-4000-8000-000000000021",
+      "offset": 1,
+      "name": "Red",
+      "attribute": "colorR",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 255
+    },
+    {
+      "id": "21000000-0000-4000-8000-000000000022",
+      "offset": 2,
+      "name": "Green",
+      "attribute": "colorG",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 255
+    },
+    {
+      "id": "21000000-0000-4000-8000-000000000023",
+      "offset": 3,
+      "name": "Blue",
+      "attribute": "colorB",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 255
+    },
+    {
+      "id": "21000000-0000-4000-8000-000000000024",
+      "offset": 4,
+      "name": "White",
+      "attribute": "colorW",
+      "resolution": "eightBit",
+      "defaultValue": 0,
+      "highlightValue": 255
+    }
+  ],
+  "colorModel": "rgbw",
+  "hasPanTilt": false,
+  "panInvert": false,
+  "tiltInvert": false,
+  "wheels": []
+}
