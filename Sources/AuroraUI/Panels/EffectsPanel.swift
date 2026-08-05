@@ -4,7 +4,8 @@ import SwiftUI
 
 /// Live effect controls (PR23). All generation math lives in `EffectRunner`.
 public struct EffectsPanel: View {
-    public var selectionFixtureIDs: Set<UUID>
+    /// Selection order drives chase/wave/rainbow phase (P1-5).
+    public var orderedSelectionFixtureIDs: [UUID]
     public var effects: EffectRunner
     public var onChanged: () -> Void
 
@@ -15,11 +16,22 @@ public struct EffectsPanel: View {
     @State private var revision: UInt64 = 0
 
     public init(
+        orderedSelectionFixtureIDs: [UUID],
+        effects: EffectRunner,
+        onChanged: @escaping () -> Void = {}
+    ) {
+        self.orderedSelectionFixtureIDs = orderedSelectionFixtureIDs
+        self.effects = effects
+        self.onChanged = onChanged
+    }
+
+    /// Compatibility: unordered set (stable UUID sort) when order is unknown.
+    public init(
         selectionFixtureIDs: Set<UUID>,
         effects: EffectRunner,
         onChanged: @escaping () -> Void = {}
     ) {
-        self.selectionFixtureIDs = selectionFixtureIDs
+        self.orderedSelectionFixtureIDs = selectionFixtureIDs.sorted { $0.uuidString < $1.uuidString }
         self.effects = effects
         self.onChanged = onChanged
     }
@@ -53,12 +65,12 @@ public struct EffectsPanel: View {
                     labeledSlider("Rate Hz", value: $rateHz, range: 0.05...8)
                     labeledSlider("Size", value: $size, range: 0...1)
 
-                    Text("\(selectionFixtureIDs.count) fixture(s) selected")
+                    Text("\(orderedSelectionFixtureIDs.count) fixture(s) selected")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
                     Button("Start Effect") { startEffect() }
-                        .disabled(selectionFixtureIDs.isEmpty)
+                        .disabled(orderedSelectionFixtureIDs.isEmpty)
                 }
                 .padding(4)
             }
@@ -129,7 +141,7 @@ public struct EffectsPanel: View {
     }
 
     private func startEffect() {
-        let ids = Array(selectionFixtureIDs)
+        let ids = orderedSelectionFixtureIDs
         guard !ids.isEmpty else { return }
         let name: String
         switch kind {

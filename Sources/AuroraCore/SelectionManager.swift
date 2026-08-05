@@ -2,7 +2,13 @@ import AuroraModel
 import Foundation
 
 /// Immutable multi-select snapshot for one moment in time.
+///
+/// Fixture selection is ordered (P1-5): `orderedFixtureIDs` is the source of truth
+/// for phase-sensitive operations (chase, fan, wave). `fixtureIDs` is membership.
 public struct SelectionSnapshot: Equatable, Sendable, Hashable {
+    /// Selection order (click / multi-select order). Duplicates are not allowed.
+    public var orderedFixtureIDs: [UUID]
+    /// Membership set — always matches `Set(orderedFixtureIDs)`.
     public var fixtureIDs: Set<UUID>
     public var cueIDs: Set<UUID>
     public var cueListIDs: Set<UUID>
@@ -10,12 +16,37 @@ public struct SelectionSnapshot: Equatable, Sendable, Hashable {
     public var groupIDs: Set<UUID>
 
     public init(
-        fixtureIDs: Set<UUID> = [],
+        orderedFixtureIDs: [UUID] = [],
+        fixtureIDs: Set<UUID>? = nil,
         cueIDs: Set<UUID> = [],
         cueListIDs: Set<UUID> = [],
         songIDs: Set<UUID> = [],
         groupIDs: Set<UUID> = []
     ) {
+        let ordered = Self.dedupePreservingOrder(orderedFixtureIDs)
+        self.orderedFixtureIDs = ordered
+        self.fixtureIDs = fixtureIDs ?? Set(ordered)
+        // Keep membership in sync if caller passed both inconsistently.
+        if self.fixtureIDs != Set(ordered) {
+            self.orderedFixtureIDs = ordered
+            self.fixtureIDs = Set(ordered)
+        }
+        self.cueIDs = cueIDs
+        self.cueListIDs = cueListIDs
+        self.songIDs = songIDs
+        self.groupIDs = groupIDs
+    }
+
+    /// Convenience: build from a membership set (stable UUID-string order).
+    public init(
+        fixtureIDs: Set<UUID>,
+        cueIDs: Set<UUID> = [],
+        cueListIDs: Set<UUID> = [],
+        songIDs: Set<UUID> = [],
+        groupIDs: Set<UUID> = []
+    ) {
+        let ordered = fixtureIDs.sorted { $0.uuidString < $1.uuidString }
+        self.orderedFixtureIDs = ordered
         self.fixtureIDs = fixtureIDs
         self.cueIDs = cueIDs
         self.cueListIDs = cueListIDs
@@ -26,11 +57,21 @@ public struct SelectionSnapshot: Equatable, Sendable, Hashable {
     public static let empty = SelectionSnapshot()
 
     public var isEmpty: Bool {
-        fixtureIDs.isEmpty
+        orderedFixtureIDs.isEmpty
             && cueIDs.isEmpty
             && cueListIDs.isEmpty
             && songIDs.isEmpty
             && groupIDs.isEmpty
+    }
+
+    fileprivate static func dedupePreservingOrder(_ ids: [UUID]) -> [UUID] {
+        var seen = Set<UUID>()
+        var result: [UUID] = []
+        result.reserveCapacity(ids.count)
+        for id in ids where seen.insert(id).inserted {
+            result.append(id)
+        }
+        return result
     }
 }
 
@@ -45,23 +86,46 @@ public final class SelectionManager {
         snapshot = .empty
     }
 
+    /// Select fixtures with explicit order (preferred for phase-sensitive tools).
+    public func selectFixturesOrdered(_ ids: [UUID], extending: Bool = false) {
+        if extending {
+            var ordered = snapshot.orderedFixtureIDs
+            var membership = snapshot.fixtureIDs
+            for id in ids where membership.insert(id).inserted {
+                ordered.append(id)
+            }
+            snapshot.orderedFixtureIDs = ordered
+            snapshot.fixtureIDs = membership
+        } else {
+            let ordered = SelectionSnapshot.dedupePreservingOrder(ids)
+            snapshot.orderedFixtureIDs = ordered
+            snapshot.fixtureIDs = Set(ordered)
+        }
+    }
+
+    /// Select fixtures from a set. New members append in stable UUID order when extending;
+    /// full replace uses stable UUID-string order (call `selectFixturesOrdered` when order matters).
     public func selectFixtures(_ ids: Set<UUID>, extending: Bool = false) {
         if extending {
-            snapshot.fixtureIDs.formUnion(ids)
+            let newcomers = ids.subtracting(snapshot.fixtureIDs).sorted { $0.uuidString < $1.uuidString }
+            selectFixturesOrdered(newcomers, extending: true)
         } else {
-            snapshot.fixtureIDs = ids
+            selectFixturesOrdered(ids.sorted { $0.uuidString < $1.uuidString }, extending: false)
         }
     }
 
     public func deselectFixtures(_ ids: Set<UUID>) {
+        snapshot.orderedFixtureIDs.removeAll { ids.contains($0) }
         snapshot.fixtureIDs.subtract(ids)
     }
 
     public func toggleFixture(_ id: UUID) {
         if snapshot.fixtureIDs.contains(id) {
             snapshot.fixtureIDs.remove(id)
+            snapshot.orderedFixtureIDs.removeAll { $0 == id }
         } else {
             snapshot.fixtureIDs.insert(id)
+            snapshot.orderedFixtureIDs.append(id)
         }
     }
 
@@ -110,7 +174,8 @@ public final class SelectionManager {
         let validSongs = Set(project.songs.map(\.id))
 
         let before = snapshot
-        snapshot.fixtureIDs = snapshot.fixtureIDs.intersection(validFixtures)
+        snapshot.orderedFixtureIDs = snapshot.orderedFixtureIDs.filter { validFixtures.contains($0) }
+        snapshot.fixtureIDs = Set(snapshot.orderedFixtureIDs)
         snapshot.groupIDs = snapshot.groupIDs.intersection(validGroups)
         snapshot.cueListIDs = snapshot.cueListIDs.intersection(validCueLists)
         snapshot.cueIDs = snapshot.cueIDs.intersection(validCues)

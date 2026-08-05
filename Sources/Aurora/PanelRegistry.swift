@@ -93,7 +93,7 @@ enum PanelRegistry {
         case .effects:
             return AnyView(
                 EffectsPanel(
-                    selectionFixtureIDs: appModel.session.selection.snapshot.fixtureIDs,
+                    orderedSelectionFixtureIDs: appModel.session.selection.snapshot.orderedFixtureIDs,
                     effects: appModel.engine.effects,
                     onChanged: { appModel.bump() }
                 )

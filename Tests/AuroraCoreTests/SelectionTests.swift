@@ -55,6 +55,35 @@ final class SelectionTests: XCTestCase {
         XCTAssertEqual(session.selection.snapshot.fixtureIDs, [a, b])
     }
 
+    func testOrderedFixtureSelectionPreservesClickOrder() {
+        let session = DocumentSession(project: ShowProject.empty())
+        let a = UUID()
+        let b = UUID()
+        let c = UUID()
+        session.selectFixturesOrdered([c, a, b])
+        XCTAssertEqual(session.selection.snapshot.orderedFixtureIDs, [c, a, b])
+        XCTAssertEqual(session.selection.snapshot.fixtureIDs, Set([a, b, c]))
+
+        session.selectFixturesOrdered([a], extending: true) // already selected — no change
+        XCTAssertEqual(session.selection.snapshot.orderedFixtureIDs, [c, a, b])
+
+        let d = UUID()
+        session.selectFixturesOrdered([d], extending: true)
+        XCTAssertEqual(session.selection.snapshot.orderedFixtureIDs, [c, a, b, d])
+    }
+
+    func testTogglePreservesOrderOfRemaining() {
+        let manager = SelectionManager()
+        let a = UUID()
+        let b = UUID()
+        let c = UUID()
+        manager.selectFixturesOrdered([a, b, c])
+        manager.toggleFixture(b)
+        XCTAssertEqual(manager.snapshot.orderedFixtureIDs, [a, c])
+        manager.toggleFixture(b)
+        XCTAssertEqual(manager.snapshot.orderedFixtureIDs, [a, c, b])
+    }
+
     func testRemoveSelectedFixturePrunesSelection() throws {
         let (project, fixtureID) = projectWithFixture()
         let session = DocumentSession(project: project)

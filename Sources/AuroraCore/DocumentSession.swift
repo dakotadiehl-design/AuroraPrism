@@ -71,6 +71,12 @@ public final class DocumentSession {
         publishSelectionChanged()
     }
 
+    /// Select fixtures preserving explicit order (chase/fan/wave phase order).
+    public func selectFixturesOrdered(_ ids: [UUID], extending: Bool = false) {
+        selection.selectFixturesOrdered(ids, extending: extending)
+        publishSelectionChanged()
+    }
+
     public func clearSelection() {
         guard !selection.snapshot.isEmpty else { return }
         selection.clear()
