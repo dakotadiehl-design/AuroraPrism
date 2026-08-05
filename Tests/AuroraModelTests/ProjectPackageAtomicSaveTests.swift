@@ -44,20 +44,57 @@ final class ProjectPackageAtomicSaveTests: XCTestCase {
         XCTAssertEqual(preserved, payload)
     }
 
-    func testSaveAsCopiesMediaFromExistingPackage() throws {
+    /// Ordinary Save As: destination does not exist; assets come from the open source package.
+    func testTrueSaveAsPreservesSourceMediaAndLayouts() throws {
         let src = tempRoot.appendingPathComponent("Src.aurora", isDirectory: true)
         let dst = tempRoot.appendingPathComponent("Dst.aurora", isDirectory: true)
         let project = ShowProject.empty(name: "Copy")
         try ProjectPackage.save(project, to: src)
-        let payload = Data("aurora-media".utf8)
-        try payload.write(to: src.appendingPathComponent("media/clip.bin"))
 
-        try FileManager.default.copyItem(at: src, to: dst)
+        let mediaPayload = Data("aurora-media".utf8)
+        let nestedMedia = src
+            .appendingPathComponent("media", isDirectory: true)
+            .appendingPathComponent("audio", isDirectory: true)
+        try FileManager.default.createDirectory(at: nestedMedia, withIntermediateDirectories: true)
+        try mediaPayload.write(to: nestedMedia.appendingPathComponent("intro.wav"))
+
+        let layoutPayload = Data(#"{"panel":"programming"}"#.utf8)
+        let layoutsDir = src.appendingPathComponent("layouts", isDirectory: true)
+        try FileManager.default.createDirectory(at: layoutsDir, withIntermediateDirectories: true)
+        try layoutPayload.write(to: layoutsDir.appendingPathComponent("programming.json"))
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dst.path))
+
         var p2 = project
-        p2.metadata.notes = "after"
-        try ProjectPackage.save(p2, to: dst)
-        let copied = try Data(contentsOf: dst.appendingPathComponent("media/clip.bin"))
-        XCTAssertEqual(copied, payload)
+        p2.metadata.notes = "after-save-as"
+        try ProjectPackage.save(p2, to: dst, preservingAssetsFrom: src)
+
+        let copiedMedia = try Data(contentsOf: dst
+            .appendingPathComponent("media/audio/intro.wav"))
+        XCTAssertEqual(copiedMedia, mediaPayload)
+
+        let copiedLayout = try Data(contentsOf: dst
+            .appendingPathComponent("layouts/programming.json"))
+        XCTAssertEqual(copiedLayout, layoutPayload)
+
+        // Source and destination remain independent after Save As.
+        try Data("mutated".utf8).write(to: dst.appendingPathComponent("media/audio/intro.wav"))
+        let sourceStillOriginal = try Data(contentsOf: nestedMedia.appendingPathComponent("intro.wav"))
+        XCTAssertEqual(sourceStillOriginal, mediaPayload)
+    }
+
+    /// Without an explicit asset source, Save As to a new path cannot invent media.
+    func testSaveAsWithoutAssetSourceOmitsSourceMedia() throws {
+        let src = tempRoot.appendingPathComponent("SrcOnly.aurora", isDirectory: true)
+        let dst = tempRoot.appendingPathComponent("DstEmpty.aurora", isDirectory: true)
+        let project = ShowProject.empty(name: "NoSource")
+        try ProjectPackage.save(project, to: src)
+        try Data("secret".utf8).write(to: src.appendingPathComponent("media/clip.bin"))
+
+        try ProjectPackage.save(project, to: dst) // no preservingAssetsFrom
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: dst.appendingPathComponent("media/clip.bin").path)
+        )
     }
 
     func testNoTempLeftoversAfterSave() throws {

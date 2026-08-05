@@ -229,7 +229,16 @@ final class AppModel: ObservableObject {
 
     private func save(to url: URL) {
         do {
-            try ProjectPackage.save(session.project, to: url)
+            // True Save As: destination may not exist yet — copy media/layouts from the
+            // currently open package, not from the empty destination.
+            let assetSource: URL?
+            if let documentURL,
+               documentURL.standardizedFileURL != url.standardizedFileURL {
+                assetSource = documentURL
+            } else {
+                assetSource = nil
+            }
+            try ProjectPackage.save(session.project, to: url, preservingAssetsFrom: assetSource)
             documentURL = url
             session.markSaved()
             statusMessage = "Saved \(url.lastPathComponent)"

@@ -68,10 +68,16 @@ public enum ProjectPackage {
 
     /// Writes `project` as a directory package at `url` (e.g. `…/Show.aurora`).
     ///
-    /// **Atomic (P0-1):** writes a temporary package, validates it, then replaces the
+    /// **Atomic:** writes a temporary package, validates it, then replaces the
     /// destination so a failed write cannot erase a valid existing show.
-    /// **Media (P0-2):** copies `media/` and `layouts/` from any existing package at `url`.
-    public static func save(_ project: ShowProject, to url: URL) throws {
+    /// **Media/layouts:** copies `media/` and `layouts/` from `preservingAssetsFrom`
+    /// when provided (true Save As from an open package); otherwise from any existing
+    /// package already at `url` (ordinary Save).
+    public static func save(
+        _ project: ShowProject,
+        to url: URL,
+        preservingAssetsFrom assetSource: URL? = nil
+    ) throws {
         let fm = FileManager.default
         let parent = url.deletingLastPathComponent()
         let tmpName = ".\(url.lastPathComponent).tmp-\(UUID().uuidString)"
@@ -82,7 +88,8 @@ public enum ProjectPackage {
         }
 
         do {
-            try writePackageContents(project, to: tmpURL, preservingBinariesFrom: url)
+            let binariesFrom = assetSource ?? url
+            try writePackageContents(project, to: tmpURL, preservingBinariesFrom: binariesFrom)
             _ = try load(from: tmpURL)
 
             if fm.fileExists(atPath: url.path) {
