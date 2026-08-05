@@ -7,7 +7,7 @@
 | **Last updated** | 2026-08-05 (**UI-02 GATE CLOSEOUT — READY FOR UI-03**) |
 | **Workspace** | `/Users/dakota/code/Aurora` |
 | **Branch** | `main` (local only; no remote assumed) |
-| **HEAD** | uncommitted UI-01/UI-02 + gate closeout on top of `3642f1e` / `b87dcf6` |
+| **HEAD** | `dbdd891` — tag `ui-02-complete` |
 | **Tests** | **281** passing (`swift test`) |
 | **Xcode app** | `Aurora.xcodeproj` — Debug build green after closeout |
 
