@@ -4,7 +4,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 ## Status
 
-**Lane A (stage output)** is in tree: Art-Net, monitors, MIDI, palettes/songs. **PR22** live effect engine (API only). Next: PR23 effect UI, Art-Net node validation, sACN, remote — one PR at a time.
+**Roadmap PRs through PR34 scaffold are in tree** (effects, sACN, OSC, RTP-MIDI, remote web, etc.). Validate Art-Net/sACN on hardware and exercise remote at `http://<mac>:8743` when enabled.
 
 | Doc | Description |
 |-----|-------------|
@@ -27,8 +27,19 @@ Professional-grade **lighting control** for macOS — live performance show cont
 | [`docs/design/pr16-coremidi.md`](./docs/design/pr16-coremidi.md) | **PR16** CoreMIDI |
 | [`docs/design/pr19-live-playback-ui.md`](./docs/design/pr19-live-playback-ui.md) | **PR19** live ops UI |
 | [`docs/design/pr24-diagnostics.md`](./docs/design/pr24-diagnostics.md) | **PR24** diagnostics subset |
+| [`docs/design/pr18-rtp-midi.md`](./docs/design/pr18-rtp-midi.md) | **PR18** RTP-MIDI |
 | [`docs/design/pr22-effect-engine.md`](./docs/design/pr22-effect-engine.md) | **PR22** live effect engine |
+| [`docs/design/pr23-effect-ui.md`](./docs/design/pr23-effect-ui.md) | **PR23** effects UI |
 | [`docs/design/pr25-artnet.md`](./docs/design/pr25-artnet.md) | **PR25** Art-Net output |
+| [`docs/design/pr26-sacn.md`](./docs/design/pr26-sacn.md) | **PR26** sACN |
+| [`docs/design/pr27-osc.md`](./docs/design/pr27-osc.md) | **PR27** OSC |
+| [`docs/design/pr28-fixture-import.md`](./docs/design/pr28-fixture-import.md) | **PR28** fixture import |
+| [`docs/design/pr29-plugins.md`](./docs/design/pr29-plugins.md) | **PR29** plugins |
+| [`docs/design/pr30-performance.md`](./docs/design/pr30-performance.md) | **PR30** performance |
+| [`docs/design/pr31-remote-protocol.md`](./docs/design/pr31-remote-protocol.md) | **PR31** remote protocol |
+| [`docs/design/pr32-web-companion.md`](./docs/design/pr32-web-companion.md) | **PR32** web companion |
+| [`docs/design/pr33-remote-hardening.md`](./docs/design/pr33-remote-hardening.md) | **PR33** remote hardening |
+| [`docs/design/pr34-aurora-pad.md`](./docs/design/pr34-aurora-pad.md) | **PR34** Pad scaffold |
 | [`docs/design/remote-companion.md`](./docs/design/remote-companion.md) | Stage iPad remote (web first, native later) |
 | [`docs/development-workflow.md`](./docs/development-workflow.md) | Mac toolchain & dual-host notes |
 | [`docs/PROJECT_HANDOFF.md`](./docs/PROJECT_HANDOFF.md) | **Session handoff** — full memory for new chats / post-compress |

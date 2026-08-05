@@ -5,7 +5,7 @@
 **Last updated:** 2026-08-05  
 **Workspace:** `/Users/dakota/code/Aurora`  
 **Branch:** `main` (local only when last written; no remote assumed)  
-**HEAD (at write time):** see `git log -1` — Phase 1 polish after handoff `d48a123`
+**HEAD (at write time):** see `git log -1` — roadmap PRs through PR34 scaffold
 
 ---
 
@@ -87,7 +87,7 @@ Aurora/
 │   ├── AuroraFixtureLib/         # seed personalities (Resources/Seed/)
 │   ├── AuroraUI/                 # workspace + panels
 │   ├── AuroraDiagnostics/        # still thin / stub-ish
-│   └── (no AuroraRemote yet)
+│   └── AuroraRemote/             # stage remote protocol + web host
 └── Tests/
     ├── AuroraModelTests/
     ├── AuroraCoreTests/
@@ -99,7 +99,7 @@ Aurora/
     └── AuroraPackageSmokeTests/
 ```
 
-~110+ Swift sources under `Sources/`, ~24 under `Tests/`. **~121 tests** passing at last full run (after PR22).
+Swift sources under `Sources/` (incl. `AuroraRemote`). **~157 tests** passing at last full run.
 
 ---
 
@@ -216,22 +216,30 @@ Single `@MainActor` `AppModel` owns:
 | 19 | Live transport panel + keyboard GO/STOP/BACK |
 | 20 | Groups/palettes (refs + resolver) — core model/UI present |
 | 21 | SongDirector + Song panel |
-| 22 | Effect engine (live pulse/chase/wave/rainbow; no UI yet) |
+| 18 | RTP-MIDI via CoreMIDI `MIDINetworkSession` |
+| 22 | Effect engine (pulse/chase/wave/rainbow) |
+| 23 | Effects panel UI |
 | 24 | Universe monitor + console/MIDI log (subset) |
 | 25 | Art-Net output driver |
+| 26 | sACN/E1.31 output driver |
+| 27 | OSC input → ShowAction |
+| 28 | Fixture import (native + OFL-lite; not full GDTF) |
+| 29 | In-process plugin host skeleton |
+| 30 | Frame metrics + scale budget tests |
+| 31 | AuroraRemote protocol + TCP host |
+| 32 | Web live-ops companion (HTTP :8743) |
+| 33 | Remote hardening (rate limit, kick, lock) |
+| 34 | RemoteProtocolClient scaffold (no iOS app target) |
 
-### Designed, not fully built
+### Intentionally incomplete / follow-ups
 
-| PR | Topic | Design doc |
-|----|--------|------------|
-| 18 | Built-in RTP-MIDI | system design |
-| 23 | Effect + Timeline UI | system design, `pr22-effect-engine.md` |
-| 26 | sACN | system design |
-| 27 | OSC | system design |
-| 28 | Fixture import (GDTF/OFL) | system design |
-| 29 | Plugins | system design |
-| 30 | Performance hardening | system design |
-| 31–34 | Remote web/iPad companion | `remote-companion.md`, KD16 |
+| Item | Notes |
+|------|--------|
+| Full GDTF import | Deferred (zip/XML); OFL-lite only in PR28 |
+| Full DAW effect timeline | PR23 is live list, not multi-track timeline |
+| Native iPad app binary | PR34 is protocol client only; package stays macOS-only |
+| TLS for remote | LAN HTTP/TCP cleartext; venue network assumed |
+| Dynamic plugin dylibs | PR29 in-process only |
 
 ### Known gaps / incomplete polish
 
@@ -242,7 +250,7 @@ Single `@MainActor` `AppModel` owns:
 - No true AppKit docking framework — SwiftUI `HSplitView`/`VSplitView` “docking lite”  
 - No committed `.xcodeproj` — open `Package.swift`  
 - Some PR docs are thin notes; **system design + PDFs** are authoritative  
-- Effect UI (PR23); sACN (PR26); remote (PR31–34); other open PRs not started
+- Full GDTF; native iPad app; TLS remote; dynamic plugins — see incomplete table
 
 ---
 
