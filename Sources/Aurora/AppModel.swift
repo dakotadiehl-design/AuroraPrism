@@ -2,6 +2,7 @@ import AppKit
 import AuroraCore
 import AuroraEngine
 import AuroraFixtureLib
+import AuroraMIDI
 import AuroraModel
 import AuroraOutput
 import AuroraUI
@@ -9,7 +10,7 @@ import Combine
 import Foundation
 import SwiftUI
 
-/// Owns the live show session, workspace layout, fixture library, engine, and document path.
+/// Owns the live show session, workspace layout, fixture library, engine, MIDI, and document path.
 @MainActor
 final class AppModel: ObservableObject {
     @Published private(set) var session: DocumentSession
@@ -18,12 +19,15 @@ final class AppModel: ObservableObject {
     @Published var statusMessage: String = ""
     @Published private(set) var revision: UInt64 = 0
     @Published private(set) var engineStatus: String = "Engine stopped"
+    @Published private(set) var midiStatus: String = "MIDI: off"
+    @Published private(set) var lastMIDIEvent: String = ""
 
     private var eventToken: EventSubscriptionToken?
     private let fixtureLibrary: FixtureLibrary?
     private let outputManager = OutputManager()
     private let nullDriver = NullOutputDriver(name: "Null")
     let engine: LightingEngine
+    private let midi = MIDIInputManager()
     private var statusTimer: Timer?
 
     init(project: ShowProject = .empty(name: "Untitled Show")) {
@@ -44,12 +48,14 @@ final class AppModel: ObservableObject {
         wireEvents()
         reloadEngine()
         startEngineIfPossible()
+        startMIDI()
         startStatusPolling()
     }
 
     deinit {
         statusTimer?.invalidate()
         engine.stop()
+        midi.stop()
     }
 
     var panelContext: WorkspacePanelContext {
@@ -216,6 +222,23 @@ final class AppModel: ObservableObject {
             refreshEngineStatus()
         } catch {
             engineStatus = "Engine start failed"
+            statusMessage = error.localizedDescription
+        }
+    }
+
+    private func startMIDI() {
+        midi.setHandler { [weak self] events in
+            guard let last = events.last else { return }
+            Task { @MainActor in
+                self?.lastMIDIEvent = last.summary
+                self?.midiStatus = "MIDI: \(self?.midi.connectedCount ?? 0) src · \(last.summary)"
+            }
+        }
+        do {
+            try midi.start()
+            midiStatus = "MIDI: \(midi.connectedCount) sources"
+        } catch {
+            midiStatus = "MIDI: error"
             statusMessage = error.localizedDescription
         }
     }

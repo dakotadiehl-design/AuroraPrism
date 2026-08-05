@@ -36,6 +36,19 @@ enum PanelRegistry {
                     onChanged: { appModel.bump() }
                 )
             )
+        case .livePlayback:
+            return AnyView(
+                LivePlaybackPanel(
+                    snapshot: appModel.engine.currentSnapshot(),
+                    onGo: { appModel.go() },
+                    onStop: { appModel.stopPlayback() },
+                    onBack: { appModel.back() },
+                    isBlind: appModel.engine.programmer.snapshot().isBlind,
+                    isHighlight: appModel.engine.programmer.snapshot().isHighlight,
+                    onBlind: { appModel.engine.programmer.setBlind($0); appModel.bump() },
+                    onHighlight: { appModel.engine.programmer.setHighlight($0); appModel.bump() }
+                )
+            )
         default:
             return WorkspaceView.defaultPanel(id: id, context: context)
         }

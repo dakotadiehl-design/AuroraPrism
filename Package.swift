@@ -42,7 +42,10 @@ let package = Package(
             dependencies: ["AuroraModel", "AuroraEngine"]
         ),
         .target(
-            name: "AuroraMIDI"
+            name: "AuroraMIDI",
+            linkerSettings: [
+                .linkedFramework("CoreMIDI"),
+            ]
         ),
         .target(
             name: "AuroraDiagnostics"
@@ -62,6 +65,7 @@ let package = Package(
                 "AuroraFixtureLib",
                 "AuroraEngine",
                 "AuroraOutput",
+                "AuroraMIDI",
             ]
         ),
 
@@ -89,6 +93,10 @@ let package = Package(
         .testTarget(
             name: "AuroraEngineTests",
             dependencies: ["AuroraEngine", "AuroraModel", "AuroraOutput"]
+        ),
+        .testTarget(
+            name: "AuroraMIDITests",
+            dependencies: ["AuroraMIDI"]
         ),
         .testTarget(
             name: "AuroraPackageSmokeTests",
