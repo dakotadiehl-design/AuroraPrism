@@ -4,10 +4,10 @@ import AuroraOutput
 /// Lighting engine: cue, effect, playback, programmer, and scheduler.
 ///
 /// PR10: scheduler + merge stub. PR11: cue timing/tracking playback.
-/// PR13: programmer layer.
+/// PR13: programmer layer. PR22: live effect generators.
 public enum AuroraEngineModule {
     public static let name = "AuroraEngine"
-    public static let version = "0.14.0-pr14"
+    public static let version = "0.22.0-pr22"
 
     public static var modelModuleName: String { AuroraModelModule.name }
     public static var outputModuleName: String { AuroraOutputModule.name }

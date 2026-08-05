@@ -19,6 +19,8 @@ public final class LightingEngine: @unchecked Sendable {
 
     public let playback = PlaybackController()
     public let programmer = Programmer()
+    /// Live effects between playback and programmer (PR22).
+    public let effects = EffectRunner()
 
     public init(
         output: OutputManager,
@@ -151,7 +153,9 @@ public final class LightingEngine: @unchecked Sendable {
         } else {
             playbackLook = playback.look(at: time)
         }
-        let look = programmer.apply(onPlayback: playbackLook, project: project)
+        // Layer order: playback → effects → programmer (§7.3 / PR22).
+        let effectedLook = effects.apply(on: playbackLook, time: time)
+        let look = programmer.apply(onPlayback: effectedLook, project: project)
         let playbackSnap = playback.snapshot()
 
         let levels = MergeStub.merge(project: project, look: look, channelCount: config.channelCount)

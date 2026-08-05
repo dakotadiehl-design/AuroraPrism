@@ -4,7 +4,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 ## Status
 
-**Lane A (stage output)** is in tree: Art-Net driver, full-universe monitor, MIDI learn, palette refs/songs. Phase 1 polish: selected-cue palette refs + delete confirm. Next: Art-Net node validation → **effects (PR22)** / sACN / remote.
+**Lane A (stage output)** is in tree: Art-Net, monitors, MIDI, palettes/songs. **PR22** live effect engine (API only). Next: PR23 effect UI, Art-Net node validation, sACN, remote — one PR at a time.
 
 | Doc | Description |
 |-----|-------------|
@@ -27,6 +27,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 | [`docs/design/pr16-coremidi.md`](./docs/design/pr16-coremidi.md) | **PR16** CoreMIDI |
 | [`docs/design/pr19-live-playback-ui.md`](./docs/design/pr19-live-playback-ui.md) | **PR19** live ops UI |
 | [`docs/design/pr24-diagnostics.md`](./docs/design/pr24-diagnostics.md) | **PR24** diagnostics subset |
+| [`docs/design/pr22-effect-engine.md`](./docs/design/pr22-effect-engine.md) | **PR22** live effect engine |
 | [`docs/design/pr25-artnet.md`](./docs/design/pr25-artnet.md) | **PR25** Art-Net output |
 | [`docs/design/remote-companion.md`](./docs/design/remote-companion.md) | Stage iPad remote (web first, native later) |
 | [`docs/development-workflow.md`](./docs/development-workflow.md) | Mac toolchain & dual-host notes |

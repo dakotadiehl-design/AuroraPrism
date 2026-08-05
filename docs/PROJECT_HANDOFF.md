@@ -99,7 +99,7 @@ Aurora/
     └── AuroraPackageSmokeTests/
 ```
 
-~110 Swift sources under `Sources/`, ~23 under `Tests/`. **~112 tests** passing at last full run.
+~110+ Swift sources under `Sources/`, ~24 under `Tests/`. **~121 tests** passing at last full run (after PR22).
 
 ---
 
@@ -216,6 +216,7 @@ Single `@MainActor` `AppModel` owns:
 | 19 | Live transport panel + keyboard GO/STOP/BACK |
 | 20 | Groups/palettes (refs + resolver) — core model/UI present |
 | 21 | SongDirector + Song panel |
+| 22 | Effect engine (live pulse/chase/wave/rainbow; no UI yet) |
 | 24 | Universe monitor + console/MIDI log (subset) |
 | 25 | Art-Net output driver |
 
@@ -224,7 +225,7 @@ Single `@MainActor` `AppModel` owns:
 | PR | Topic | Design doc |
 |----|--------|------------|
 | 18 | Built-in RTP-MIDI | system design |
-| 22–23 | Effects engine + UI | system design |
+| 23 | Effect + Timeline UI | system design, `pr22-effect-engine.md` |
 | 26 | sACN | system design |
 | 27 | OSC | system design |
 | 28 | Fixture import (GDTF/OFL) | system design |
@@ -241,7 +242,7 @@ Single `@MainActor` `AppModel` owns:
 - No true AppKit docking framework — SwiftUI `HSplitView`/`VSplitView` “docking lite”  
 - No committed `.xcodeproj` — open `Package.swift`  
 - Some PR docs are thin notes; **system design + PDFs** are authoritative  
-- Effects (PR22–23), sACN (PR26), remote (PR31–34) not started
+- Effect UI (PR23); sACN (PR26); remote (PR31–34); other open PRs not started
 
 ---
 
@@ -254,6 +255,7 @@ Single `@MainActor` `AppModel` owns:
 | Commands | `Sources/AuroraCore/Commands/*`, `GroupCommands.swift` |
 | Package I/O | `Sources/AuroraModel/ProjectPackage.swift` |
 | Engine | `Sources/AuroraEngine/LightingEngine.swift` |
+| Live effects | `Sources/AuroraEngine/EffectRunner.swift` (`engine.effects`) |
 | Playback | `Sources/AuroraEngine/PlaybackController.swift` |
 | Palette resolve | `Sources/AuroraEngine/PaletteResolver.swift` |
 | Cue resolve | `Sources/AuroraEngine/CueResolver.swift` |
