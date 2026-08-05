@@ -26,6 +26,8 @@ Professional-grade **lighting control** for macOS — live performance show cont
 | [`docs/design/pr14-programmer-ui.md`](./docs/design/pr14-programmer-ui.md) | **PR14** programmer UI |
 | [`docs/design/pr16-coremidi.md`](./docs/design/pr16-coremidi.md) | **PR16** CoreMIDI |
 | [`docs/design/pr19-live-playback-ui.md`](./docs/design/pr19-live-playback-ui.md) | **PR19** live ops UI |
+| [`docs/design/pr24-diagnostics.md`](./docs/design/pr24-diagnostics.md) | **PR24** diagnostics subset |
+| [`docs/design/pr25-artnet.md`](./docs/design/pr25-artnet.md) | **PR25** Art-Net output |
 | [`docs/design/remote-companion.md`](./docs/design/remote-companion.md) | Stage iPad remote (web first, native later) |
 | [`docs/development-workflow.md`](./docs/development-workflow.md) | Mac toolchain & dual-host notes |
 
