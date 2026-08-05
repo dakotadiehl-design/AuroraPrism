@@ -698,6 +698,25 @@ final class AppModel: ObservableObject {
         bump()
     }
 
+    func kickAllRemoteClients() {
+        let ids = remoteHost.sessions.kickAll()
+        // Web tokens are session-scoped; restart web to drop tokens cleanly.
+        if remoteHost.sessions.configSnapshot.enabled, let web = remoteWeb {
+            web.stop()
+            let action: @Sendable (RemoteShowAction) -> Void = { [weak self] action in
+                Task { @MainActor in
+                    self?.performRemote(action)
+                }
+            }
+            let fresh = RemoteWebServer(sessions: remoteHost.sessions, port: web.port)
+            fresh.setActionHandler(action)
+            remoteWeb = fresh
+            try? fresh.start()
+        }
+        log("Kicked \(ids.count) remote client(s)")
+        bump()
+    }
+
     func promptSACNDestination() {
         let alert = NSAlert()
         alert.messageText = "sACN Destination"

@@ -29,27 +29,32 @@ public struct RemoteHostConfig: Equatable, Sendable {
     /// When true, only viewer role is granted (Mac lock).
     public var lockedToViewer: Bool
     public var port: UInt16
+    /// Max authorized commands per session per rolling second (PR33).
+    public var maxCommandsPerSecond: Int
 
     public init(
         enabled: Bool = false,
         pin: String = "0000",
         maxClients: Int = 8,
         lockedToViewer: Bool = false,
-        port: UInt16 = 8742
+        port: UInt16 = 8742,
+        maxCommandsPerSecond: Int = 20
     ) {
         self.enabled = enabled
         self.pin = pin
         self.maxClients = max(1, maxClients)
         self.lockedToViewer = lockedToViewer
         self.port = port
+        self.maxCommandsPerSecond = max(1, maxCommandsPerSecond)
     }
 }
 
-/// Auth, roles, lock, and command authorization for remote clients (PR31).
+/// Auth, roles, lock, and command authorization for remote clients (PR31/PR33).
 public final class RemoteSessionManager: @unchecked Sendable {
     private let lock = NSLock()
     private var config: RemoteHostConfig
     private var clients: [UUID: RemoteClientInfo] = [:]
+    private var commandTimestamps: [UUID: [TimeInterval]] = [:]
 
     public init(config: RemoteHostConfig = RemoteHostConfig()) {
         self.config = config
@@ -109,6 +114,9 @@ public final class RemoteSessionManager: @unchecked Sendable {
         guard protocolVersion == AuroraRemoteModule.protocolVersion else {
             return .reject("protocol version mismatch")
         }
+        guard !config.pin.isEmpty else {
+            return .reject("PIN not configured")
+        }
         guard (pin ?? "") == config.pin else {
             return .reject("invalid PIN")
         }
@@ -129,26 +137,45 @@ public final class RemoteSessionManager: @unchecked Sendable {
     public func disconnect(sessionId: UUID) {
         lock.lock()
         clients[sessionId] = nil
+        commandTimestamps[sessionId] = nil
         lock.unlock()
+    }
+
+    @discardableResult
+    public func kick(sessionId: UUID) -> Bool {
+        lock.lock()
+        let existed = clients.removeValue(forKey: sessionId) != nil
+        commandTimestamps[sessionId] = nil
+        lock.unlock()
+        return existed
     }
 
     public func kickAll(reason: String = "host kick") -> [UUID] {
         lock.lock()
         let ids = Array(clients.keys)
         clients.removeAll()
+        commandTimestamps.removeAll()
         lock.unlock()
         _ = reason
         return ids
     }
 
-    /// Returns authorized action or nil if forbidden.
-    public func authorize(sessionId: UUID, action: RemoteShowAction) -> RemoteShowAction? {
+    /// Returns authorized action or nil if forbidden / rate-limited.
+    public func authorize(sessionId: UUID, action: RemoteShowAction, now: TimeInterval = Date().timeIntervalSince1970) -> RemoteShowAction? {
         lock.lock()
         defer { lock.unlock() }
         guard let client = clients[sessionId] else { return nil }
         if client.role == .viewer { return nil }
         if config.lockedToViewer { return nil }
-        return RemoteCommandAllowList.isAllowed(action) ? action : nil
+        guard RemoteCommandAllowList.isAllowed(action) else { return nil }
+        var times = commandTimestamps[sessionId] ?? []
+        times = times.filter { now - $0 < 1.0 }
+        if times.count >= config.maxCommandsPerSecond {
+            return nil
+        }
+        times.append(now)
+        commandTimestamps[sessionId] = times
+        return action
     }
 }
 

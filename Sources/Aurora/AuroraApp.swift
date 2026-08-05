@@ -115,6 +115,9 @@ struct AuroraApp: App {
                 Button("Allow Remote Operators") {
                     appModel.setRemoteLockedToViewer(false)
                 }
+                Button("Kick All Remote Clients") {
+                    appModel.kickAllRemoteClients()
+                }
             }
 
             CommandMenu("Output") {
