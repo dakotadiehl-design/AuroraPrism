@@ -5,7 +5,7 @@
 **Last updated:** 2026-08-05  
 **Workspace:** `/Users/dakota/code/Aurora`  
 **Branch:** `main` (local only when last written; no remote assumed)  
-**HEAD (at write time):** `9f70e8f` — *Document PR24/PR25 in README*
+**HEAD (at write time):** see `git log -1` — Phase 1 polish after handoff `d48a123`
 
 ---
 
@@ -99,7 +99,7 @@ Aurora/
     └── AuroraPackageSmokeTests/
 ```
 
-~110 Swift sources under `Sources/`, ~23 under `Tests/`. **~108 tests** passing at last full run.
+~110 Swift sources under `Sources/`, ~23 under `Tests/`. **~112 tests** passing at last full run.
 
 ---
 
@@ -234,13 +234,14 @@ Single `@MainActor` `AppModel` owns:
 
 ### Known gaps / incomplete polish
 
-- **Record palette ref UI** exists (“Record Ref to Cue” on first cue of first list) — not full multi-cue workflow  
-- Palette delete confirm when referenced is soft (validation exists; stronger UX optional)  
-- Universe monitor shows first 128 channels of first universe  
+- **Record palette ref UI** (improved Phase 1): uses **session cue selection** + selected fixtures; falls back to first cue of first list; multi-cue if multiple cue IDs selected  
+- Palette delete: **confirmation dialog** lists referencing cues/presets (broken refs remain until fixed; no auto break→literals yet)  
+- Universe monitor: **universe picker + full channelCount** (typically 512), scrollable grid  
 - Art-Net not fully validated on user’s physical node yet  
 - No true AppKit docking framework — SwiftUI `HSplitView`/`VSplitView` “docking lite”  
 - No committed `.xcodeproj` — open `Package.swift`  
 - Some PR docs are thin notes; **system design + PDFs** are authoritative  
+- Effects (PR22–23), sACN (PR26), remote (PR31–34) not started
 
 ---
 
@@ -287,9 +288,9 @@ Single `@MainActor` `AppModel` owns:
 3. Select fixture → Programmer (intensity/HSV)  
 4. Cue List: Add List → + Cue → set timing → Live panel **GO**  
 5. Optional: MIDI panel Learn Go; send note  
-6. Optional: Palettes “New Color from Prog” / “Record Ref to Cue”  
+6. Optional: Palettes “New Color from Prog”; select cue in Cue List + fixtures → “Record Ref to Cue”  
 7. Optional: Output → Art-Net destination + Enable  
-8. Universe Monitor / Console for diagnostics  
+8. Universe Monitor (pick universe, full channels) / Console for diagnostics  
 9. File → Save `.aurora` package  
 
 ---
@@ -303,13 +304,13 @@ Single `@MainActor` `AppModel` owns:
 | Next product lane (user chose) | **Lane A — real light**: Art-Net (done) → validate on node → sACN/effects/remote as needed |
 | Dual host | Plan on any OS; implement on Mac only (KD15) |
 
-### Sensible next work (post-Lane A)
+### Sensible next work (post Phase 1 polish)
 
 1. **Hardware validate** Art-Net on real node (universe offset, unicast IP)  
-2. **PR26 sACN** if needed  
-3. **PR22 effects** if desk depth  
+2. **PR22 effects** (recommended desk-depth lane) → PR23 UI  
+3. **PR26 sACN** if hardware needs E1.31  
 4. **PR31–32 remote** if off-stage Mac + iPad demo  
-5. Harden palette delete UX / multi-cue ref recording  
+5. Optional: break-refs-to-literals on palette delete; multi-select cue list UI
 
 ---
 

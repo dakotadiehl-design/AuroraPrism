@@ -4,7 +4,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 ## Status
 
-**Lane A (stage output)** is in tree: Art-Net driver, universe/console monitors, MIDI learn, palette refs, songs. Next: real-node validation / sACN / effects.
+**Lane A (stage output)** is in tree: Art-Net driver, full-universe monitor, MIDI learn, palette refs/songs. Phase 1 polish: selected-cue palette refs + delete confirm. Next: Art-Net node validation → **effects (PR22)** / sACN / remote.
 
 | Doc | Description |
 |-----|-------------|

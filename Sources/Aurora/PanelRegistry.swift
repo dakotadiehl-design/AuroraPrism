@@ -94,7 +94,8 @@ enum PanelRegistry {
             return AnyView(
                 UniverseMonitorPanel(
                     snapshot: appModel.engine.currentSnapshot(),
-                    universeNumber: appModel.session.project.universes.first?.number ?? 1
+                    universes: appModel.session.project.universes,
+                    defaultUniverseNumber: appModel.session.project.universes.first?.number ?? 1
                 )
             )
         case .console:

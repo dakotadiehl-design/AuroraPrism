@@ -8,6 +8,10 @@ public struct PalettesPanel: View {
     public var programmer: Programmer
     public var onChanged: () -> Void
 
+    @State private var statusText: String?
+    @State private var palettePendingDelete: Palette?
+    @State private var showDeleteConfirm = false
+
     public init(context: WorkspacePanelContext, programmer: Programmer, onChanged: @escaping () -> Void = {}) {
         self.context = context
         self.programmer = programmer
@@ -33,9 +37,14 @@ public struct PalettesPanel: View {
                     Button("Apply") { apply(palette) }
                     Button("Record Ref to Cue") { recordRef(palette) }
                     Button("Delete", role: .destructive) {
-                        deletePalette(palette)
+                        requestDelete(palette)
                     }
                 }
+            }
+            if let statusText {
+                Text(statusText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             if !context.project.validateReferences().isEmpty {
                 Text("⚠ \(context.project.validateReferences().count) broken palette ref(s)")
@@ -44,6 +53,42 @@ public struct PalettesPanel: View {
             }
         }
         .padding(8)
+        .confirmationDialog(
+            deleteDialogTitle,
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Palette", role: .destructive) {
+                if let palette = palettePendingDelete {
+                    performDelete(palette)
+                }
+                palettePendingDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                palettePendingDelete = nil
+            }
+        } message: {
+            Text(deleteDialogMessage)
+        }
+    }
+
+    private var deleteDialogTitle: String {
+        if let p = palettePendingDelete {
+            return "Delete “\(p.name)”?"
+        }
+        return "Delete palette?"
+    }
+
+    private var deleteDialogMessage: String {
+        guard let p = palettePendingDelete else { return "" }
+        let count = context.project.paletteReferenceCount(p.id)
+        if count == 0 {
+            return "This palette is not referenced by any cue or preset."
+        }
+        let sites = context.project.paletteReferenceCueSummaries(p.id)
+        let preview = sites.prefix(5).joined(separator: "\n")
+        let more = sites.count > 5 ? "\n…and \(sites.count - 5) more" : ""
+        return "Referenced in \(count) fixture slot(s). Cues/presets will keep broken refs until fixed:\n\(preview)\(more)"
     }
 
     private func createColorPalette() {
@@ -63,45 +108,69 @@ public struct PalettesPanel: View {
             values: values
         )
         try? context.session.perform(AddPaletteCommand(palette: palette))
+        statusText = "Created \(palette.name)"
         onChanged()
     }
 
     private func apply(_ palette: Palette) {
         let ids = context.session.selection.snapshot.fixtureIDs
-        guard !ids.isEmpty else { return }
+        guard !ids.isEmpty else {
+            statusText = "Select fixtures before Apply"
+            return
+        }
         for id in ids {
             for (attr, value) in palette.values {
                 programmer.set(fixtureID: id, attribute: attr, value: value)
             }
         }
+        statusText = "Applied \(palette.name) to \(ids.count) fixture(s)"
         onChanged()
     }
 
-    /// Stores a palette *reference* on the first cue of the first list for selected fixtures (PDF workflow).
+    /// Stores palette *references* on selected cue(s) for selected fixtures.
+    /// Falls back to first cue of first list if no cue is selected (session selection).
     private func recordRef(_ palette: Palette) {
-        guard let list = context.project.cueLists.first,
-              var cue = list.cues.first
-        else { return }
-        let selected = context.session.selection.snapshot.fixtureIDs
-        guard !selected.isEmpty else { return }
-        var fixtures = cue.levels.fixtures
-        for id in selected {
-            if let idx = fixtures.firstIndex(where: { $0.fixtureId == id }) {
-                fixtures[idx].paletteRefs[palette.type.rawValue] = palette.id
-            } else {
-                fixtures.append(FixtureCueLevels(fixtureId: id, paletteRefs: [palette.type.rawValue: palette.id]))
+        let selectedFixtures = context.session.selection.snapshot.fixtureIDs
+        guard !selectedFixtures.isEmpty else {
+            statusText = "Select fixtures before Record Ref"
+            return
+        }
+
+        let targets = context.project.targetCuesForPaletteRecord(
+            selectedCueIDs: context.session.selection.snapshot.cueIDs
+        )
+        guard !targets.isEmpty else {
+            statusText = "No cue available — add a cue list and cue first"
+            return
+        }
+
+        var updatedNames: [String] = []
+        for (listID, var cue) in targets {
+            cue.recordPaletteRef(palette: palette, fixtureIDs: selectedFixtures)
+            do {
+                try context.session.perform(UpdateCueCommand(listID: listID, cue: cue))
+                let name = cue.name.isEmpty ? "Cue \(cue.number)" : cue.name
+                updatedNames.append(name)
+            } catch {
+                statusText = error.localizedDescription
+                return
             }
         }
-        cue.levels = CueLevelData(fixtures: fixtures)
-        try? context.session.perform(UpdateCueCommand(listID: list.id, cue: cue))
+        let usedSelection = !context.session.selection.snapshot.cueIDs.isEmpty
+        statusText = "Ref \(palette.name) → \(updatedNames.joined(separator: ", "))"
+            + (usedSelection ? "" : " (fallback: first cue)")
+            + " · \(selectedFixtures.count) fixture(s)"
         onChanged()
     }
 
-    private func deletePalette(_ palette: Palette) {
-        if context.project.isPaletteReferenced(palette.id) {
-            // Soft warn via status: caller may not have NSAlert; still allow with validation flags.
-        }
+    private func requestDelete(_ palette: Palette) {
+        palettePendingDelete = palette
+        showDeleteConfirm = true
+    }
+
+    private func performDelete(_ palette: Palette) {
         try? context.session.perform(RemovePaletteCommand(paletteID: palette.id))
+        statusText = "Deleted \(palette.name)"
         onChanged()
     }
 }

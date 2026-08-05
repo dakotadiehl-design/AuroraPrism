@@ -138,10 +138,12 @@ public struct CueListPanel: View {
             .contentShape(Rectangle())
             .onTapGesture {
                 selectedCueID = cue.id
+                syncSelection(listID: list.id, cueID: cue.id)
                 loadEditor(cue)
             }
             .onChange(of: selectedCueID) { _, newID in
                 if let newID, let cue = list.cues.first(where: { $0.id == newID }) {
+                    syncSelection(listID: list.id, cueID: newID)
                     loadEditor(cue)
                 }
             }
@@ -179,6 +181,12 @@ public struct CueListPanel: View {
         editDelay = String(cue.delay)
     }
 
+    /// Publishes cue/list selection so other panels (e.g. Palettes Record Ref) can target them.
+    private func syncSelection(listID: UUID, cueID: UUID) {
+        context.session.selection.selectCues([cueID])
+        context.session.selection.selectCueLists([listID])
+    }
+
     private func addList() {
         errorText = nil
         let list = CueList(name: "List \(lists.count + 1)")
@@ -205,6 +213,7 @@ public struct CueListPanel: View {
         do {
             try context.session.perform(AddCueCommand(listID: list.id, cue: cue))
             selectedCueID = cue.id
+            syncSelection(listID: list.id, cueID: cue.id)
             loadEditor(cue)
             onProjectChanged()
         } catch {
