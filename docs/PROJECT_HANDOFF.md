@@ -4,11 +4,11 @@
 
 | Field | Value |
 |-------|--------|
-| **Last updated** | 2026-08-05 (post-remediation UI-readiness review) |
+| **Last updated** | 2026-08-05 (Stage A P0 post-remediation) |
 | **Workspace** | `/Users/dakota/code/Aurora` |
 | **Branch** | `main` (local only; no remote assumed) |
-| **HEAD (at write)** | see `git log -1` — update after each stage commit |
-| **Tests** | **173+** passing (`swift test`) |
+| **HEAD (at write)** | see `git log -1` after Stage A commits |
+| **Tests** | **190+** passing (`swift test`) |
 | **Approx size** | ~10.6k lines production Swift; ~13.3k with tests |
 
 **Authoritative reviews (read in order for backlog):**
@@ -226,6 +226,22 @@ Scaffold → model → core → fixtures/patch → UI shell → engine/cues/prog
 | `52e4eac` | P1: ControlActionRouter, MIDI source IDs, client cleanup |
 | `cd90f80` | P1/P2: remote PIN/auth/tokens, presets, palette checks, diagnostics |
 | `2b37f34` | Handoff note for review status |
+| `7f8f87c` | Post-remediation UI-readiness review in tree |
+| `1718e35` | P0: unique document state IDs (dirty branch collision) |
+| `ac1e154` | P0: Save As preserves source media/layouts |
+| `eba6370` | P0: preserve playback on non-destructive project updates |
+| `2ff023d` | P0: 16-bit coarse/fine DMX compilation |
+| *(A5)* | P0: required schema v1 package files on load |
+
+### Stage A (post-remediation P0) — complete when A5 lands
+
+1. Dirty state-ID / save-point identity  
+2. True Save As asset preservation  
+3. Playback preserved across ordinary edits  
+4. 16-bit coarse/fine output  
+5. Required package files fail load  
+
+**Next:** Stage B UI Gate (domain semantics) — see review §10. Visual UI redesign still blocked.
 
 ### Intentionally incomplete
 

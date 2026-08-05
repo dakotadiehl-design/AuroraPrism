@@ -207,15 +207,36 @@ public enum ProjectPackage {
             )
         }
 
-        let universes: [Universe] = try readJSONArray(url.appendingPathComponent(universesFileName), decoder: decoder, name: universesFileName)
-        let fixtures: [PatchedFixture] = try readJSONArray(url.appendingPathComponent(fixturesFileName), decoder: decoder, name: fixturesFileName)
-        let definitions: [FixtureDefinition] = try readJSONArray(url.appendingPathComponent(definitionsFileName), decoder: decoder, name: definitionsFileName)
-        let groups: [Group] = try readJSONArray(url.appendingPathComponent(groupsFileName), decoder: decoder, name: groupsFileName)
-        let palettes: [Palette] = try readJSONArray(url.appendingPathComponent(palettesFileName), decoder: decoder, name: palettesFileName)
-        let presets: [Preset] = try readJSONArray(url.appendingPathComponent(presetsFileName), decoder: decoder, name: presetsFileName)
-        let songs: [Song] = try readJSONArray(url.appendingPathComponent(songsFileName), decoder: decoder, name: songsFileName)
-        let mediaAssets: [MediaAssetRef] = try readJSONArray(url.appendingPathComponent(mediaAssetsFileName), decoder: decoder, name: mediaAssetsFileName)
-        let midiMappings: [MIDIMapping] = try readJSONArray(url.appendingPathComponent(midiMappingsFileName), decoder: decoder, name: midiMappingsFileName)
+        // Schema v1: known collection files are required. Empty arrays are valid;
+        // a missing file is package damage and must not silently become [].
+        // (media/ and layouts/ binary dirs remain optional.)
+        let universes: [Universe] = try readJSONArray(
+            url.appendingPathComponent(universesFileName), decoder: decoder, name: universesFileName, required: true
+        )
+        let fixtures: [PatchedFixture] = try readJSONArray(
+            url.appendingPathComponent(fixturesFileName), decoder: decoder, name: fixturesFileName, required: true
+        )
+        let definitions: [FixtureDefinition] = try readJSONArray(
+            url.appendingPathComponent(definitionsFileName), decoder: decoder, name: definitionsFileName, required: true
+        )
+        let groups: [Group] = try readJSONArray(
+            url.appendingPathComponent(groupsFileName), decoder: decoder, name: groupsFileName, required: true
+        )
+        let palettes: [Palette] = try readJSONArray(
+            url.appendingPathComponent(palettesFileName), decoder: decoder, name: palettesFileName, required: true
+        )
+        let presets: [Preset] = try readJSONArray(
+            url.appendingPathComponent(presetsFileName), decoder: decoder, name: presetsFileName, required: true
+        )
+        let songs: [Song] = try readJSONArray(
+            url.appendingPathComponent(songsFileName), decoder: decoder, name: songsFileName, required: true
+        )
+        let mediaAssets: [MediaAssetRef] = try readJSONArray(
+            url.appendingPathComponent(mediaAssetsFileName), decoder: decoder, name: mediaAssetsFileName, required: true
+        )
+        let midiMappings: [MIDIMapping] = try readJSONArray(
+            url.appendingPathComponent(midiMappingsFileName), decoder: decoder, name: midiMappingsFileName, required: true
+        )
 
         let cuesDir = url.appendingPathComponent(cuesDirectoryName, isDirectory: true)
         var cueLists: [CueList] = []
@@ -305,12 +326,31 @@ public enum ProjectPackage {
     private static func readJSONArray<T: Decodable>(
         _ url: URL,
         decoder: JSONDecoder,
-        name: String
+        name: String,
+        required: Bool
     ) throws -> [T] {
-        // Missing optional collections default to empty for forward-friendly packages.
         guard FileManager.default.fileExists(atPath: url.path) else {
+            if required {
+                throw ProjectPackageError.missingFile(name)
+            }
+            // Optional future collections may default to empty.
             return []
         }
         return try readJSON(from: url, as: [T].self, decoder: decoder, missingName: name)
+    }
+
+    /// Schema v1 JSON files that must be present in a package (excluding cue list files).
+    public static var schemaV1RequiredCollectionFiles: [String] {
+        [
+            universesFileName,
+            fixturesFileName,
+            definitionsFileName,
+            groupsFileName,
+            palettesFileName,
+            presetsFileName,
+            songsFileName,
+            mediaAssetsFileName,
+            midiMappingsFileName,
+        ]
     }
 }
