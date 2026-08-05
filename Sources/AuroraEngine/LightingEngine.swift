@@ -21,6 +21,8 @@ public final class LightingEngine: @unchecked Sendable {
     public let programmer = Programmer()
     /// Live effects between playback and programmer (PR22).
     public let effects = EffectRunner()
+    /// Frame timing samples (PR30).
+    public let frameMetrics = FrameMetricsRecorder()
 
     public init(
         output: OutputManager,
@@ -137,6 +139,7 @@ public final class LightingEngine: @unchecked Sendable {
     }
 
     private func processFrame(publishSnapshotAlways: Bool) {
+        let frameStart = CFAbsoluteTimeGetCurrent()
         lock.lock()
         let project = self.project
         let manual = self.manualLook
@@ -193,5 +196,7 @@ public final class LightingEngine: @unchecked Sendable {
             snapshot = snap
             lock.unlock()
         }
+
+        frameMetrics.record(durationSeconds: CFAbsoluteTimeGetCurrent() - frameStart)
     }
 }

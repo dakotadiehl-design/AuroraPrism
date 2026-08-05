@@ -97,7 +97,7 @@ let package = Package(
         ),
         .testTarget(
             name: "AuroraEngineTests",
-            dependencies: ["AuroraEngine", "AuroraModel", "AuroraOutput"]
+            dependencies: ["AuroraEngine", "AuroraModel", "AuroraOutput", "AuroraDiagnostics"]
         ),
         .testTarget(
             name: "AuroraMIDITests",
