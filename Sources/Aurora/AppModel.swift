@@ -5,6 +5,7 @@ import AuroraFixtureLib
 import AuroraMIDI
 import AuroraModel
 import AuroraOutput
+import AuroraRemote
 import AuroraUI
 import Combine
 import Foundation
@@ -46,7 +47,10 @@ final class AppModel: ObservableObject {
     let songDirector = SongDirector()
     /// In-process plugin registry (PR29 skeleton; no dylib loading).
     let pluginHost = PluginHost()
+    let remoteHost = RemoteHost()
+    @Published private(set) var remoteStatus: String = "Remote: off"
     private var statusTimer: Timer?
+    private var remoteSnapshotTimer: Timer?
 
     init(project: ShowProject = .empty(name: "Untitled Show")) {
         self.session = DocumentSession(project: project)
@@ -88,9 +92,11 @@ final class AppModel: ObservableObject {
 
     deinit {
         statusTimer?.invalidate()
+        remoteSnapshotTimer?.invalidate()
         engine.stop()
         midi.stop()
         oscServer.stop()
+        remoteHost.stop()
     }
 
     var panelContext: WorkspacePanelContext {
@@ -581,6 +587,105 @@ final class AppModel: ObservableObject {
                 setArtNetEnabled(true)
             }
         }
+    }
+
+    func setRemoteEnabled(_ enabled: Bool, pin: String = "0000") {
+        var config = remoteHost.sessions.configSnapshot
+        config.enabled = enabled
+        config.pin = pin
+        remoteHost.sessions.updateConfig(config)
+        if enabled {
+            remoteHost.setActionHandler { [weak self] action in
+                Task { @MainActor in
+                    self?.performRemote(action)
+                }
+            }
+            do {
+                try remoteHost.start()
+                remoteStatus = "Remote: :\(config.port) PIN set"
+                log("Remote host on port \(config.port)")
+                startRemoteSnapshotTimer()
+            } catch {
+                remoteStatus = "Remote: error"
+                log("Remote start failed: \(error.localizedDescription)")
+            }
+        } else {
+            remoteSnapshotTimer?.invalidate()
+            remoteSnapshotTimer = nil
+            remoteHost.stop()
+            remoteStatus = "Remote: off"
+            log("Remote stopped")
+        }
+        bump()
+    }
+
+    private func startRemoteSnapshotTimer() {
+        remoteSnapshotTimer?.invalidate()
+        remoteSnapshotTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                let snap = self.makeRemoteSnapshot()
+                self.remoteHost.setSnapshotProvider { snap }
+                self.remoteHost.broadcastSnapshot()
+            }
+        }
+    }
+
+    private func makeRemoteSnapshot() -> RemoteSnapshot {
+        let engineSnap = engine.currentSnapshot()
+        let pb = engineSnap.playback
+        let levels = engineSnap.universeLevels[1] ?? []
+        let active = levels.filter { $0 > 0 }.count
+        var cueName: String?
+        if pb.cueIndex >= 0,
+           let cues = session.project.cueLists.first?.cues,
+           cues.indices.contains(pb.cueIndex) {
+            cueName = cues[pb.cueIndex].name
+        }
+        return RemoteSnapshot(
+            showName: session.project.metadata.name,
+            engineRunning: engine.isRunning,
+            cueIndex: pb.cueIndex,
+            cueName: cueName,
+            songTitle: songStatus.isEmpty ? nil : songStatus,
+            songEntryIndex: songDirector.entryIndex,
+            locked: remoteHost.sessions.configSnapshot.lockedToViewer,
+            role: .operatorRole,
+            activeChannelCount: active
+        )
+    }
+
+    private func performRemote(_ action: RemoteShowAction) {
+        switch action {
+        case .go: go()
+        case .stop: stopPlayback()
+        case .back: back()
+        case .next: go()
+        case .fireCueIndex(let i):
+            if let list = session.project.cueLists.first, list.cues.indices.contains(i) {
+                fireCue(id: list.cues[i].id)
+            }
+        case .fireCue(let id):
+            fireCue(id: id)
+        case .songNext:
+            songDirector.next(project: session.project, engine: engine)
+            bump()
+        case .songPrevious:
+            songDirector.previous(project: session.project, engine: engine)
+            bump()
+        case .setProgrammerAttribute(let attr, let value):
+            for id in session.selection.snapshot.fixtureIDs {
+                engine.programmer.set(fixtureID: id, attribute: attr, value: value)
+            }
+            bump()
+        }
+        log("Remote \(String(describing: action))")
+    }
+
+    func setRemoteLockedToViewer(_ locked: Bool) {
+        remoteHost.sessions.setLockedToViewer(locked)
+        remoteStatus = locked ? "Remote: locked (viewer)" : "Remote: operators allowed"
+        bump()
     }
 
     func promptSACNDestination() {

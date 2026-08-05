@@ -16,6 +16,7 @@ let package = Package(
         .library(name: "AuroraFixtureLib", targets: ["AuroraFixtureLib"]),
         .library(name: "AuroraDiagnostics", targets: ["AuroraDiagnostics"]),
         .library(name: "AuroraUI", targets: ["AuroraUI"]),
+        .library(name: "AuroraRemote", targets: ["AuroraRemote"]),
         .executable(name: "Aurora", targets: ["Aurora"]),
     ],
     targets: [
@@ -59,6 +60,13 @@ let package = Package(
             name: "AuroraUI",
             dependencies: ["AuroraCore", "AuroraModel", "AuroraEngine"]
         ),
+        .target(
+            name: "AuroraRemote",
+            dependencies: ["AuroraCore", "AuroraModel"],
+            linkerSettings: [
+                .linkedFramework("Network"),
+            ]
+        ),
 
         // MARK: - App (design name: AuroraApp)
         .executableTarget(
@@ -71,6 +79,7 @@ let package = Package(
                 "AuroraEngine",
                 "AuroraOutput",
                 "AuroraMIDI",
+                "AuroraRemote",
             ]
         ),
 
@@ -104,6 +113,10 @@ let package = Package(
             dependencies: ["AuroraMIDI"]
         ),
         .testTarget(
+            name: "AuroraRemoteTests",
+            dependencies: ["AuroraRemote", "AuroraCore", "AuroraModel"]
+        ),
+        .testTarget(
             name: "AuroraPackageSmokeTests",
             dependencies: [
                 "AuroraModel",
@@ -114,6 +127,7 @@ let package = Package(
                 "AuroraFixtureLib",
                 "AuroraDiagnostics",
                 "AuroraUI",
+                "AuroraRemote",
             ]
         ),
     ]

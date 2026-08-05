@@ -104,6 +104,19 @@ struct AuroraApp: App {
                 }
             }
 
+            CommandMenu("Remote") {
+                Button(appModel.remoteHost.sessions.configSnapshot.enabled ? "Disable Remote" : "Enable Remote (PIN 0000)") {
+                    let on = appModel.remoteHost.sessions.configSnapshot.enabled
+                    appModel.setRemoteEnabled(!on, pin: "0000")
+                }
+                Button("Lock Remotes to Viewer") {
+                    appModel.setRemoteLockedToViewer(true)
+                }
+                Button("Allow Remote Operators") {
+                    appModel.setRemoteLockedToViewer(false)
+                }
+            }
+
             CommandMenu("Output") {
                 Button(appModel.artNetConfig.enabled ? "Disable Art-Net" : "Enable Art-Net") {
                     appModel.setArtNetEnabled(!appModel.artNetConfig.enabled)
