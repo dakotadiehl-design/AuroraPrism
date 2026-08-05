@@ -4,14 +4,17 @@
 
 | Field | Value |
 |-------|--------|
-| **Last updated** | 2026-08-05 (post code-review fixes) |
+| **Last updated** | 2026-08-05 (post-remediation UI-readiness review) |
 | **Workspace** | `/Users/dakota/code/Aurora` |
 | **Branch** | `main` (local only; no remote assumed) |
-| **HEAD (at write)** | `2b37f34` — *Document code-review fix status in project handoff* |
-| **Tests** | **173** passing (`swift test`) |
+| **HEAD (at write)** | see `git log -1` — update after each stage commit |
+| **Tests** | **173+** passing (`swift test`) |
 | **Approx size** | ~10.6k lines production Swift; ~13.3k with tests |
 
-**Also read:** `Aurora_Deep_Code_Review_Fixes.md` (review that drove P0–P2 fixes).
+**Authoritative reviews (read in order for backlog):**
+
+1. **`Aurora_Post_Remediation_Deep_Review_UI_Readiness.md`** — current backlog: P0 → UI Gate P1 → AppModel split → then visual UI  
+2. `Aurora_Deep_Code_Review_Fixes.md` — first audit (many P0–P2 already fixed in tree)
 
 ---
 
@@ -257,7 +260,8 @@ Scaffold → model → core → fixtures/patch → UI shell → engine/cues/prog
 | Output reconcile | `Sources/AuroraOutput/OutputManager.swift` |
 | Remote | `Sources/AuroraRemote/*` |
 | Panels | `Sources/AuroraUI/Panels/*`, `PanelRegistry.swift` |
-| Review backlog | `Aurora_Deep_Code_Review_Fixes.md` |
+| Review backlog (current) | `Aurora_Post_Remediation_Deep_Review_UI_Readiness.md` |
+| Review backlog (prior) | `Aurora_Deep_Code_Review_Fixes.md` |
 
 ---
 
@@ -289,12 +293,15 @@ Scaffold → model → core → fixtures/patch → UI shell → engine/cues/prog
 
 ## 10. Sensible next work
 
-1. **Hardware validate** Art-Net and/or sACN on a real node  
-2. **UI redesign** (now safer post-P0): fine-grained state, AppModel split (P1-8)  
-3. Remaining review P2: richer scale tests, driver health UI, silent `try?` cleanup, command file split  
-4. Product: persistent effects, GDTF, TLS remote, native Pad  
+**Active program:** post-remediation hardening for UI readiness (not visual redesign yet).
 
-Do **not** re-open palette/song semantics without the PR20–21 PDF.
+1. **Stage A — P0** (block show use / UI): dirty state-ID collision, Save As assets, playback preserve on edit, 16-bit DMX, required package files  
+2. **Stage B — UI Gate P1** domain semantics (cues, fixtures, song, effects, selection, MIDI, dispatcher, routing, validator, groups, palettes)  
+3. **Stage C — AppModel split** + `PerformanceSnapshot` → then **stop for UI spec**  
+4. Later: hardware Art-Net/sACN, visual redesign, P2/P3  
+
+Do **not** re-open palette/song semantics without the PR20–21 PDF.  
+Do **not** start visual UI redesign until Stage C Go/No-Go checklist is green.
 
 ---
 
