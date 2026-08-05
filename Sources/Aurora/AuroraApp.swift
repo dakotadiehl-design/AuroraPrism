@@ -89,6 +89,12 @@ struct AuroraApp: App {
                     .keyboardShortcut("b", modifiers: [])
             }
 
+            CommandMenu("MIDI") {
+                Button(appModel.rtpMIDI.configSnapshot.enabled ? "Disable RTP-MIDI" : "Enable RTP-MIDI") {
+                    appModel.setRTPMIDIEnabled(!appModel.rtpMIDI.configSnapshot.enabled)
+                }
+            }
+
             CommandMenu("Output") {
                 Button(appModel.artNetConfig.enabled ? "Disable Art-Net" : "Enable Art-Net") {
                     appModel.setArtNetEnabled(!appModel.artNetConfig.enabled)

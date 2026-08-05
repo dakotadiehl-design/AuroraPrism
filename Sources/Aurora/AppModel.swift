@@ -38,6 +38,7 @@ final class AppModel: ObservableObject {
     let engine: LightingEngine
     private let midi = MIDIInputManager()
     let midiLearn = MIDILearnSession()
+    let rtpMIDI = RTPMIDISession()
     let songDirector = SongDirector()
     private var statusTimer: Timer?
 
@@ -74,6 +75,7 @@ final class AppModel: ObservableObject {
         reloadEngine()
         startEngineIfPossible()
         startMIDI()
+        applySavedRTPMIDI()
         startStatusPolling()
         refreshOutputStatus()
     }
@@ -265,6 +267,25 @@ final class AppModel: ObservableObject {
             midiStatus = "MIDI: error"
             statusMessage = error.localizedDescription
         }
+    }
+
+    private func applySavedRTPMIDI() {
+        let config = RTPMIDIConfig.load()
+        rtpMIDI.apply(config)
+        if config.enabled {
+            log("RTP-MIDI enabled (\(rtpMIDI.localName))")
+            try? midi.connectAllSources()
+        }
+    }
+
+    func setRTPMIDIEnabled(_ enabled: Bool) {
+        rtpMIDI.setEnabled(enabled)
+        if enabled {
+            try? midi.connectAllSources()
+        }
+        midiStatus = "\(midi.connectedCount) src · \(rtpMIDI.statusLine())"
+        log(rtpMIDI.statusLine())
+        bump()
     }
 
     func armMIDILearn(_ action: ShowAction) {
