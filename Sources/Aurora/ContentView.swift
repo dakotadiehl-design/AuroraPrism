@@ -1,18 +1,32 @@
+import AuroraModel
 import AuroraUI
 import SwiftUI
 
-/// PR1 scaffold UI: proves the app links libraries. No show/document features yet.
+/// Scaffold UI: linked modules + in-memory sample project summary (no document browser yet).
 struct ContentView: View {
     private let modules = ScaffoldModuleCatalog.modules
+    private let sampleProject = ShowProject.sample()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Aurora")
                     .font(.largeTitle.weight(.semibold))
-                Text("PR1 scaffold")
+                Text("PR2 domain model")
                     .font(.title3)
                     .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Sample project")
+                    .font(.headline)
+                Text(sampleProject.metadata.name)
+                    .font(.body)
+                Text(
+                    "\(sampleProject.fixtures.count) fixture(s) · \(sampleProject.cueLists.count) cue list(s) · schema v\(sampleProject.schemaVersion)"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
 
             Text("Linked modules")
@@ -28,10 +42,10 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(minHeight: 180)
+            .frame(minHeight: 160)
             .listStyle(.inset)
 
-            Text("Domain model, engine, and MIDI land in later PRs.")
+            Text("Package open/save API is in AuroraModel; document UI arrives later.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

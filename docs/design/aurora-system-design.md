@@ -731,13 +731,19 @@ Scaffold is specified and implemented as a single Swift package:
 - **Layout:** root `Package.swift`, libraries under `Sources/`, app target `Aurora` (design name `AuroraApp`)  
 - **No** domain model or engine logic in PR1  
 
-### PR2–PR4
+### PR2 (done — see dedicated doc)
 
-1. Define `ShowProject` and minimal entities in `AuroraModel` with `schemaVersion = 1` (PR2).  
-2. Implement package read/write and one golden fixture project in tests (PR2).  
-3. Implement `Command` + undo stack with Add/Remove Fixture as first commands (PR3).  
-4. Event bus & selection manager (PR4).  
-5. Wire the SwiftUI window to show project name and fixture count once documents exist (PR2/PR7).
+Domain model and `.aurora` package I/O:
+
+- **Spec:** [`pr2-domain-model.md`](./pr2-domain-model.md)  
+- **Types:** `ShowProject` and related entities; `ProjectPackage` load/save; schema v1  
+- **Tests:** golden sample + empty round-trip; unsupported schema; patch overlap  
+
+### PR3–PR4
+
+1. Implement `Command` + undo stack with Add/Remove Fixture as first commands (PR3).  
+2. Event bus & selection manager (PR4).  
+3. Wire document open/save UI when the app shell lands (PR7).
 
 Engine, MIDI, and docking remain stubs until their PRs.
 
@@ -750,3 +756,4 @@ Engine, MIDI, and docking remain stubs until their PRs.
 | 0.1 | 2026-08-04 | Initial system design from overview PDF; Swift stack; full PR plan |
 | 0.2 | 2026-08-04 | PR1 scaffold landed; link to `pr1-project-scaffold.md`; §18 updated |
 | 0.3 | 2026-08-04 | KD15 dual host workflow (Linux plan / macOS dev); `docs/development-workflow.md` |
+| 0.4 | 2026-08-04 | PR2 domain model & package format; link to `pr2-domain-model.md` |

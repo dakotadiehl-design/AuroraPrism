@@ -4,13 +4,15 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 ## Status
 
-**PR1 scaffold** is in tree: multi-module Swift package, minimal macOS app shell, smoke tests. No show/document features yet.
+**PR2 domain model** is in tree: `ShowProject` types, `.aurora` package load/save, golden round-trip tests, minimal sample project in the app shell. Commands, engine, and MIDI are still stubs.
 
 | Doc | Description |
 |-----|-------------|
 | [`Aurora Lighting Control System.pdf`](./Aurora%20Lighting%20Control%20System.pdf) | Original high-level overview |
 | [`docs/design/aurora-system-design.md`](./docs/design/aurora-system-design.md) | System architecture & full PR plan |
 | [`docs/design/pr1-project-scaffold.md`](./docs/design/pr1-project-scaffold.md) | **PR1** module layout, dependencies, acceptance |
+| [`docs/design/pr2-domain-model.md`](./docs/design/pr2-domain-model.md) | **PR2** domain model & package format |
+| [`docs/development-workflow.md`](./docs/development-workflow.md) | Mac toolchain & dual-host notes |
 
 ## Development environments
 
@@ -56,4 +58,4 @@ Dependency rules are documented in [PR1 scaffold](./docs/design/pr1-project-scaf
 
 ## Next
 
-See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR2** adds the domain model and portable project document format.
+See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR3** adds the command system and undo; **PR4** adds the event bus and selection.
