@@ -49,6 +49,7 @@ let package = Package(
             dependencies: ["AuroraModel"],
             linkerSettings: [
                 .linkedFramework("CoreMIDI"),
+                .linkedFramework("Network"),
             ]
         ),
         .target(

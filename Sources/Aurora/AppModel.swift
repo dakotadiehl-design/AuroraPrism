@@ -39,6 +39,9 @@ final class AppModel: ObservableObject {
     private let midi = MIDIInputManager()
     let midiLearn = MIDILearnSession()
     let rtpMIDI = RTPMIDISession()
+    private let oscServer = OSCInputServer(port: 9000)
+    @Published private(set) var oscStatus: String = "OSC: off"
+    @Published private(set) var isOSCEnabled: Bool = false
     let songDirector = SongDirector()
     private var statusTimer: Timer?
 
@@ -84,6 +87,7 @@ final class AppModel: ObservableObject {
         statusTimer?.invalidate()
         engine.stop()
         midi.stop()
+        oscServer.stop()
     }
 
     var panelContext: WorkspacePanelContext {
@@ -285,6 +289,45 @@ final class AppModel: ObservableObject {
         }
         midiStatus = "\(midi.connectedCount) src · \(rtpMIDI.statusLine())"
         log(rtpMIDI.statusLine())
+        bump()
+    }
+
+    func setOSCEnabled(_ enabled: Bool) {
+        if enabled {
+            oscServer.setHandler { [weak self] action, value in
+                Task { @MainActor in
+                    guard let self else { return }
+                    if case .programmerAttribute = action, let value {
+                        let ids = self.session.selection.snapshot.fixtureIDs
+                        let attr: String
+                        if case .programmerAttribute(let a) = action { attr = a } else { attr = "intensity" }
+                        for id in ids {
+                            self.engine.programmer.set(fixtureID: id, attribute: attr, value: Double(value))
+                        }
+                        self.bump()
+                    } else {
+                        let midiVal: UInt8? = value.map { UInt8(min(127, max(0, Int(($0 * 127).rounded())))) }
+                        self.perform(action: action, midiValue: midiVal)
+                    }
+                    self.log("OSC \(action.storageKey)")
+                }
+            }
+            do {
+                try oscServer.start()
+                isOSCEnabled = true
+                oscStatus = "OSC: :\(oscServer.port)"
+                log("OSC listening on \(oscServer.port)")
+            } catch {
+                isOSCEnabled = false
+                oscStatus = "OSC: error"
+                log("OSC start failed: \(error.localizedDescription)")
+            }
+        } else {
+            oscServer.stop()
+            isOSCEnabled = false
+            oscStatus = "OSC: off"
+            log("OSC stopped")
+        }
         bump()
     }
 

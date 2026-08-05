@@ -93,6 +93,9 @@ struct AuroraApp: App {
                 Button(appModel.rtpMIDI.configSnapshot.enabled ? "Disable RTP-MIDI" : "Enable RTP-MIDI") {
                     appModel.setRTPMIDIEnabled(!appModel.rtpMIDI.configSnapshot.enabled)
                 }
+                Button(appModel.isOSCEnabled ? "Disable OSC" : "Enable OSC (UDP 9000)") {
+                    appModel.setOSCEnabled(!appModel.isOSCEnabled)
+                }
             }
 
             CommandMenu("Output") {
