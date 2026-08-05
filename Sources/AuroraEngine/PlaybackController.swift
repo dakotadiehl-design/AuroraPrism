@@ -21,6 +21,8 @@ public final class PlaybackController: @unchecked Sendable {
 
     public init() {}
 
+    /// Destructive load: resets playback index, phase, and stage look.
+    /// Use for New / Open / explicit cue-list replacement.
     public func load(list: CueList?, project: ShowProject = .empty()) {
         lock.lock()
         self.list = list
@@ -36,6 +38,39 @@ public final class PlaybackController: @unchecked Sendable {
         pendingFollowAt = nil
         frozen = false
         lock.unlock()
+    }
+
+    /// Non-destructive project update: refreshes model + cue list content while
+    /// preserving active index, phase, and current stage look when still valid.
+    public func updateProject(_ project: ShowProject) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.project = project
+        if let listID = list?.id, let updated = project.cueLists.first(where: { $0.id == listID }) {
+            self.list = updated
+            if index >= updated.cues.count {
+                index = updated.cues.isEmpty ? -1 : updated.cues.count - 1
+                if index < 0 {
+                    phase = .idle
+                    pendingFollowAt = nil
+                }
+            }
+            // Refresh toLook from the still-active cue when active/idle-with-cue so
+            // later fades use current cue data; keep currentLook (live stage) intact.
+            if index >= 0, index < updated.cues.count, phase == .active {
+                toLook = CueResolver.resolveLook(
+                    cues: updated.cues,
+                    index: index,
+                    project: project,
+                    priorLook: currentLook
+                )
+                // Stay on the live look; do not snap to re-resolved target mid-show.
+            }
+        } else if list != nil {
+            // Active list removed from project — keep stage look, drop list binding.
+            self.list = nil
+            pendingFollowAt = nil
+        }
     }
 
     public func snapshot() -> PlaybackSnapshot {

@@ -288,12 +288,17 @@ final class AppModel: ObservableObject {
         reloadEngine()
     }
 
+    /// Destructive engine reload (New / Open / explicit reset).
     private func reloadEngine() {
         engine.setLook(nil) // use cue playback, not a static override
         engine.load(project: session.project)
-        if let list = session.project.cueLists.first {
-            engine.loadCueList(list)
-        }
+        controlRouter.updateMappings(session.project.midiMappings, project: session.project)
+        controlRouter.updateSelection(session.selection.snapshot.fixtureIDs)
+    }
+
+    /// Non-destructive project push for ordinary document mutations.
+    private func applyProjectUpdate() {
+        engine.updateProject(session.project)
         controlRouter.updateMappings(session.project.midiMappings, project: session.project)
         controlRouter.updateSelection(session.selection.snapshot.fixtureIDs)
     }
@@ -621,7 +626,8 @@ final class AppModel: ObservableObject {
             self.bump()
             switch event {
             case .projectModified:
-                self.reloadEngine()
+                // Non-destructive: preserve active playback / stage look on ordinary edits.
+                self.applyProjectUpdate()
             case .selectionChanged(let snap):
                 self.engine.programmer.setHighlightSelection(snap.fixtureIDs)
                 self.controlRouter.updateSelection(snap.fixtureIDs)

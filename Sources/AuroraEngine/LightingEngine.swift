@@ -52,27 +52,39 @@ public final class LightingEngine: @unchecked Sendable {
         }
     }
 
-    /// Rebuilds the engine working set from a show document.
+    /// Destructive show load: resets playback and reconciles universes.
+    /// Use for New / Open / replacing the entire document.
     public func load(project: ShowProject) {
         lock.lock()
         self.project = project
         lock.unlock()
 
-        // Drop removed universes after intentional blackout (P0-5).
+        reconcileOutputUniverses(for: project)
+
+        // Destructive: always reset runtime playback for a full show replacement.
+        if let first = project.cueLists.first {
+            playback.load(list: first, project: project)
+        } else {
+            playback.load(list: nil, project: project)
+        }
+    }
+
+    /// Non-destructive model update: keeps active playback and stage look.
+    /// Use for ordinary document edits (rename, MIDI map, notes, unrelated cues).
+    public func updateProject(_ project: ShowProject) {
+        lock.lock()
+        self.project = project
+        lock.unlock()
+
+        reconcileOutputUniverses(for: project)
+        playback.updateProject(project)
+    }
+
+    private func reconcileOutputUniverses(for project: ShowProject) {
         let live = Set(project.universes.map(\.number))
         output.reconcileUniverses(to: live, blackoutRemoved: true)
         for universe in project.universes {
             output.ensureUniverse(universe.number, channelCount: Int(universe.channelCount))
-        }
-
-        // Keep playback list content in sync when possible.
-        if let current = playback.snapshot().listID,
-           let list = project.cueLists.first(where: { $0.id == current }) {
-            playback.load(list: list, project: project)
-        } else if let first = project.cueLists.first {
-            playback.load(list: first, project: project)
-        } else {
-            playback.load(list: nil, project: project)
         }
     }
 
