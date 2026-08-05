@@ -153,6 +153,7 @@ final class AppModel: ObservableObject {
         guard confirmDiscardIfDirty(actionName: "creating a new show") else { return }
         session = DocumentSession(project: .empty(name: "Untitled Show"))
         documentURL = nil
+        songDirector.reset()
         statusMessage = "New show"
         wireEvents()
         reloadEngine()
@@ -197,6 +198,7 @@ final class AppModel: ObservableObject {
             session = DocumentSession(project: project)
             documentURL = url
             session.markSaved()
+            songDirector.reset()
             statusMessage = "Opened \(url.lastPathComponent)"
             wireEvents()
             reloadEngine()
@@ -294,7 +296,7 @@ final class AppModel: ObservableObject {
         engine.load(project: session.project)
         engine.effects.load(definitions: session.project.effects)
         controlRouter.updateMappings(session.project.midiMappings, project: session.project)
-        controlRouter.updateSelection(session.selection.snapshot.fixtureIDs)
+        controlRouter.updateOrderedSelection(session.selection.snapshot.orderedFixtureIDs)
     }
 
     /// Non-destructive project push for ordinary document mutations.
@@ -302,7 +304,7 @@ final class AppModel: ObservableObject {
         engine.updateProject(session.project)
         engine.effects.load(definitions: session.project.effects)
         controlRouter.updateMappings(session.project.midiMappings, project: session.project)
-        controlRouter.updateSelection(session.selection.snapshot.fixtureIDs)
+        controlRouter.updateOrderedSelection(session.selection.snapshot.orderedFixtureIDs)
     }
 
     /// Persist current live effects into the show document (undoable).
@@ -581,24 +583,11 @@ final class AppModel: ObservableObject {
     }
 
     func perform(action: ShowAction, midiValue: UInt8? = nil) {
-        switch action {
-        case .go: go()
-        case .stop: stopPlayback()
-        case .back: back()
-        case .fireCue(let id): fireCue(id: id)
-        case .fireCueIndex(let index):
-            if let list = session.project.cueLists.first,
-               list.cues.indices.contains(index) {
-                fireCue(id: list.cues[index].id)
-            }
-        case .programmerAttribute(let attr):
-            let value = MIDIActionResolver.ccNormalized(midiValue ?? 0)
-            let ids = session.selection.snapshot.fixtureIDs
-            for id in ids {
-                engine.programmer.set(fixtureID: id, attribute: attr, value: value)
-            }
-            bump()
-        }
+        controlRouter.updateOrderedSelection(session.selection.snapshot.orderedFixtureIDs)
+        controlRouter.updateMappings(session.project.midiMappings, project: session.project)
+        controlRouter.dispatch(action, midiValue: midiValue)
+        refreshEngineStatus()
+        bump()
     }
 
     private func startStatusPolling() {
@@ -645,7 +634,7 @@ final class AppModel: ObservableObject {
                 self.applyProjectUpdate()
             case .selectionChanged(let snap):
                 self.engine.programmer.setHighlightSelection(snap.fixtureIDs)
-                self.controlRouter.updateSelection(snap.fixtureIDs)
+                self.controlRouter.updateOrderedSelection(snap.orderedFixtureIDs)
             }
         }
     }
@@ -737,17 +726,19 @@ final class AppModel: ObservableObject {
         let active = levels.filter { $0 > 0 }.count
         var cueName: String?
         if pb.cueIndex >= 0,
-           let cues = session.project.cueLists.first?.cues,
-           cues.indices.contains(pb.cueIndex) {
-            cueName = cues[pb.cueIndex].name
+           let list = session.project.cueLists.first(where: { $0.id == pb.listID })
+                ?? session.project.cueLists.first,
+           list.cues.indices.contains(pb.cueIndex) {
+            cueName = list.cues[pb.cueIndex].name
         }
+        let songSnap = songDirector.snapshot(project: session.project)
         return RemoteSnapshot(
             showName: session.project.metadata.name,
             engineRunning: engine.isRunning,
             cueIndex: pb.cueIndex,
             cueName: cueName,
-            songTitle: songStatus.isEmpty ? nil : songStatus,
-            songEntryIndex: songDirector.entryIndex,
+            songTitle: songSnap.songTitle.isEmpty ? (songStatus.isEmpty ? nil : songStatus) : songSnap.songTitle,
+            songEntryIndex: songSnap.entryIndex,
             locked: remoteHost.sessions.configSnapshot.lockedToViewer,
             role: .operatorRole,
             activeChannelCount: active
@@ -761,9 +752,7 @@ final class AppModel: ObservableObject {
         case .back: back()
         case .next: go()
         case .fireCueIndex(let i):
-            if let list = session.project.cueLists.first, list.cues.indices.contains(i) {
-                fireCue(id: list.cues[i].id)
-            }
+            perform(action: .fireCueIndex(i))
         case .fireCue(let id):
             fireCue(id: id)
         case .songNext:
