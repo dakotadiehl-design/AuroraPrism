@@ -1,9 +1,7 @@
 import AppKit
+import AuroraUI
 import SwiftUI
 
-/// Ensures SPM’s bare executable is treated as a normal GUI app (Dock + key window).
-/// SwiftPM does not produce an `.app` bundle, so without this the process can run
-/// with no visible window and no Dock icon.
 final class AuroraAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
@@ -15,15 +13,68 @@ final class AuroraAppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// macOS application entry point (system design name: AuroraApp).
 @main
 struct AuroraApp: App {
     @NSApplicationDelegateAdaptor(AuroraAppDelegate.self) private var appDelegate
+    @StateObject private var appModel = AppModel()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(appModel)
         }
-        .defaultSize(width: 480, height: 420)
+        .defaultSize(width: 1100, height: 720)
+        .commands {
+            CommandGroup(replacing: .newItem) {
+                Button("New Show") {
+                    appModel.newShow()
+                }
+                .keyboardShortcut("n", modifiers: .command)
+
+                Button("Open…") {
+                    appModel.openShow()
+                }
+                .keyboardShortcut("o", modifiers: .command)
+
+                Button("Save") {
+                    appModel.saveShow()
+                }
+                .keyboardShortcut("s", modifiers: .command)
+
+                Button("Save As…") {
+                    appModel.saveShowAs()
+                }
+                .keyboardShortcut("s", modifiers: [.command, .shift])
+            }
+
+            CommandGroup(replacing: .undoRedo) {
+                Button("Undo \(appModel.session.undoActionName ?? "")") {
+                    appModel.undo()
+                }
+                .keyboardShortcut("z", modifiers: .command)
+                .disabled(!appModel.session.canUndo)
+
+                Button("Redo \(appModel.session.redoActionName ?? "")") {
+                    appModel.redo()
+                }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
+                .disabled(!appModel.session.canRedo)
+            }
+
+            CommandMenu("View") {
+                ForEach(WorkspacePanelID.allCases) { panel in
+                    Button {
+                        appModel.togglePanel(panel)
+                    } label: {
+                        HStack {
+                            Text(panel.title)
+                            if appModel.layout.isVisible(panel) {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

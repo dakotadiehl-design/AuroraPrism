@@ -1,59 +1,33 @@
-import AuroraModel
 import AuroraUI
 import SwiftUI
 
-/// Scaffold UI: linked modules + in-memory sample project summary (no document browser yet).
+/// Root workspace chrome for the main document window.
 struct ContentView: View {
-    private let modules = ScaffoldModuleCatalog.modules
-    private let sampleProject = ShowProject.sample()
+    @EnvironmentObject private var appModel: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Aurora")
-                    .font(.largeTitle.weight(.semibold))
-                Text("PR2 domain model")
-                    .font(.title3)
+        VStack(spacing: 0) {
+            WorkspaceView(
+                layout: $appModel.layout,
+                context: appModel.panelContext,
+                panelBuilder: PanelRegistry.view
+            )
+            Divider()
+            HStack {
+                Text(appModel.statusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer()
+                Text("\(appModel.session.project.fixtures.count) fixtures · \(appModel.session.project.universes.count) universes")
+                    .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
             }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Sample project")
-                    .font(.headline)
-                Text(sampleProject.metadata.name)
-                    .font(.body)
-                Text(
-                    "\(sampleProject.fixtures.count) fixture(s) · \(sampleProject.cueLists.count) cue list(s) · schema v\(sampleProject.schemaVersion)"
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-
-            Text("Linked modules")
-                .font(.headline)
-
-            List(modules, id: \.name) { module in
-                HStack {
-                    Text(module.name)
-                        .font(.body.monospaced())
-                    Spacer()
-                    Text(module.version)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .frame(minHeight: 160)
-            .listStyle(.inset)
-
-            Text("Package open/save API is in AuroraModel; document UI arrives later.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(minWidth: 900, minHeight: 560)
+        .id(appModel.revision)
+        .navigationTitle(appModel.windowTitle)
     }
-}
-
-#Preview {
-    ContentView()
 }

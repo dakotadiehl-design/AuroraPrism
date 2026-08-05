@@ -2,15 +2,13 @@ import AuroraCore
 import AuroraEngine
 import AuroraModel
 
-/// UI panels, workspace layout, and views (SwiftUI + AppKit bridges later).
-///
-/// Docking and panels arrive in PR7+. PR1 provides scaffold helpers for the app shell.
+/// UI panels, workspace layout, and views (SwiftUI + AppKit bridges as needed).
 public enum AuroraUIModule {
     public static let name = "AuroraUI"
-    public static let version = "0.1.0-pr1"
+    public static let version = "0.7.0-pr7"
 }
 
-/// One row in the PR1 scaffold module list.
+/// One row in the scaffold module list (kept for smoke tests).
 public struct ScaffoldModuleInfo: Equatable, Sendable {
     public let name: String
     public let version: String
@@ -25,7 +23,6 @@ public struct ScaffoldModuleInfo: Equatable, Sendable {
     }
 }
 
-/// Modules the scaffold window should list (linked libraries + UI itself).
 public enum ScaffoldModuleCatalog {
     public static var modules: [ScaffoldModuleInfo] {
         [

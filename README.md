@@ -4,7 +4,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 ## Status
 
-**PR6 patch management** is in tree: seed fixture library, addressing helpers, and undoable patch/universe/clone/batch commands. Engine and UI docking are still ahead.
+**PR7 app shell** is in tree: multi-pane workspace, document open/save, undo menus, plus foundation through patch commands. Output layer (PR9) and polished patch browser (PR8) next.
 
 | Doc | Description |
 |-----|-------------|
