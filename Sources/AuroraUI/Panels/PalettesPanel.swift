@@ -109,12 +109,14 @@ public struct PalettesPanel: View {
 
     private func createColorPalette() {
         let snap = programmer.snapshot()
-        var values: [String: Double] = [:]
-        if let first = snap.values.values.first {
-            for key in ["colorR", "colorG", "colorB", "colorW", "intensity"] {
-                if let v = first[key] { values[key] = v }
-            }
-        }
+        let ordered = context.session.selection.snapshot.orderedFixtureIDs
+        let selected = ordered.isEmpty ? Array(snap.values.keys) : ordered
+        let record = PaletteRecord.fromProgrammer(
+            programmerValues: snap.values,
+            selectedFixtureIDs: selected,
+            attributeKeys: ["colorR", "colorG", "colorB", "colorW", "intensity"]
+        )
+        var values = record.values
         if values.isEmpty {
             values = ["colorR": 1, "colorG": 0.47, "colorB": 0.12]
         }
@@ -124,7 +126,11 @@ public struct PalettesPanel: View {
             values: values
         )
         try? context.session.perform(AddPaletteCommand(palette: palette))
-        statusText = "Created \(palette.name)"
+        if record.isMixed {
+            statusText = "Created \(palette.name) (common only; mixed: \(record.mixedAttributes.joined(separator: ", ")))"
+        } else {
+            statusText = "Created \(palette.name)"
+        }
         onChanged()
     }
 
@@ -132,6 +138,10 @@ public struct PalettesPanel: View {
         let ids = context.session.selection.snapshot.fixtureIDs
         guard !ids.isEmpty else {
             statusText = "Select fixtures before Apply"
+            return
+        }
+        guard !palette.values.isEmpty else {
+            statusText = "Palette \(palette.name) has no values — apply aborted"
             return
         }
         for id in ids {
@@ -207,12 +217,22 @@ public struct PalettesPanel: View {
 
     private func applyPreset(_ preset: Preset) {
         let resolved = PaletteResolver.resolve(levels: preset.levels, project: context.project)
+        if !resolved.issues.isEmpty {
+            statusText = "Preset \(preset.name): \(resolved.issues.count) resolution issue(s) — partial apply"
+        }
+        var applied = 0
         for fx in resolved.levels.fixtures {
+            guard !fx.attributes.isEmpty else { continue }
             for (attr, value) in fx.attributes {
                 programmer.set(fixtureID: fx.fixtureId, attribute: attr, value: value)
             }
+            applied += 1
         }
-        statusText = "Applied \(preset.name)"
+        if applied == 0 {
+            statusText = "Preset \(preset.name) applied nothing (empty or unresolved)"
+        } else if resolved.issues.isEmpty {
+            statusText = "Applied \(preset.name) (\(applied) fixture(s))"
+        }
         onChanged()
     }
 }
