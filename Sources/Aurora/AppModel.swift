@@ -122,7 +122,30 @@ final class AppModel: ObservableObject {
 
     // MARK: - Document
 
+    /// Returns false if the user cancels a dirty-document transition (P0-4).
+    @discardableResult
+    func confirmDiscardIfDirty(actionName: String) -> Bool {
+        guard session.isDirty else { return true }
+        let alert = NSAlert()
+        alert.messageText = "Do you want to save the changes to this show before \(actionName)?"
+        alert.informativeText = "Your changes will be lost if you don't save them."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Don't Save")
+        alert.addButton(withTitle: "Cancel")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            saveShow()
+            return !session.isDirty
+        case .alertSecondButtonReturn:
+            return true
+        default:
+            return false
+        }
+    }
+
     func newShow() {
+        guard confirmDiscardIfDirty(actionName: "creating a new show") else { return }
         session = DocumentSession(project: .empty(name: "Untitled Show"))
         documentURL = nil
         statusMessage = "New show"
@@ -155,6 +178,7 @@ final class AppModel: ObservableObject {
     }
 
     func openShow() {
+        guard confirmDiscardIfDirty(actionName: "opening") else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
@@ -167,6 +191,7 @@ final class AppModel: ObservableObject {
             let project = try ProjectPackage.load(from: url)
             session = DocumentSession(project: project)
             documentURL = url
+            session.markSaved()
             statusMessage = "Opened \(url.lastPathComponent)"
             wireEvents()
             reloadEngine()
@@ -201,6 +226,7 @@ final class AppModel: ObservableObject {
         do {
             try ProjectPackage.save(session.project, to: url)
             documentURL = url
+            session.markSaved()
             statusMessage = "Saved \(url.lastPathComponent)"
             bump()
         } catch {

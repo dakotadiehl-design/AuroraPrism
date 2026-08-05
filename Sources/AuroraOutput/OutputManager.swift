@@ -23,12 +23,22 @@ public final class OutputManager: @unchecked Sendable {
         lock.unlock()
     }
 
+    /// Starts all registered drivers. On failure, stops drivers started in this call (P2-8).
     public func startAll() throws {
         lock.lock()
         let list = Array(drivers.values)
         lock.unlock()
-        for driver in list where !driver.isRunning {
-            try driver.start()
+        var started: [OutputDriver] = []
+        do {
+            for driver in list where !driver.isRunning {
+                try driver.start()
+                started.append(driver)
+            }
+        } catch {
+            for driver in started where driver.isRunning {
+                driver.stop()
+            }
+            throw error
         }
     }
 
@@ -102,6 +112,50 @@ public final class OutputManager: @unchecked Sendable {
         lock.unlock()
         for number in numbers {
             flush(universe: number)
+        }
+    }
+
+    /// Universe numbers currently buffered.
+    public var activeUniverseNumbers: Set<UInt16> {
+        lock.lock()
+        defer { lock.unlock() }
+        return Set(buffers.keys)
+    }
+
+    /// Blackout and remove a universe buffer (P0-5).
+    public func removeUniverse(_ number: UInt16, blackout: Bool = true) {
+        if blackout {
+            lock.lock()
+            let count = buffers[number]?.channels.count ?? defaultChannelCount
+            lock.unlock()
+            let zeros = [UInt8](repeating: 0, count: count)
+            setLevels(universe: number, values: zeros)
+            flush(universe: number)
+        }
+        lock.lock()
+        buffers[number] = nil
+        lock.unlock()
+    }
+
+    public func removeAllUniverses(blackout: Bool = true) {
+        lock.lock()
+        let numbers = Array(buffers.keys)
+        lock.unlock()
+        for n in numbers {
+            removeUniverse(n, blackout: blackout)
+        }
+    }
+
+    /// Keep only the given universe numbers; blackout+drop the rest (P0-5).
+    public func reconcileUniverses(to numbers: Set<UInt16>, blackoutRemoved: Bool = true) {
+        lock.lock()
+        let existing = Set(buffers.keys)
+        lock.unlock()
+        for n in existing.subtracting(numbers) {
+            removeUniverse(n, blackout: blackoutRemoved)
+        }
+        for n in numbers {
+            ensureUniverse(n)
         }
     }
 }

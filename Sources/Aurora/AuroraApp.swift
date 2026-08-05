@@ -3,6 +3,8 @@ import AuroraUI
 import SwiftUI
 
 final class AuroraAppDelegate: NSObject, NSApplicationDelegate {
+    weak var appModel: AppModel?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
@@ -10,6 +12,14 @@ final class AuroraAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let appModel else { return .terminateNow }
+        if appModel.confirmDiscardIfDirty(actionName: "quitting") {
+            return .terminateNow
+        }
+        return .terminateCancel
     }
 }
 
@@ -22,6 +32,7 @@ struct AuroraApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appModel)
+                .onAppear { appDelegate.appModel = appModel }
         }
         .defaultSize(width: 1100, height: 720)
         .commands {

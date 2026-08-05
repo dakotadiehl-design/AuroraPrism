@@ -46,7 +46,7 @@ struct ContentView: View {
             .padding(.vertical, 4)
         }
         .frame(minWidth: 900, minHeight: 560)
-        .id(appModel.revision)
+        // Avoid global .id(revision) rebuild (P2-1); panels observe appModel via environment.
         .navigationTitle(appModel.windowTitle)
     }
 }

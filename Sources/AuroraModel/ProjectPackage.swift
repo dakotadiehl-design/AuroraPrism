@@ -63,19 +63,71 @@ public enum ProjectPackage {
 
     // MARK: - Save
 
+    /// Maximum JSON file size accepted on load (P2-10 defense-in-depth).
+    public static let maxJSONFileBytes = 32 * 1024 * 1024
+
     /// Writes `project` as a directory package at `url` (e.g. `…/Show.aurora`).
-    /// Replaces an existing package at the same path.
+    ///
+    /// **Atomic (P0-1):** writes a temporary package, validates it, then replaces the
+    /// destination so a failed write cannot erase a valid existing show.
+    /// **Media (P0-2):** copies `media/` and `layouts/` from any existing package at `url`.
     public static func save(_ project: ShowProject, to url: URL) throws {
         let fm = FileManager.default
+        let parent = url.deletingLastPathComponent()
+        let tmpName = ".\(url.lastPathComponent).tmp-\(UUID().uuidString)"
+        let tmpURL = parent.appendingPathComponent(tmpName, isDirectory: true)
 
-        if fm.fileExists(atPath: url.path) {
-            try fm.removeItem(at: url)
+        if fm.fileExists(atPath: tmpURL.path) {
+            try? fm.removeItem(at: tmpURL)
         }
 
-        try fm.createDirectory(at: url, withIntermediateDirectories: true)
-        try fm.createDirectory(at: url.appendingPathComponent(cuesDirectoryName, isDirectory: true), withIntermediateDirectories: true)
-        try fm.createDirectory(at: url.appendingPathComponent("media", isDirectory: true), withIntermediateDirectories: true)
-        try fm.createDirectory(at: url.appendingPathComponent("layouts", isDirectory: true), withIntermediateDirectories: true)
+        do {
+            try writePackageContents(project, to: tmpURL, preservingBinariesFrom: url)
+            _ = try load(from: tmpURL)
+
+            if fm.fileExists(atPath: url.path) {
+                let backupName = ".\(url.lastPathComponent).bak-\(UUID().uuidString)"
+                let backupURL = parent.appendingPathComponent(backupName, isDirectory: true)
+                try fm.moveItem(at: url, to: backupURL)
+                do {
+                    try fm.moveItem(at: tmpURL, to: url)
+                    try? fm.removeItem(at: backupURL)
+                } catch {
+                    try? fm.removeItem(at: url)
+                    try? fm.moveItem(at: backupURL, to: url)
+                    try? fm.removeItem(at: tmpURL)
+                    throw ProjectPackageError.writeFailed("replace failed: \(error.localizedDescription)")
+                }
+            } else {
+                try fm.moveItem(at: tmpURL, to: url)
+            }
+        } catch {
+            try? fm.removeItem(at: tmpURL)
+            throw error
+        }
+    }
+
+    private static func writePackageContents(
+        _ project: ShowProject,
+        to destination: URL,
+        preservingBinariesFrom existingPackage: URL?
+    ) throws {
+        let fm = FileManager.default
+        try fm.createDirectory(at: destination, withIntermediateDirectories: true)
+        try fm.createDirectory(at: destination.appendingPathComponent(cuesDirectoryName, isDirectory: true), withIntermediateDirectories: true)
+        try fm.createDirectory(at: destination.appendingPathComponent("media", isDirectory: true), withIntermediateDirectories: true)
+        try fm.createDirectory(at: destination.appendingPathComponent("layouts", isDirectory: true), withIntermediateDirectories: true)
+
+        if let existing = existingPackage, fm.fileExists(atPath: existing.path) {
+            try copyDirectoryContents(
+                from: existing.appendingPathComponent("media", isDirectory: true),
+                to: destination.appendingPathComponent("media", isDirectory: true)
+            )
+            try copyDirectoryContents(
+                from: existing.appendingPathComponent("layouts", isDirectory: true),
+                to: destination.appendingPathComponent("layouts", isDirectory: true)
+            )
+        }
 
         var projectToWrite = project
         projectToWrite.schemaVersion = currentSchemaVersion
@@ -91,21 +143,35 @@ public enum ProjectPackage {
             cueListIds: projectToWrite.cueLists.map(\.id)
         )
 
-        try writeJSON(root, to: url.appendingPathComponent(projectFileName), encoder: encoder)
-        try writeJSON(projectToWrite.universes, to: url.appendingPathComponent(universesFileName), encoder: encoder)
-        try writeJSON(projectToWrite.fixtures, to: url.appendingPathComponent(fixturesFileName), encoder: encoder)
-        try writeJSON(projectToWrite.fixtureDefinitions, to: url.appendingPathComponent(definitionsFileName), encoder: encoder)
-        try writeJSON(projectToWrite.groups, to: url.appendingPathComponent(groupsFileName), encoder: encoder)
-        try writeJSON(projectToWrite.palettes, to: url.appendingPathComponent(palettesFileName), encoder: encoder)
-        try writeJSON(projectToWrite.presets, to: url.appendingPathComponent(presetsFileName), encoder: encoder)
-        try writeJSON(projectToWrite.songs, to: url.appendingPathComponent(songsFileName), encoder: encoder)
-        try writeJSON(projectToWrite.mediaAssets, to: url.appendingPathComponent(mediaAssetsFileName), encoder: encoder)
-        try writeJSON(projectToWrite.midiMappings, to: url.appendingPathComponent(midiMappingsFileName), encoder: encoder)
+        try writeJSON(root, to: destination.appendingPathComponent(projectFileName), encoder: encoder)
+        try writeJSON(projectToWrite.universes, to: destination.appendingPathComponent(universesFileName), encoder: encoder)
+        try writeJSON(projectToWrite.fixtures, to: destination.appendingPathComponent(fixturesFileName), encoder: encoder)
+        try writeJSON(projectToWrite.fixtureDefinitions, to: destination.appendingPathComponent(definitionsFileName), encoder: encoder)
+        try writeJSON(projectToWrite.groups, to: destination.appendingPathComponent(groupsFileName), encoder: encoder)
+        try writeJSON(projectToWrite.palettes, to: destination.appendingPathComponent(palettesFileName), encoder: encoder)
+        try writeJSON(projectToWrite.presets, to: destination.appendingPathComponent(presetsFileName), encoder: encoder)
+        try writeJSON(projectToWrite.songs, to: destination.appendingPathComponent(songsFileName), encoder: encoder)
+        try writeJSON(projectToWrite.mediaAssets, to: destination.appendingPathComponent(mediaAssetsFileName), encoder: encoder)
+        try writeJSON(projectToWrite.midiMappings, to: destination.appendingPathComponent(midiMappingsFileName), encoder: encoder)
 
-        let cuesDir = url.appendingPathComponent(cuesDirectoryName, isDirectory: true)
+        let cuesDir = destination.appendingPathComponent(cuesDirectoryName, isDirectory: true)
         for list in projectToWrite.cueLists {
             let fileURL = cuesDir.appendingPathComponent("\(list.id.uuidString).json")
             try writeJSON(list, to: fileURL, encoder: encoder)
+        }
+    }
+
+    private static func copyDirectoryContents(from source: URL, to dest: URL) throws {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: source.path) else { return }
+        try fm.createDirectory(at: dest, withIntermediateDirectories: true)
+        let items = try fm.contentsOfDirectory(at: source, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
+        for item in items {
+            let target = dest.appendingPathComponent(item.lastPathComponent)
+            if fm.fileExists(atPath: target.path) {
+                try fm.removeItem(at: target)
+            }
+            try fm.copyItem(at: item, to: target)
         }
     }
 
@@ -213,7 +279,14 @@ public enum ProjectPackage {
             throw ProjectPackageError.missingFile(missingName)
         }
         do {
+            let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+            if let size = attrs[.size] as? NSNumber, size.intValue > maxJSONFileBytes {
+                throw ProjectPackageError.decodingFailed("\(missingName): file exceeds size limit")
+            }
             let data = try Data(contentsOf: url)
+            if data.count > maxJSONFileBytes {
+                throw ProjectPackageError.decodingFailed("\(missingName): file exceeds size limit")
+            }
             return try decoder.decode(T.self, from: data)
         } catch let error as ProjectPackageError {
             throw error

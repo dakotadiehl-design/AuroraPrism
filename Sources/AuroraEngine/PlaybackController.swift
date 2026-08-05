@@ -122,7 +122,13 @@ public final class PlaybackController: @unchecked Sendable {
     private func beginTransition(to newIndex: Int, at now: TimeInterval, list: CueList) {
         let cue = list.cues[newIndex]
         fromLook = currentLook
-        toLook = CueResolver.resolveLook(cues: list.cues, index: newIndex, project: project)
+        // Pass live stage look so cue-only preserves unspecified attributes (P0-6).
+        toLook = CueResolver.resolveLook(
+            cues: list.cues,
+            index: newIndex,
+            project: project,
+            priorLook: currentLook
+        )
         index = newIndex
         delayDuration = max(0, cue.delay)
         fadeDuration = max(0, cue.fadeIn)

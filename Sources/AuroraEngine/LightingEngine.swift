@@ -42,13 +42,13 @@ public final class LightingEngine: @unchecked Sendable {
         return configuration
     }
 
-    public func updateConfiguration(_ configuration: EngineConfiguration) {
+    public func updateConfiguration(_ configuration: EngineConfiguration) throws {
         lock.lock()
         self.configuration = configuration
         lock.unlock()
         if isRunning {
             stop()
-            try? start()
+            try start()
         }
     }
 
@@ -58,6 +58,9 @@ public final class LightingEngine: @unchecked Sendable {
         self.project = project
         lock.unlock()
 
+        // Drop removed universes after intentional blackout (P0-5).
+        let live = Set(project.universes.map(\.number))
+        output.reconcileUniverses(to: live, blackoutRemoved: true)
         for universe in project.universes {
             output.ensureUniverse(universe.number, channelCount: Int(universe.channelCount))
         }
