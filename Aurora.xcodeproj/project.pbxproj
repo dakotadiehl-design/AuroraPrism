@@ -42,6 +42,7 @@
 		E4EE3B1C37AEEF62DC2EC373 /* ProjectController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98879EA9C2C37F9DDA411AE /* ProjectController.swift */; };
 		E9E5822071DD23FA2AF41899 /* ControlActionRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4065D715F6712A592C2D9D94 /* ControlActionRouter.swift */; };
 		ED96297A3B9DD6CF78D08877 /* AuroraEngine in Frameworks */ = {isa = PBXBuildFile; productRef = A05AEC2D94229F2DB405698C /* AuroraEngine */; };
+		EF73651AA0062889A57FCBE6 /* ProgrammerPresentationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC1D216D63FCD9574D8F1EAC /* ProgrammerPresentationStore.swift */; };
 		F55B9C7D82C625AF6C86D71B /* AuroraBrandViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E14169A3D7013064FC4C477 /* AuroraBrandViews.swift */; };
 		F9B0C0AC28D39ECEE50DFCEE /* DiagnosticsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF4960B78112ABB5D34803BD /* DiagnosticsController.swift */; };
 		FB0360278C5ED110F7A9E16D /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C5AAC12E0BA9F6CC52CAF7EC /* Preview Assets.xcassets */; };
@@ -76,6 +77,7 @@
 		DE69003C8FADB849F552ABE3 /* InputController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputController.swift; sourceTree = "<group>"; };
 		E53EBA12BB138545F4DE4F05 /* AuroraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuroraApp.swift; sourceTree = "<group>"; };
 		E98879EA9C2C37F9DDA411AE /* ProjectController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectController.swift; sourceTree = "<group>"; };
+		EC1D216D63FCD9574D8F1EAC /* ProgrammerPresentationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgrammerPresentationStore.swift; sourceTree = "<group>"; };
 		ED1D6C1A596DA1DE51484AAB /* AppSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsStore.swift; sourceTree = "<group>"; };
 		F2C7C27BD26E3D7CE9388E87 /* Aurora */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Aurora; path = .; sourceTree = SOURCE_ROOT; };
 		FD8D8F2897F52396A2EF3F06 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -182,6 +184,7 @@
 				DE69003C8FADB849F552ABE3 /* InputController.swift */,
 				AB29E496B8FE888F60B7C466 /* OutputController.swift */,
 				560F9B85E2009D890D09ECAC /* PerformanceSnapshot.swift */,
+				EC1D216D63FCD9574D8F1EAC /* ProgrammerPresentationStore.swift */,
 				E98879EA9C2C37F9DDA411AE /* ProjectController.swift */,
 				C7F35F874BCB8E5A89EEDBFA /* RemoteController.swift */,
 				779647B40D9F3A8937B23878 /* ShowControlController.swift */,
@@ -332,6 +335,7 @@
 				93C0DF2A610123A272711285 /* PanelRegistry.swift in Sources */,
 				E161C01CFBB6E7CA343C09B7 /* PerformWorkspaceShell.swift in Sources */,
 				932246F78C94AD41B2A8FF16 /* PerformanceSnapshot.swift in Sources */,
+				EF73651AA0062889A57FCBE6 /* ProgrammerPresentationStore.swift in Sources */,
 				E4EE3B1C37AEEF62DC2EC373 /* ProjectController.swift in Sources */,
 				B6D226D2083E5988CBFA736B /* RemoteController.swift in Sources */,
 				42BB15392EE0D5023FF5196F /* ShowControlController.swift in Sources */,

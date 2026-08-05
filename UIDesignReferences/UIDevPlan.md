@@ -613,18 +613,13 @@ Do not begin UI-02 until the gallery is approved.
 [x] UI-02 Application shell (post-02A) — **COMPLETE — SHELL REVIEW**
 [x] UI-02 Shell hardening (deep review P0/P1) — **COMPLETE**
 [x] UI-02 Final gate closeout — **COMPLETE**
-        • Playback updateProject preserves cue UUID
-        • Performance CURRENT never uses first-list fallback
-        • Removed obsolete sync dirty API
-        • Identity unit tests
+[x] UI-03 Fixture Browser + Programmer — **PASS 2 COMPLETE**
+        • Dual-axis support × value; mixed display-state enum
+        • Fan center+spread; Align no fabricated zero
+        • Pan/tilt-only pad visual truth; hasRGBColor vs technical
+        • Batched multi-attr Programmer writes
         ↓
-    Next when user asks: UI-03
-
-[ ] UI-03 Fixture Browser + Programmer
-        • attribute-state semantics
-        • mixed capability/value
-        • ~80 fixture scale test
-        • Fan / Align / Clear All / RGB-W decisions
+    Next when user asks: UI-04
 
 [ ] UI-04 Palettes + Presets
         • create/delete/rename + record ref to cue

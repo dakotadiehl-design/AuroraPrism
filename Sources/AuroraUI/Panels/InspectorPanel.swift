@@ -12,6 +12,8 @@ public struct InspectorPanel: View {
     public var playbackCueListID: UUID?
     /// Active playback cue id when known.
     public var playbackCueID: UUID?
+    /// Optional programmer values for single-fixture inspect (UI-03 D1).
+    public var programmerValues: [UUID: [String: Double]]
     public var onSelectFixtures: ([UUID]) -> Void
 
     public init(
@@ -20,6 +22,7 @@ public struct InspectorPanel: View {
         playbackCueIndex: Int = -1,
         playbackCueListID: UUID? = nil,
         playbackCueID: UUID? = nil,
+        programmerValues: [UUID: [String: Double]] = [:],
         onSelectFixtures: @escaping ([UUID]) -> Void = { _ in }
     ) {
         self.context = context
@@ -27,6 +30,7 @@ public struct InspectorPanel: View {
         self.playbackCueIndex = playbackCueIndex
         self.playbackCueListID = playbackCueListID
         self.playbackCueID = playbackCueID
+        self.programmerValues = programmerValues
         self.onSelectFixtures = onSelectFixtures
     }
 
@@ -152,6 +156,13 @@ public struct InspectorPanel: View {
                                     .font(AuroraTypography.metadata)
                                     .foregroundStyle(AuroraColor.textSecondary)
                             }
+                        }
+                    }
+                }
+                if let attrs = programmerValues[fixture.id], !attrs.isEmpty {
+                    AuroraInspectorSection("Programmer") {
+                        ForEach(attrs.keys.sorted(), id: \.self) { key in
+                            labeled(key, String(format: "%.0f%%", (attrs[key] ?? 0) * 100))
                         }
                     }
                 }

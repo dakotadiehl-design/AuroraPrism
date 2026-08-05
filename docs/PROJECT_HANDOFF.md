@@ -4,12 +4,12 @@
 
 | Field | Value |
 |-------|--------|
-| **Last updated** | 2026-08-05 (**UI-02 GATE CLOSEOUT — READY FOR UI-03**) |
+| **Last updated** | 2026-08-05 (**UI-03 PASS 2 COMPLETE**) |
 | **Workspace** | `/Users/dakota/code/Aurora` |
 | **Branch** | `main` (local only; no remote assumed) |
-| **HEAD** | `dbdd891` — tag `ui-02-complete` |
-| **Tests** | **281** passing (`swift test`) |
-| **Xcode app** | `Aurora.xcodeproj` — Debug build green after closeout |
+| **HEAD** | uncommitted UI-03 Pass 2 on top of `dbdd891` / `ui-02-complete` |
+| **Tests** | **304** passing (`swift test`) |
+| **Xcode app** | Debug build green after UI-03 Pass 2 |
 
 **Open first after compression:**
 
@@ -27,17 +27,12 @@
 
 **Active UI status:**
 
-- **UI-02 GATE CLOSEOUT COMPLETE** — proceed to UI-03 when user asks
-- Shell hardened (P0/P1) + final gate: stable playback cue UUID on live edit; presentation never falls back to unrelated first list
-- Build: Option A nav · Inspector focus · welcome empty · explicit fixture inspect
-- Perform: truthful Current/Next (`PerformanceCueSummary`); structural File actions hidden
-- Cue list: single-click select/inspect; double-click fire
-- Settings: thin MIDI · frame-rate commit-on-end · Output app/project scope
-- Contract: `docs/UI_PANEL_CONTRACT.md`
-- Handoff: `UIDesignReferences/UI_02_Shell_Handoff.md`
-- Reviews: `UIDesignReferences/UI-02Ref/` (deep review, hardening plan, post-UI-02 final gate)
-- Demo: **File → Open Demo Show** (`⇧⌘D`) or `--load-demo-show` — **not** auto on launch; `protocolHint: .none`
-- Restoration ownership: UI-03 Programmer · UI-04 Palettes · UI-05 Cues (see UIDevPlan)
+- **UI-03 PASS 2 COMPLETE** — Pass 1 review closeout applied
+- Mixed controls indeterminate (`AuroraControlDisplayValue`); Align no zero invent; pan/tilt-only pad truth
+- HSV only for RGB; technical-only no dead wheel; batched color `setMany`
+- Next when asked: **UI-04** Palettes — do not start unprompted
+- Handoffs: `UI_03_Handoff.md`, `UI-03Ref/*`
+- Demo: **File → Open Demo Show** (`⇧⌘D`)
 
 **Historical only (not active backlog):**
 

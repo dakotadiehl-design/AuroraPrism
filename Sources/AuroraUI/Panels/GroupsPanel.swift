@@ -41,7 +41,8 @@ public struct GroupsPanel: View {
                     }
                     Spacer()
                     Button("Select") {
-                        context.session.selectFixtures(Set(group.fixtureIds))
+                        // Fan/Align phase order follows group.fixtureIds order (UI-03).
+                        context.session.selectFixturesOrdered(group.fixtureIds, extending: false)
                         onInspectGroup(group.id)
                         onChanged()
                     }
@@ -69,7 +70,7 @@ public struct GroupsPanel: View {
     }
 
     private func createFromSelection() {
-        let ids = Array(context.session.selection.snapshot.fixtureIDs)
+        let ids = context.session.selection.snapshot.orderedFixtureIDs
         let group = Group(name: "Group \(context.project.groups.count + 1)", fixtureIds: ids)
         try? context.session.perform(AddGroupCommand(group: group))
         onChanged()

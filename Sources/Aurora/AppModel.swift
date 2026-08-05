@@ -30,6 +30,8 @@ final class AppModel: ObservableObject {
     let diagnostics: DiagnosticsController
     let settings: AppSettingsStore
     let autosave = AutosaveController()
+    /// UI-03: derived Programmer attribute presentation (projection only).
+    let programmerPresentation = ProgrammerPresentationStore()
 
     /// In-process plugin registry (PR29 / P3-4 protocol surfaces).
     let pluginHost = PluginHost()
@@ -107,6 +109,7 @@ final class AppModel: ObservableObject {
             remote.objectWillChange,
             diagnostics.objectWillChange,
             settings.objectWillChange,
+            programmerPresentation.objectWillChange,
         ] as [ObservableObjectPublisher] {
             publisher
                 .receive(on: RunLoop.main)
@@ -117,11 +120,13 @@ final class AppModel: ObservableObject {
         document.onLog = { [weak self] msg in self?.diagnostics.log(msg) }
         document.onProjectModified = { [weak self] in
             self?.applyProjectUpdate()
+            self?.refreshProgrammerPresentation()
         }
         document.onSelectionChanged = { [weak self] snap in
             guard let self else { return }
             self.engine.programmer.setHighlightSelection(snap.fixtureIDs)
             self.showControl.controlRouter.updateOrderedSelection(snap.orderedFixtureIDs)
+            self.refreshProgrammerPresentation()
         }
 
         // Seed log from library load
@@ -141,6 +146,7 @@ final class AppModel: ObservableObject {
             Task { @MainActor in
                 self?.showControl.refreshEngineStatus()
                 if case .programmerAttribute = action {
+                    self?.refreshProgrammerPresentation()
                     self?.notifyUI()
                 }
             }
@@ -164,6 +170,7 @@ final class AppModel: ObservableObject {
             }
         }
         autosave.start()
+        refreshProgrammerPresentation()
         notifyUI()
     }
 
@@ -174,6 +181,21 @@ final class AppModel: ObservableObject {
     /// Granular UI invalidation — replaces dual `revision` + `objectWillChange` bump.
     func notifyUI() {
         objectWillChange.send()
+    }
+
+    /// Rebuild Programmer attribute presentation after selection or programmer mutation (UI-03).
+    func refreshProgrammerPresentation() {
+        programmerPresentation.refresh(
+            orderedFixtureIDs: session.selection.snapshot.orderedFixtureIDs,
+            project: session.project,
+            programmer: engine.programmer
+        )
+    }
+
+    /// Programmer UI callback: refresh presentation then broad UI.
+    func noteProgrammerUIChanged() {
+        refreshProgrammerPresentation()
+        notifyUI()
     }
 
     /// Deprecated alias for `notifyUI()` (panels still call `bump()`).

@@ -6,17 +6,21 @@ public struct AuroraColorWheel: View {
     @Binding public var saturation: Double
     public var brightness: Double
     public var size: CGFloat
+    /// When true, do not show a concrete owned thumb position (UI-03 Pass 2).
+    public var isMixed: Bool
 
     public init(
         hue: Binding<Double>,
         saturation: Binding<Double>,
         brightness: Double = 1,
-        size: CGFloat = AuroraMetrics.colorWheelSize
+        size: CGFloat = AuroraMetrics.colorWheelSize,
+        isMixed: Bool = false
     ) {
         self._hue = hue
         self._saturation = saturation
         self.brightness = brightness
         self.size = size
+        self.isMixed = isMixed
     }
 
     public var body: some View {
@@ -66,13 +70,19 @@ public struct AuroraColorWheel: View {
                     )
                     .frame(width: size * 0.92, height: size * 0.92)
 
-                // Selection thumb
-                Circle()
-                    .fill(Color(hue: hue, saturation: saturation, brightness: brightness))
-                    .frame(width: 16, height: 16)
-                    .overlay(Circle().strokeBorder(Color.white, lineWidth: 2))
-                    .shadow(color: .black.opacity(0.4), radius: 2)
-                    .offset(thumbOffset)
+                // Selection thumb — indeterminate when mixed
+                if isMixed {
+                    Circle()
+                        .strokeBorder(AuroraColor.stateMixed, lineWidth: 2)
+                        .frame(width: 18, height: 18)
+                } else {
+                    Circle()
+                        .fill(Color(hue: hue, saturation: saturation, brightness: brightness))
+                        .frame(width: 16, height: 16)
+                        .overlay(Circle().strokeBorder(Color.white, lineWidth: 2))
+                        .shadow(color: .black.opacity(0.4), radius: 2)
+                        .offset(thumbOffset)
+                }
 
                 Circle()
                     .strokeBorder(AuroraColor.separatorStrong, lineWidth: 1)
@@ -98,23 +108,29 @@ public struct AuroraColorWheel: View {
 
             // Active chip + RGB
             HStack(spacing: 8) {
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(Color(hue: hue, saturation: saturation, brightness: brightness))
-                    .frame(width: 28, height: 16)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 0.5)
-                    )
-                let rgb = rgbComponents
-                Text("R \(rgb.0)")
-                    .font(AuroraTypography.timingReadout)
-                    .foregroundStyle(AuroraColor.textSecondary)
-                Text("G \(rgb.1)")
-                    .font(AuroraTypography.timingReadout)
-                    .foregroundStyle(AuroraColor.textSecondary)
-                Text("B \(rgb.2)")
-                    .font(AuroraTypography.timingReadout)
-                    .foregroundStyle(AuroraColor.textSecondary)
+                if isMixed {
+                    Text("MIXED")
+                        .font(AuroraTypography.timingReadout)
+                        .foregroundStyle(AuroraColor.stateMixed)
+                } else {
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(Color(hue: hue, saturation: saturation, brightness: brightness))
+                        .frame(width: 28, height: 16)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .strokeBorder(Color.white.opacity(0.2), lineWidth: 0.5)
+                        )
+                    let rgb = rgbComponents
+                    Text("R \(rgb.0)")
+                        .font(AuroraTypography.timingReadout)
+                        .foregroundStyle(AuroraColor.textSecondary)
+                    Text("G \(rgb.1)")
+                        .font(AuroraTypography.timingReadout)
+                        .foregroundStyle(AuroraColor.textSecondary)
+                    Text("B \(rgb.2)")
+                        .font(AuroraTypography.timingReadout)
+                        .foregroundStyle(AuroraColor.textSecondary)
+                }
             }
         }
     }

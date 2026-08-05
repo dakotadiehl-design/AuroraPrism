@@ -93,7 +93,14 @@ struct BuildWorkspaceHost: View {
                 .font(AuroraTypography.metadata)
                 .foregroundStyle(AuroraColor.accentBright)
         }) {
-            PanelRegistry.view(id: .programmer, context: appModel.panelContext, appModel: appModel)
+            ProgrammerPanel(
+                context: appModel.panelContext,
+                programmer: appModel.engine.programmer,
+                project: appModel.session.project,
+                presentation: appModel.programmerPresentation.presentation,
+                presentationRevision: appModel.programmerPresentation.revision,
+                onChanged: { appModel.noteProgrammerUIChanged() }
+            )
         }
     }
 
@@ -111,6 +118,7 @@ struct BuildWorkspaceHost: View {
                 playbackCueIndex: appModel.performance.cueIndex,
                 playbackCueListID: appModel.performance.cueListID,
                 playbackCueID: appModel.performance.playbackCueID,
+                programmerValues: appModel.engine.programmer.snapshot().values,
                 onSelectFixtures: { ids in
                     appModel.session.selectFixturesOrdered(ids, extending: false)
                     appModel.workspace.noteExplicitFixtureInspect(count: ids.count)
@@ -168,7 +176,7 @@ struct BuildWorkspaceHost: View {
                     PalettesPanel(
                         context: appModel.panelContext,
                         programmer: appModel.engine.programmer,
-                        onChanged: { appModel.notifyUI() },
+                        onChanged: { appModel.noteProgrammerUIChanged() },
                         onInspectPalette: { id in
                             appModel.workspace.setInspectorFocus(.palette(id))
                             appModel.notifyUI()

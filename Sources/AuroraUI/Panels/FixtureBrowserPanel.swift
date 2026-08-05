@@ -30,6 +30,29 @@ public struct FixtureBrowserPanel: View {
         context.session.selection.snapshot.fixtureIDs
     }
 
+    private var orderedSelection: [UUID] {
+        context.session.selection.snapshot.orderedFixtureIDs
+    }
+
+    private var selectionSummary: some View {
+        let orderPreview = orderedSelection.prefix(8).enumerated().map { i, id in
+            let n = context.project.fixtures.first(where: { $0.id == id })?.name ?? "·"
+            return "\(i + 1).\(n)"
+        }.joined(separator: " → ")
+        let more = orderedSelection.count > 8 ? " …" : ""
+        return VStack(alignment: .leading, spacing: 2) {
+            Text("Selection: \(orderedSelection.count)")
+                .font(AuroraTypography.metadata)
+                .foregroundStyle(AuroraColor.accentBright)
+            Text("Order: \(orderPreview)\(more)")
+                .font(AuroraTypography.metadata)
+                .foregroundStyle(AuroraColor.textTertiary)
+                .lineLimit(2)
+        }
+        .padding(.horizontal, 8)
+        .padding(.bottom, 4)
+    }
+
     private var filteredFixtures: [PatchedFixture] {
         let all = context.project.fixtures
         if query.isEmpty { return all }
@@ -48,6 +71,10 @@ public struct FixtureBrowserPanel: View {
         VStack(spacing: 0) {
             AuroraSearchField(text: $query, placeholder: "Search fixtures…")
                 .padding(6)
+
+            if !selectedIDs.isEmpty {
+                selectionSummary
+            }
 
             if context.project.fixtures.isEmpty && context.project.groups.isEmpty {
                 AuroraEmptyState(
@@ -113,10 +140,9 @@ public struct FixtureBrowserPanel: View {
             if NSEvent.modifierFlags.contains(.command) {
                 context.session.toggleFixtureSelection(fixture.id)
             } else {
-                context.session.selectFixtures([fixture.id], extending: false)
+                context.session.selectFixturesOrdered([fixture.id], extending: false)
             }
-            let ids = Array(context.session.selection.snapshot.orderedFixtureIDs)
-            onInspectFixtures(ids)
+            onInspectFixtures(context.session.selection.snapshot.orderedFixtureIDs)
         } label: {
             HStack(spacing: 6) {
                 Circle()

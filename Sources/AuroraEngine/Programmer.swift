@@ -45,11 +45,23 @@ public final class Programmer: @unchecked Sendable {
 
     /// Batch set one attribute across fixtures (e.g. fan/align results).
     public func setMany(attribute: String, values: [UUID: Double]) {
-        lock.lock()
+        var batch: [UUID: [String: Double]] = [:]
         for (fixtureID, value) in values {
-            var attrs = state.values[fixtureID] ?? [:]
-            attrs[attribute] = min(1, max(0, value))
-            state.values[fixtureID] = attrs
+            batch[fixtureID] = [attribute: value]
+        }
+        setMany(batch)
+    }
+
+    /// Single-lock multi-fixture multi-attribute write (UI-03 Pass 2 color batching).
+    public func setMany(_ values: [UUID: [String: Double]]) {
+        guard !values.isEmpty else { return }
+        lock.lock()
+        for (fixtureID, attrs) in values {
+            var merged = state.values[fixtureID] ?? [:]
+            for (attribute, value) in attrs {
+                merged[attribute] = min(1, max(0, value))
+            }
+            state.values[fixtureID] = merged
         }
         lock.unlock()
     }
