@@ -1,11 +1,11 @@
 import AuroraModel
 
-/// Application core: project management, commands, undo, selection, preferences, events.
+/// Application core: project session, commands, undo, selection, events.
 ///
-/// Implementations land in PR3–PR4. PR1 only exposes module identity and a Model dependency touchpoint.
+/// PR3 adds command/undo; PR4 adds event bus and selection.
 public enum AuroraCoreModule {
     public static let name = "AuroraCore"
-    public static let version = "0.1.0-pr1"
+    public static let version = "0.3.0-pr3"
 
     /// Confirms the Core → Model dependency is linked (used by tests).
     public static var modelModuleName: String {

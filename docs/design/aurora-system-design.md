@@ -787,10 +787,18 @@ Domain model and `.aurora` package I/O:
 - **Types:** `ShowProject` and related entities; `ProjectPackage` load/save; schema v1  
 - **Tests:** golden sample + empty round-trip; unsupported schema; patch overlap  
 
-### PR3–PR4
+### PR3 (done — see dedicated doc)
 
-1. Implement `Command` + undo stack with Add/Remove Fixture as first commands (PR3).  
-2. Event bus & selection manager (PR4).  
+Command system and undo:
+
+- **Spec:** [`pr3-command-undo.md`](./pr3-command-undo.md)  
+- **`DocumentSession`**, `Command`, sample add/remove fixture + rename  
+- Groups, coalescing renames, atomic failed perform  
+
+### PR4
+
+1. Event bus & selection manager (PR4).  
+2. Wire `projectModified` / `selectionChanged` from `DocumentSession`.  
 3. Wire document open/save UI when the app shell lands (PR7).
 
 Engine, MIDI, and docking remain stubs until their PRs.
@@ -806,3 +814,4 @@ Engine, MIDI, and docking remain stubs until their PRs.
 | 0.3 | 2026-08-04 | KD15 dual host workflow (Linux plan / macOS dev); `docs/development-workflow.md` |
 | 0.4 | 2026-08-04 | PR2 domain model & package format; link to `pr2-domain-model.md` |
 | 0.5 | 2026-08-04 | KD16 stage remote companion (web first, native later); §4.16; Phase H PR31–34; `remote-companion.md` |
+| 0.6 | 2026-08-04 | PR3 command system & undo; link to `pr3-command-undo.md` |
