@@ -88,6 +88,16 @@ struct AuroraApp: App {
                 Button("Back") { appModel.back() }
                     .keyboardShortcut("b", modifiers: [])
             }
+
+            CommandMenu("Output") {
+                Button(appModel.artNetConfig.enabled ? "Disable Art-Net" : "Enable Art-Net") {
+                    appModel.setArtNetEnabled(!appModel.artNetConfig.enabled)
+                }
+                Button("Art-Net Destination…") {
+                    appModel.promptArtNetDestination()
+                }
+            }
         }
     }
 }
+

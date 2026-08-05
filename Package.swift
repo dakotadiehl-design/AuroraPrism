@@ -31,7 +31,10 @@ let package = Package(
             ]
         ),
         .target(
-            name: "AuroraOutput"
+            name: "AuroraOutput",
+            linkerSettings: [
+                .linkedFramework("Network"),
+            ]
         ),
         .target(
             name: "AuroraEngine",

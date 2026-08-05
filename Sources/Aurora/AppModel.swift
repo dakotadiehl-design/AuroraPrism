@@ -23,11 +23,16 @@ final class AppModel: ObservableObject {
     @Published private(set) var lastMIDIEvent: String = ""
     @Published private(set) var isMIDILearning: Bool = false
     @Published var songStatus: String = ""
+    @Published var artNetConfig: ArtNetConfig
+    @Published private(set) var outputStatus: String = "Output: Null"
+    @Published private(set) var midiLog: [String] = []
+    @Published private(set) var consoleLog: [String] = []
 
     private var eventToken: EventSubscriptionToken?
     private let fixtureLibrary: FixtureLibrary?
     private let outputManager = OutputManager()
     private let nullDriver = NullOutputDriver(name: "Null")
+    private let artNetDriver: ArtNetOutputDriver
     let engine: LightingEngine
     private let midi = MIDIInputManager()
     let midiLearn = MIDILearnSession()
@@ -37,16 +42,24 @@ final class AppModel: ObservableObject {
     init(project: ShowProject = .empty(name: "Untitled Show")) {
         self.session = DocumentSession(project: project)
         self.layout = WorkspaceLayoutStore.load()
+        let artConfig = ArtNetConfig.load()
+        self.artNetConfig = artConfig
+        self.artNetDriver = ArtNetOutputDriver(config: artConfig)
         self.engine = LightingEngine(output: outputManager)
         outputManager.register(nullDriver)
+        if artConfig.enabled {
+            outputManager.register(artNetDriver)
+        }
 
         do {
             let library = try FixtureLibrary.loadBundledSeed()
             self.fixtureLibrary = library
             self.statusMessage = "Loaded \(library.definitions.count) seed personalities"
+            log("Loaded fixture library (\(library.definitions.count) personalities)")
         } catch {
             self.fixtureLibrary = nil
             self.statusMessage = "Fixture library failed: \(error.localizedDescription)"
+            log("Fixture library error: \(error.localizedDescription)")
         }
 
         wireEvents()
@@ -54,6 +67,7 @@ final class AppModel: ObservableObject {
         startEngineIfPossible()
         startMIDI()
         startStatusPolling()
+        refreshOutputStatus()
     }
 
     deinit {
@@ -262,11 +276,13 @@ final class AppModel: ObservableObject {
     private func handleMIDI(_ events: [MIDIEvent]) {
         for event in events {
             lastMIDIEvent = event.summary
+            appendMIDILog(event.summary)
             if let learned = midiLearn.completeIfArmed(event: event) {
                 isMIDILearning = false
                 do {
                     try session.perform(AddMIDIMappingCommand(mapping: learned.mapping))
                     statusMessage = "Learned \(learned.action.storageKey) ← \(event.summary)"
+                    log("MIDI learned \(learned.action.storageKey)")
                 } catch {
                     statusMessage = "Learn failed: \(error.localizedDescription)"
                 }
@@ -278,6 +294,61 @@ final class AppModel: ObservableObject {
             }
         }
         midiStatus = "MIDI: \(midi.connectedCount) src · \(lastMIDIEvent)"
+    }
+
+    func setArtNetEnabled(_ enabled: Bool) {
+        artNetConfig.enabled = enabled
+        artNetConfig.save()
+        applyArtNetRegistration()
+        refreshOutputStatus()
+        log(enabled ? "Art-Net enabled → \(artNetConfig.destinationHost)" : "Art-Net disabled")
+        bump()
+    }
+
+    func setArtNetDestination(_ host: String) {
+        artNetConfig.destinationHost = host
+        artNetConfig.useBroadcast = host.contains("255")
+        artNetConfig.save()
+        artNetDriver.updateConfig(artNetConfig)
+        refreshOutputStatus()
+        bump()
+    }
+
+    private func applyArtNetRegistration() {
+        if artNetConfig.enabled {
+            artNetDriver.updateConfig(artNetConfig)
+            outputManager.register(artNetDriver)
+            if engine.isRunning {
+                try? artNetDriver.start()
+            }
+        } else {
+            artNetDriver.stop()
+            outputManager.unregister(id: artNetDriver.id)
+        }
+    }
+
+    private func refreshOutputStatus() {
+        if artNetConfig.enabled {
+            let err = artNetDriver.lastError.map { " err:\($0)" } ?? ""
+            outputStatus = "Art-Net \(artNetConfig.destinationHost):\(artNetConfig.destinationPort)\(err)"
+        } else {
+            outputStatus = "Output: Null only"
+        }
+    }
+
+    func log(_ message: String) {
+        let line = "\(ISO8601DateFormatter().string(from: Date()))  \(message)"
+        consoleLog.append(line)
+        if consoleLog.count > 200 {
+            consoleLog.removeFirst(consoleLog.count - 200)
+        }
+    }
+
+    private func appendMIDILog(_ message: String) {
+        midiLog.append(message)
+        if midiLog.count > 100 {
+            midiLog.removeFirst(midiLog.count - 100)
+        }
     }
 
     private func ccValue(_ event: MIDIEvent) -> UInt8? {
@@ -334,6 +405,7 @@ final class AppModel: ObservableObject {
         } else {
             engineStatus = "Engine stopped"
         }
+        refreshOutputStatus()
     }
 
     private func wireEvents() {
@@ -358,5 +430,22 @@ final class AppModel: ObservableObject {
         alert.informativeText = error.localizedDescription
         alert.alertStyle = .warning
         alert.runModal()
+    }
+
+    func promptArtNetDestination() {
+        let alert = NSAlert()
+        alert.messageText = "Art-Net Destination"
+        alert.informativeText = "Host IP (unicast) or 255.255.255.255 (broadcast). Show universe N → Art-Net N\(artNetConfig.universeOffset)."
+        let field = NSTextField(string: artNetConfig.destinationHost)
+        field.frame = NSRect(x: 0, y: 0, width: 280, height: 24)
+        alert.accessoryView = field
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+        if alert.runModal() == .alertFirstButtonReturn {
+            setArtNetDestination(field.stringValue)
+            if !artNetConfig.enabled {
+                setArtNetEnabled(true)
+            }
+        }
     }
 }

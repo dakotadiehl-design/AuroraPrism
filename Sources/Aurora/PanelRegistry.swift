@@ -90,6 +90,21 @@ enum PanelRegistry {
                     onChanged: { appModel.bump() }
                 )
             )
+        case .universeMonitor:
+            return AnyView(
+                UniverseMonitorPanel(
+                    snapshot: appModel.engine.currentSnapshot(),
+                    universeNumber: appModel.session.project.universes.first?.number ?? 1
+                )
+            )
+        case .console:
+            return AnyView(
+                ConsolePanel(
+                    lines: appModel.consoleLog,
+                    midiLines: appModel.midiLog,
+                    outputStatus: appModel.outputStatus
+                )
+            )
         default:
             return WorkspaceView.defaultPanel(id: id, context: context)
         }

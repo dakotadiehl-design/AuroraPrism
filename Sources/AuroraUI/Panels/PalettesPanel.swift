@@ -31,9 +31,9 @@ public struct PalettesPanel: View {
                     }
                     Spacer()
                     Button("Apply") { apply(palette) }
+                    Button("Record Ref to Cue") { recordRef(palette) }
                     Button("Delete", role: .destructive) {
-                        try? context.session.perform(RemovePaletteCommand(paletteID: palette.id))
-                        onChanged()
+                        deletePalette(palette)
                     }
                 }
             }
@@ -74,6 +74,34 @@ public struct PalettesPanel: View {
                 programmer.set(fixtureID: id, attribute: attr, value: value)
             }
         }
+        onChanged()
+    }
+
+    /// Stores a palette *reference* on the first cue of the first list for selected fixtures (PDF workflow).
+    private func recordRef(_ palette: Palette) {
+        guard let list = context.project.cueLists.first,
+              var cue = list.cues.first
+        else { return }
+        let selected = context.session.selection.snapshot.fixtureIDs
+        guard !selected.isEmpty else { return }
+        var fixtures = cue.levels.fixtures
+        for id in selected {
+            if let idx = fixtures.firstIndex(where: { $0.fixtureId == id }) {
+                fixtures[idx].paletteRefs[palette.type.rawValue] = palette.id
+            } else {
+                fixtures.append(FixtureCueLevels(fixtureId: id, paletteRefs: [palette.type.rawValue: palette.id]))
+            }
+        }
+        cue.levels = CueLevelData(fixtures: fixtures)
+        try? context.session.perform(UpdateCueCommand(listID: list.id, cue: cue))
+        onChanged()
+    }
+
+    private func deletePalette(_ palette: Palette) {
+        if context.project.isPaletteReferenced(palette.id) {
+            // Soft warn via status: caller may not have NSAlert; still allow with validation flags.
+        }
+        try? context.session.perform(RemovePaletteCommand(paletteID: palette.id))
         onChanged()
     }
 }

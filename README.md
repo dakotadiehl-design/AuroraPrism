@@ -4,7 +4,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 ## Status
 
-**PR15–21 show craft** is in tree: MIDI learn, color math, first-class palette refs, groups, and song orchestration. Effects (PR22) still ahead.
+**Lane A (stage output)** is in tree: Art-Net driver, universe/console monitors, MIDI learn, palette refs, songs. Next: real-node validation / sACN / effects.
 
 | Doc | Description |
 |-----|-------------|
