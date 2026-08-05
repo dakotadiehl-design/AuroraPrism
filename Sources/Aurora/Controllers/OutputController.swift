@@ -3,19 +3,27 @@ import AuroraModel
 import AuroraOutput
 import Foundation
 
-/// Drivers, routes, network output configuration and health line (Stage C).
+/// Drivers, routes, network output configuration and health line (Stage C + HW-01 Local DMX).
 @MainActor
 final class OutputController: ObservableObject {
     let outputManager = OutputManager()
     private let nullDriver = NullOutputDriver(name: "Null")
     private let artNetDriver: ArtNetOutputDriver
     private let sacnDriver: SACNOutputDriver
+    private var localDMXDriver: ENTTECUSBDMXProDriver?
+    private var localDMXTransport: ENTTECSerialTransport?
+    private let localDMXDiscoverer: LocalDMXDeviceDiscovering
 
     @Published var artNetConfig: ArtNetConfig
     @Published var sacnConfig: SACNConfig
     @Published private(set) var outputStatus: String = "Output: Null"
+    @Published private(set) var availableLocalDMXDevices: [LocalDMXDeviceDescriptor] = []
+    @Published var selectedLocalDMXDeviceID: String?
+    @Published var localDMXEnabled: Bool = false
+    @Published private(set) var localDMXStatus: String = "Local DMX: off"
 
-    init() {
+    init(localDMXDiscoverer: LocalDMXDeviceDiscovering = MacLocalDMXDeviceEnumerator()) {
+        self.localDMXDiscoverer = localDMXDiscoverer
         let artConfig = ArtNetConfig.load()
         self.artNetConfig = artConfig
         self.artNetDriver = ArtNetOutputDriver(config: artConfig)
@@ -29,13 +37,108 @@ final class OutputController: ObservableObject {
         if sacn.enabled {
             outputManager.register(sacnDriver)
         }
+        rescanLocalDMXDevices()
         refreshOutputStatus()
     }
 
     func stopAll() {
         artNetDriver.stop()
         sacnDriver.stop()
+        disableLocalDMX()
         outputManager.stopAll()
+    }
+
+    // MARK: - Local DMX (ENTTEC USB Pro framing — not Open DMX)
+
+    func rescanLocalDMXDevices() {
+        availableLocalDMXDevices = localDMXDiscoverer.enumerate()
+        if let selectedLocalDMXDeviceID,
+           !availableLocalDMXDevices.contains(where: { $0.id == selectedLocalDMXDeviceID }) {
+            // Keep selection ID for reconnect; status reflects missing.
+            localDMXStatus = "Local DMX: selected device not present"
+        }
+    }
+
+    func setLocalDMXEnabled(_ enabled: Bool, engineRunning: Bool, log: (String) -> Void) {
+        if enabled {
+            enableLocalDMX(engineRunning: engineRunning, log: log)
+        } else {
+            disableLocalDMX()
+            log("Local DMX disabled")
+        }
+        refreshOutputStatus()
+    }
+
+    /// HW-02: driver owns transport open/close. Controller does not pre-open.
+    private func enableLocalDMX(engineRunning: Bool, log: (String) -> Void) {
+        rescanLocalDMXDevices()
+        guard let id = selectedLocalDMXDeviceID,
+              let device = availableLocalDMXDevices.first(where: { $0.id == id }),
+              let path = device.serialPath
+        else {
+            localDMXEnabled = false
+            localDMXStatus = "Local DMX: no device selected"
+            log(localDMXStatus)
+            return
+        }
+        disableLocalDMX()
+        let transport = MacENTTECSerialTransport(path: path)
+        let driver = ENTTECUSBDMXProDriver(name: device.displayName, transport: transport)
+        outputManager.register(driver)
+        do {
+            if engineRunning {
+                try driver.start()
+                localDMXStatus = "Local DMX: \(device.displayName) · running"
+            } else {
+                // Registered; will start when engine runs.
+                localDMXStatus = "Local DMX: \(device.displayName) · waiting for engine"
+            }
+            localDMXTransport = transport
+            localDMXDriver = driver
+            localDMXEnabled = true
+            log(localDMXStatus)
+        } catch {
+            outputManager.unregister(id: driver.id)
+            driver.stop()
+            transport.close()
+            localDMXTransport = nil
+            localDMXDriver = nil
+            localDMXEnabled = false
+            localDMXStatus = "Local DMX: open/start failed — \(error.localizedDescription)"
+            log(localDMXStatus)
+        }
+    }
+
+    private func disableLocalDMX() {
+        if let driver = localDMXDriver {
+            driver.stop()
+            outputManager.unregister(id: driver.id)
+        }
+        // stop() closes transport via driver; ensure handle release.
+        localDMXTransport?.close()
+        localDMXTransport = nil
+        localDMXDriver = nil
+        localDMXEnabled = false
+        localDMXStatus = "Local DMX: off"
+    }
+
+    /// Start local driver if enabled and registered but not running (engine just started).
+    func startLocalDMXIfNeeded() {
+        guard localDMXEnabled, let driver = localDMXDriver, !driver.isRunning else { return }
+        do {
+            try driver.start()
+            localDMXStatus = "Local DMX: running"
+            refreshOutputStatus()
+        } catch {
+            localDMXEnabled = false
+            localDMXStatus = "Local DMX: start failed — \(error.localizedDescription)"
+            outputManager.unregister(id: driver.id)
+            driver.stop()
+            localDMXTransport?.close()
+            localDMXTransport = nil
+            localDMXDriver = nil
+            refreshOutputStatus()
+        }
     }
 
     func setArtNetEnabled(_ enabled: Bool, engineRunning: Bool, log: (String) -> Void) {
@@ -44,7 +147,6 @@ final class OutputController: ObservableObject {
         applyArtNetRegistration(engineRunning: engineRunning)
         refreshOutputStatus()
         log(enabled ? "Art-Net enabled → \(artNetConfig.destinationHost)" : "Art-Net disabled")
-        objectWillChange.send()
     }
 
     func setArtNetDestination(_ host: String, engineRunning: Bool) {
@@ -53,7 +155,6 @@ final class OutputController: ObservableObject {
         artNetConfig.save()
         artNetDriver.applyConfig(artNetConfig)
         refreshOutputStatus()
-        objectWillChange.send()
     }
 
     func setSACNEnabled(_ enabled: Bool, engineRunning: Bool, log: (String) -> Void) {
@@ -62,7 +163,6 @@ final class OutputController: ObservableObject {
         applySACNRegistration(engineRunning: engineRunning)
         refreshOutputStatus()
         log(enabled ? "sACN enabled" : "sACN disabled")
-        objectWillChange.send()
     }
 
     func setSACNUnicastHost(_ host: String?) {
@@ -71,17 +171,16 @@ final class OutputController: ObservableObject {
         sacnConfig.save()
         sacnDriver.applyConfig(sacnConfig)
         refreshOutputStatus()
-        objectWillChange.send()
     }
 
     func healthSnapshots() -> [OutputHealthSnapshot] {
         outputManager.healthSnapshots()
     }
 
-    /// Live presentation from driver health (PRE-UI-1). Always re-reads health.
+    /// Pure live presentation from driver health (CR-12).
+    /// Does **not** mutate `@Published` state — safe to call from SwiftUI body.
     func presentationSnapshot() -> OutputPresentationSnapshot {
         var health = healthSnapshots()
-        // Include config-enabled drivers even if health list is thin.
         if artNetConfig.enabled,
            !health.contains(where: { $0.driverID == artNetDriver.id }) {
             health.append(artNetDriver.healthSnapshot())
@@ -90,13 +189,19 @@ final class OutputController: ObservableObject {
            !health.contains(where: { $0.driverID == sacnDriver.id }) {
             health.append(sacnDriver.healthSnapshot())
         }
-        let snap = OutputPresentationSnapshot.from(health: health)
-        // Keep published string in sync for any observers of `outputStatus`.
+        if let local = localDMXDriver,
+           !health.contains(where: { $0.driverID == local.id }) {
+            health.append(local.healthSnapshot())
+        }
+        return OutputPresentationSnapshot.from(health: health)
+    }
+
+    /// Mutating refresh for timers / enable-disable (CR-12).
+    func refreshOutputStatus() {
+        let snap = presentationSnapshot()
         if outputStatus != snap.statusLine {
             outputStatus = snap.statusLine
-            objectWillChange.send()
         }
-        return snap
     }
 
     func promptArtNetDestination(engineRunning: Bool, enableIfNeeded: (Bool) -> Void) {
@@ -165,9 +270,5 @@ final class OutputController: ObservableObject {
             sacnDriver.stop()
             outputManager.unregister(id: sacnDriver.id)
         }
-    }
-
-    func refreshOutputStatus() {
-        _ = presentationSnapshot()
     }
 }

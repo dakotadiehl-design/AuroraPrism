@@ -94,17 +94,23 @@ public final class RemovePaletteCommand: Command {
     public let name = "Remove Palette"
     private let paletteID: UUID
     private var removed: Palette?
+    private var removedIndex: Int?
     public init(paletteID: UUID) { self.paletteID = paletteID }
     public func perform(context: CommandContext) throws {
-        guard let p = context.project.palettes.first(where: { $0.id == paletteID }) else {
+        guard let i = context.project.palettes.firstIndex(where: { $0.id == paletteID }) else {
             throw CommandError.message("Palette not found")
         }
-        removed = p
-        context.updateProject { $0.palettes.removeAll { $0.id == paletteID }; $0.metadata.modifiedAt = Date() }
+        removed = context.project.palettes[i]
+        removedIndex = i
+        context.updateProject { $0.palettes.remove(at: i); $0.metadata.modifiedAt = Date() }
     }
     public func undo(context: CommandContext) throws {
-        guard let removed else { return }
-        context.updateProject { $0.palettes.append(removed); $0.metadata.modifiedAt = Date() }
+        guard let removed, let removedIndex else { return }
+        context.updateProject {
+            let idx = min(removedIndex, $0.palettes.count)
+            $0.palettes.insert(removed, at: idx)
+            $0.metadata.modifiedAt = Date()
+        }
     }
 }
 
@@ -145,17 +151,42 @@ public final class RemovePresetCommand: Command {
     public let name = "Remove Preset"
     private let presetID: UUID
     private var removed: Preset?
+    private var removedIndex: Int?
     public init(presetID: UUID) { self.presetID = presetID }
     public func perform(context: CommandContext) throws {
-        guard let p = context.project.presets.first(where: { $0.id == presetID }) else {
+        guard let i = context.project.presets.firstIndex(where: { $0.id == presetID }) else {
             throw CommandError.message("Preset not found")
         }
-        removed = p
-        context.updateProject { $0.presets.removeAll { $0.id == presetID }; $0.metadata.modifiedAt = Date() }
+        removed = context.project.presets[i]
+        removedIndex = i
+        context.updateProject { $0.presets.remove(at: i); $0.metadata.modifiedAt = Date() }
     }
     public func undo(context: CommandContext) throws {
-        guard let removed else { return }
-        context.updateProject { $0.presets.append(removed); $0.metadata.modifiedAt = Date() }
+        guard let removed, let removedIndex else { return }
+        context.updateProject {
+            let idx = min(removedIndex, $0.presets.count)
+            $0.presets.insert(removed, at: idx)
+            $0.metadata.modifiedAt = Date()
+        }
+    }
+}
+
+@MainActor
+public final class UpdatePresetCommand: Command {
+    public let name = "Update Preset"
+    private let preset: Preset
+    private var previous: Preset?
+    public init(preset: Preset) { self.preset = preset }
+    public func perform(context: CommandContext) throws {
+        guard let i = context.project.presets.firstIndex(where: { $0.id == preset.id }) else {
+            throw CommandError.message("Preset not found")
+        }
+        previous = context.project.presets[i]
+        context.updateProject { $0.presets[i] = preset; $0.metadata.modifiedAt = Date() }
+    }
+    public func undo(context: CommandContext) throws {
+        guard let previous, let i = context.project.presets.firstIndex(where: { $0.id == previous.id }) else { return }
+        context.updateProject { $0.presets[i] = previous; $0.metadata.modifiedAt = Date() }
     }
 }
 
@@ -196,16 +227,22 @@ public final class RemoveSongCommand: Command {
     public let name = "Remove Song"
     private let songID: UUID
     private var removed: Song?
+    private var removedIndex: Int?
     public init(songID: UUID) { self.songID = songID }
     public func perform(context: CommandContext) throws {
-        guard let s = context.project.songs.first(where: { $0.id == songID }) else {
+        guard let i = context.project.songs.firstIndex(where: { $0.id == songID }) else {
             throw CommandError.message("Song not found")
         }
-        removed = s
-        context.updateProject { $0.songs.removeAll { $0.id == songID }; $0.metadata.modifiedAt = Date() }
+        removed = context.project.songs[i]
+        removedIndex = i
+        context.updateProject { $0.songs.remove(at: i); $0.metadata.modifiedAt = Date() }
     }
     public func undo(context: CommandContext) throws {
-        guard let removed else { return }
-        context.updateProject { $0.songs.append(removed); $0.metadata.modifiedAt = Date() }
+        guard let removed, let removedIndex else { return }
+        context.updateProject {
+            let idx = min(removedIndex, $0.songs.count)
+            $0.songs.insert(removed, at: idx)
+            $0.metadata.modifiedAt = Date()
+        }
     }
 }

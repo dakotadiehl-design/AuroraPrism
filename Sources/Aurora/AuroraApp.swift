@@ -232,6 +232,15 @@ struct AuroraApp: App {
                 Button("sACN Destination…") {
                     appModel.promptSACNDestination()
                 }
+                Divider()
+                Button("Local DMX Settings…") {
+                    // Opens System Settings for Aurora (macOS Settings scene).
+                    if #available(macOS 14.0, *) {
+                        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                    } else {
+                        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+                    }
+                }
             }
         }
     }

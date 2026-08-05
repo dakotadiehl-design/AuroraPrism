@@ -46,13 +46,18 @@ enum PanelRegistry {
                         appModel.session.selectFixturesOrdered(ids, extending: false)
                         appModel.workspace.noteExplicitFixtureInspect(count: ids.count)
                         appModel.notifyUI()
-                    }
+                    },
+                    onProjectChanged: { appModel.notifyUI() },
+                    onError: { msg in appModel.diagnostics.log(msg) },
+                    documentEpoch: appModel.workspace.documentEpoch,
+                    documentGeneration: appModel.session.documentGeneration
                 )
             )
         case .cueList:
             return AnyView(
                 CueListPanel(
                     context: context,
+                    programmer: appModel.engine.programmer,
                     playbackCueIndex: appModel.performance.cueIndex,
                     playbackCueListID: appModel.performance.cueListID,
                     playbackCueID: appModel.performance.playbackCueID,
@@ -60,10 +65,7 @@ enum PanelRegistry {
                     onStop: { appModel.stopPlayback() },
                     onBack: { appModel.back() },
                     onFire: { appModel.fireCue(id: $0) },
-                    onProjectChanged: {
-                        appModel.reloadEngineFromSession()
-                        appModel.notifyUI()
-                    },
+                    onProjectChanged: { appModel.notifyUI() },
                     onInspectCue: { id in
                         appModel.workspace.setInspectorFocus(.cue(id))
                         appModel.notifyUI()
@@ -115,13 +117,26 @@ enum PanelRegistry {
                 PalettesPanel(
                     context: context,
                     programmer: appModel.engine.programmer,
+                    focusedPaletteID: {
+                        if case .palette(let id) = appModel.workspace.inspectorFocus { return id }
+                        return nil
+                    }(),
+                    focusedPresetID: {
+                        if case .preset(let id) = appModel.workspace.inspectorFocus { return id }
+                        return nil
+                    }(),
                     onChanged: { appModel.noteProgrammerUIChanged() },
+                    onProjectChanged: { appModel.notifyUI() },
                     onInspectPalette: { id in
                         appModel.workspace.setInspectorFocus(.palette(id))
                         appModel.notifyUI()
                     },
                     onInspectPreset: { id in
                         appModel.workspace.setInspectorFocus(.preset(id))
+                        appModel.notifyUI()
+                    },
+                    onClearInspector: {
+                        appModel.workspace.setInspectorFocus(.project)
                         appModel.notifyUI()
                     }
                 )
@@ -141,6 +156,7 @@ enum PanelRegistry {
                 SongPanel(
                     context: context,
                     entryIndex: appModel.songDirector.entryIndex,
+                    loadedSongID: appModel.songDirector.songID,
                     onLoadSong: { song in
                         appModel.showControl.loadSong(song, project: appModel.session.project)
                         appModel.workspace.setInspectorFocus(.song(song.id))

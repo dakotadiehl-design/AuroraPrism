@@ -173,20 +173,57 @@ struct AuroraSettingsRoot: View {
                 Text(appModel.output.presentationSnapshot().statusLine)
                     .font(.body.monospaced())
             }
-            Section("Local DMX") {
-                unavailable("ENTTEC serial enumeration is not implemented (USB Pro framing only).")
+            Section("Local DMX (USB Pro framing — not Open DMX)") {
+                HStack {
+                    Button("Rescan") {
+                        appModel.output.rescanLocalDMXDevices()
+                    }
+                    Spacer()
+                    Text(appModel.output.localDMXStatus)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if appModel.output.availableLocalDMXDevices.isEmpty {
+                    Text("No serial devices found. Plug in ENTTEC DMX USB Pro and Rescan.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                } else {
+                    Picker("Device", selection: Binding(
+                        get: { appModel.output.selectedLocalDMXDeviceID ?? "" },
+                        set: { appModel.output.selectedLocalDMXDeviceID = $0.isEmpty ? nil : $0 }
+                    )) {
+                        Text("None").tag("")
+                        ForEach(appModel.output.availableLocalDMXDevices) { dev in
+                            Text(dev.displayName).tag(dev.id)
+                        }
+                    }
+                }
+                Toggle("Enable Local DMX", isOn: Binding(
+                    get: { appModel.output.localDMXEnabled },
+                    set: { on in
+                        appModel.output.setLocalDMXEnabled(
+                            on,
+                            engineRunning: appModel.performance.engineRunning,
+                            log: { appModel.diagnostics.log($0) }
+                        )
+                    }
+                ))
+                Text("Local DMX currently maps Show Universe 1 to ENTTEC physical output.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                Text("Serial list shows USB-serial candidates; not all are confirmed ENTTEC.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
             Section("Network drivers") {
                 Text("Enable Art-Net / sACN from the Output menu. Destination defaults are application-level.")
                     .foregroundStyle(.secondary)
-                Text("Full Output Settings UI arrives in a later phase.")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
             }
 
             scopeHeader("PROJECT")
             Section("Universe routing") {
-                Text("Network output per universe is configured from the show’s protocol hints (Patch / project data).")
+                Text("Choose where each show universe is sent. Demo defaults stay None (safe).")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                 if appModel.session.project.universes.isEmpty {
                     Text("No universes in this show.")
@@ -197,9 +234,23 @@ struct AuroraSettingsRoot: View {
                         HStack {
                             Text("U\(u.number) \(u.name)")
                             Spacer()
-                            Text(u.protocolHint.rawValue)
-                                .font(.caption.monospaced())
-                                .foregroundStyle(.secondary)
+                            Picker("Route", selection: Binding(
+                                get: {
+                                    appModel.session.project.universes
+                                        .first(where: { $0.id == u.id })?.protocolHint ?? .none
+                                },
+                                set: { hint in
+                                    setUniverseRoute(universeID: u.id, hint: hint)
+                                }
+                            )) {
+                                Text("None").tag(UniverseProtocolHint.none)
+                                Text("Local DMX").tag(UniverseProtocolHint.local)
+                                Text("Art-Net").tag(UniverseProtocolHint.artNet)
+                                Text("sACN").tag(UniverseProtocolHint.sACN)
+                                Text("Mirror").tag(UniverseProtocolHint.mirror)
+                            }
+                            .labelsHidden()
+                            .frame(maxWidth: 140)
                         }
                     }
                 }
@@ -207,6 +258,17 @@ struct AuroraSettingsRoot: View {
         }
         .formStyle(.grouped)
         .padding()
+    }
+
+    private func setUniverseRoute(universeID: UUID, hint: UniverseProtocolHint) {
+        do {
+            try appModel.session.perform(
+                UpdateUniverseRoutingCommand(universeID: universeID, protocolHint: hint)
+            )
+            appModel.notifyUI()
+        } catch {
+            appModel.diagnostics.log(error.localizedDescription)
+        }
     }
 
     private var remotePage: some View {

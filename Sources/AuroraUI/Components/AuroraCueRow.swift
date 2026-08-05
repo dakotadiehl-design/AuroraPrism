@@ -1,5 +1,14 @@
 import SwiftUI
 
+/// Playback rail/role — independent of selection overlay (CR-09).
+public enum AuroraCuePlaybackRole: Sendable {
+    case normal
+    case current
+    case next
+    case warning
+}
+
+/// Back-compat single-axis role (maps selected → selection overlay).
 public enum AuroraCueRowRole: Sendable {
     case normal
     case current
@@ -8,23 +17,43 @@ public enum AuroraCueRowRole: Sendable {
     case warning
 }
 
-/// Columnar cue row: state | number | name | trigger | timing
+/// Columnar cue row: playback role × selection overlay (CR-09).
 /// Single-click selects; optional double-click fires (callers map separately).
 public struct AuroraCueRow: View {
     public var number: String
     public var name: String
     public var timing: String
     public var trigger: String
-    public var role: AuroraCueRowRole
-    /// Select / inspect only — must not fire.
+    public var playbackRole: AuroraCuePlaybackRole
+    public var isSelected: Bool
     public var onSelect: () -> Void
-    /// Intentional fire (double-click). Nil disables double-click fire.
     public var onDoubleClickFire: (() -> Void)?
 
     @Environment(\.auroraDensity) private var density
     @State private var isHovered = false
     @FocusState private var isFocused: Bool
 
+    public init(
+        number: String,
+        name: String,
+        timing: String = "",
+        trigger: String = "Manual",
+        playbackRole: AuroraCuePlaybackRole = .normal,
+        isSelected: Bool = false,
+        onSelect: @escaping () -> Void = {},
+        onDoubleClickFire: (() -> Void)? = nil
+    ) {
+        self.number = number
+        self.name = name
+        self.timing = timing
+        self.trigger = trigger
+        self.playbackRole = playbackRole
+        self.isSelected = isSelected
+        self.onSelect = onSelect
+        self.onDoubleClickFire = onDoubleClickFire
+    }
+
+    /// Legacy single-role init — selection replaces playback when `.selected`.
     public init(
         number: String,
         name: String,
@@ -38,7 +67,23 @@ public struct AuroraCueRow: View {
         self.name = name
         self.timing = timing
         self.trigger = trigger
-        self.role = role
+        switch role {
+        case .selected:
+            self.playbackRole = .normal
+            self.isSelected = true
+        case .current:
+            self.playbackRole = .current
+            self.isSelected = false
+        case .next:
+            self.playbackRole = .next
+            self.isSelected = false
+        case .warning:
+            self.playbackRole = .warning
+            self.isSelected = false
+        case .normal:
+            self.playbackRole = .normal
+            self.isSelected = false
+        }
         self.onSelect = onSelect
         self.onDoubleClickFire = onDoubleClickFire
     }
@@ -63,7 +108,7 @@ public struct AuroraCueRow: View {
         HStack(spacing: 0) {
             Rectangle()
                 .fill(railColor)
-                .frame(width: role == .normal ? 0 : AuroraMetrics.railWidth)
+                .frame(width: showRail ? AuroraMetrics.railWidth : 0)
 
             HStack(spacing: 0) {
                 Text(number)
@@ -93,45 +138,62 @@ public struct AuroraCueRow: View {
         }
         .overlay(
             Rectangle()
-                .strokeBorder(isFocused ? AuroraColor.focusRing : Color.clear, lineWidth: 1)
+                .strokeBorder(selectionBorder, lineWidth: isSelected || isFocused ? 1.5 : 0)
         )
     }
 
+    private var showRail: Bool {
+        playbackRole != .normal || isSelected
+    }
+
+    private var selectionBorder: Color {
+        if isFocused { return AuroraColor.focusRing }
+        if isSelected { return AuroraColor.accentBright.opacity(0.85) }
+        return .clear
+    }
+
     private var railColor: Color {
-        switch role {
-        case .current, .selected: return AuroraColor.accent
+        switch playbackRole {
+        case .current: return AuroraColor.accent
         case .next: return AuroraColor.railNext
         case .warning: return AuroraColor.warning
-        case .normal: return .clear
+        case .normal: return isSelected ? AuroraColor.accent.opacity(0.5) : .clear
         }
     }
 
     private var rowBackground: Color {
-        switch role {
-        case .current, .selected: return AuroraColor.surfaceSelected
-        case .warning: return AuroraColor.warningMuted
-        case .next: return isHovered ? AuroraColor.hoverOverlay : .clear
-        case .normal: return isHovered ? AuroraColor.hoverOverlay : .clear
+        if playbackRole == .current {
+            return AuroraColor.surfaceSelected
         }
+        if playbackRole == .warning {
+            return AuroraColor.warningMuted
+        }
+        if isSelected {
+            return AuroraColor.surfaceSelected.opacity(0.55)
+        }
+        if playbackRole == .next {
+            return isHovered ? AuroraColor.hoverOverlay : Color.white.opacity(0.02)
+        }
+        return isHovered ? AuroraColor.hoverOverlay : .clear
     }
 
     private var numberColor: Color {
-        switch role {
-        case .current, .selected: return AuroraColor.accentBright
+        switch playbackRole {
+        case .current: return AuroraColor.accentBright
         case .warning: return AuroraColor.warning
-        default: return AuroraColor.textSecondary
+        default: return isSelected ? AuroraColor.accentBright.opacity(0.9) : AuroraColor.textSecondary
         }
     }
 
     private var accessibilityText: String {
         var parts = ["Cue \(number)", name]
-        switch role {
+        switch playbackRole {
         case .current: parts.append("current")
         case .next: parts.append("next")
-        case .selected: parts.append("selected")
         case .warning: parts.append("warning")
         case .normal: break
         }
+        if isSelected { parts.append("selected") }
         if !timing.isEmpty { parts.append(timing) }
         return parts.joined(separator: ", ")
     }

@@ -1,3 +1,4 @@
+import AuroraCore
 import AuroraModel
 import SwiftUI
 
@@ -15,6 +16,12 @@ public struct InspectorPanel: View {
     /// Optional programmer values for single-fixture inspect (UI-03 D1).
     public var programmerValues: [UUID: [String: Double]]
     public var onSelectFixtures: ([UUID]) -> Void
+    public var onProjectChanged: () -> Void
+    public var onError: (String) -> Void
+    /// Document replacement epoch (New/Open). Prefer `documentGeneration` for mutations.
+    public var documentEpoch: Int
+    /// Authoritative document mutation revision (CR-11 fix) — bumps on command/undo/redo.
+    public var documentGeneration: UInt64
 
     public init(
         context: WorkspacePanelContext,
@@ -23,7 +30,11 @@ public struct InspectorPanel: View {
         playbackCueListID: UUID? = nil,
         playbackCueID: UUID? = nil,
         programmerValues: [UUID: [String: Double]] = [:],
-        onSelectFixtures: @escaping ([UUID]) -> Void = { _ in }
+        onSelectFixtures: @escaping ([UUID]) -> Void = { _ in },
+        onProjectChanged: @escaping () -> Void = {},
+        onError: @escaping (String) -> Void = { _ in },
+        documentEpoch: Int = 0,
+        documentGeneration: UInt64 = 0
     ) {
         self.context = context
         self.focus = focus
@@ -32,6 +43,10 @@ public struct InspectorPanel: View {
         self.playbackCueID = playbackCueID
         self.programmerValues = programmerValues
         self.onSelectFixtures = onSelectFixtures
+        self.onProjectChanged = onProjectChanged
+        self.onError = onError
+        self.documentEpoch = documentEpoch
+        self.documentGeneration = documentGeneration
     }
 
     public var body: some View {
@@ -213,23 +228,22 @@ public struct InspectorPanel: View {
             VStack(alignment: .leading, spacing: 8) {
                 if let found = findCue(id) {
                     let (list, cue, index) = found
-                    Text(cue.name)
-                        .font(AuroraTypography.workspaceTitle)
-                        .foregroundStyle(AuroraColor.textPrimary)
-                        .padding(.horizontal, 8)
-                        .padding(.top, 8)
-                    AuroraInspectorSection("Cue") {
-                        labeled("Number", NSDecimalNumber(decimal: cue.number).stringValue)
-                        labeled("List", list.name)
-                        labeled("Fade in", String(format: "%.2f s", cue.fadeIn))
-                        labeled("Delay", String(format: "%.2f s", cue.delay))
-                        labeled("Tracking", cue.tracking.rawValue)
-                        if isCurrentPlaybackCue(cueID: cue.id, listID: list.id, index: index) {
-                            Text("CURRENT")
-                                .font(AuroraTypography.status)
-                                .foregroundStyle(AuroraColor.accentBright)
+                    CueInspectorContent(
+                        list: list,
+                        cue: cue,
+                        isCurrent: isCurrentPlaybackCue(cueID: cue.id, listID: list.id, index: index),
+                        documentRevision: documentGeneration,
+                        onCommit: { updated in
+                            do {
+                                try context.session.perform(
+                                    UpdateCueCommand(listID: list.id, cue: updated)
+                                )
+                                onProjectChanged()
+                            } catch {
+                                onError(error.localizedDescription)
+                            }
                         }
-                    }
+                    )
                 } else {
                     AuroraEmptyState(title: "Cue not found", detail: "Selection is out of date.")
                 }
@@ -242,18 +256,20 @@ public struct InspectorPanel: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
                 if let palette = context.project.palettes.first(where: { $0.id == id }) {
-                    Text(palette.name)
-                        .font(AuroraTypography.workspaceTitle)
-                        .foregroundStyle(AuroraColor.textPrimary)
-                        .padding(.horizontal, 8)
-                        .padding(.top, 8)
-                    AuroraInspectorSection("Palette") {
-                        labeled("Type", palette.type.rawValue)
-                        labeled("Attributes", "\(palette.values.count)")
-                        ForEach(palette.values.keys.sorted(), id: \.self) { key in
-                            labeled(key, String(format: "%.2f", palette.values[key] ?? 0))
+                    PaletteInspectorContent(
+                        palette: palette,
+                        referenceCount: context.project.paletteReferenceCount(palette.id),
+                        referenceSummaries: context.project.paletteReferenceCueSummaries(palette.id),
+                        documentRevision: documentGeneration,
+                        onCommit: { updated in
+                            do {
+                                try context.session.perform(UpdatePaletteCommand(palette: updated))
+                                onProjectChanged()
+                            } catch {
+                                onError(error.localizedDescription)
+                            }
                         }
-                    }
+                    )
                 } else {
                     AuroraEmptyState(title: "Palette not found", detail: "")
                 }
@@ -266,17 +282,18 @@ public struct InspectorPanel: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
                 if let preset = context.project.presets.first(where: { $0.id == id }) {
-                    Text(preset.name)
-                        .font(AuroraTypography.workspaceTitle)
-                        .foregroundStyle(AuroraColor.textPrimary)
-                        .padding(.horizontal, 8)
-                        .padding(.top, 8)
-                    AuroraInspectorSection("Preset / Look") {
-                        labeled("Fixture levels", "\(preset.levels.fixtures.count)")
-                        if !preset.notes.isEmpty {
-                            labeled("Notes", preset.notes)
+                    PresetInspectorContent(
+                        preset: preset,
+                        documentRevision: documentGeneration,
+                        onCommit: { updated in
+                            do {
+                                try context.session.perform(UpdatePresetCommand(preset: updated))
+                                onProjectChanged()
+                            } catch {
+                                onError(error.localizedDescription)
+                            }
                         }
-                    }
+                    )
                 } else {
                     AuroraEmptyState(title: "Preset not found", detail: "")
                 }
@@ -289,25 +306,18 @@ public struct InspectorPanel: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
                 if let song = context.project.songs.first(where: { $0.id == id }) {
-                    Text(song.title)
-                        .font(AuroraTypography.workspaceTitle)
-                        .foregroundStyle(AuroraColor.textPrimary)
-                        .padding(.horizontal, 8)
-                        .padding(.top, 8)
-                    AuroraInspectorSection("Song") {
-                        labeled("Artist", song.artist.isEmpty ? "—" : song.artist)
-                        labeled("Entries", "\(song.entries.count)")
-                        Text("Progression: manual only")
-                            .font(AuroraTypography.metadata)
-                            .foregroundStyle(AuroraColor.textTertiary)
-                    }
-                    AuroraInspectorSection("Sections") {
-                        ForEach(song.entries) { entry in
-                            Text(entry.label.isEmpty ? "Entry" : entry.label)
-                                .font(AuroraTypography.metadata)
-                                .foregroundStyle(AuroraColor.textSecondary)
+                    SongInspectorContent(
+                        song: song,
+                        documentRevision: documentGeneration,
+                        onCommit: { updated in
+                            do {
+                                try context.session.perform(UpdateSongCommand(song: updated))
+                                onProjectChanged()
+                            } catch {
+                                onError(error.localizedDescription)
+                            }
                         }
-                    }
+                    )
                 } else {
                     AuroraEmptyState(title: "Song not found", detail: "")
                 }
@@ -389,4 +399,353 @@ public enum InspectorFocusKind: Equatable, Sendable {
     case palette(UUID)
     case preset(UUID)
     case song(UUID)
+}
+
+// MARK: - UI-04 palette / preset inspectors (rename via command on commit)
+
+private struct SongInspectorContent: View {
+    let song: Song
+    let documentRevision: UInt64
+    let onCommit: (Song) -> Void
+
+    @State private var titleDraft = ""
+    @State private var artistDraft = ""
+    @State private var notesDraft = ""
+    @FocusState private var fieldFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextField("Title", text: $titleDraft)
+                .textFieldStyle(.roundedBorder)
+                .font(AuroraTypography.workspaceTitle)
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
+                .focused($fieldFocused)
+                .onSubmit { commit() }
+            AuroraInspectorSection("Song") {
+                field("Artist", $artistDraft)
+                labeled("Entries", "\(song.entries.count)")
+                Text("Progression: manual only")
+                    .font(AuroraTypography.metadata)
+                    .foregroundStyle(AuroraColor.textTertiary)
+            }
+            AuroraInspectorSection("Notes") {
+                TextField("Notes", text: $notesDraft, axis: .vertical)
+                    .lineLimit(2...4)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { commit() }
+            }
+            AuroraInspectorSection("Entries") {
+                ForEach(song.entries) { entry in
+                    Text(entry.label.isEmpty ? "Entry" : entry.label)
+                        .font(AuroraTypography.metadata)
+                        .foregroundStyle(AuroraColor.textSecondary)
+                }
+            }
+            Button("Save Song Fields") { commit() }
+                .controlSize(.small)
+                .padding(.horizontal, 8)
+        }
+        .onAppear { load() }
+        .onChange(of: song.id) { _, _ in load() }
+        .onChange(of: documentRevision) { _, _ in
+            if !fieldFocused { load() }
+        }
+    }
+
+    private func load() {
+        titleDraft = song.title
+        artistDraft = song.artist
+        notesDraft = song.notes
+    }
+
+    private func commit() {
+        var updated = song
+        let t = titleDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.title = t.isEmpty ? song.title : t
+        updated.artist = artistDraft
+        updated.notes = notesDraft
+        guard updated != song else { return }
+        onCommit(updated)
+    }
+
+    private func field(_ title: String, _ text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title.uppercased())
+                .font(AuroraTypography.controlLabel)
+                .foregroundStyle(AuroraColor.textTertiary)
+            TextField(title, text: text)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit { commit() }
+        }
+    }
+
+    private func labeled(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title.uppercased())
+                .font(AuroraTypography.controlLabel)
+                .foregroundStyle(AuroraColor.textTertiary)
+            Text(value)
+                .font(AuroraTypography.secondary)
+                .foregroundStyle(AuroraColor.textPrimary)
+        }
+    }
+}
+
+private struct CueInspectorContent: View {
+    let list: CueList
+    let cue: Cue
+    let isCurrent: Bool
+    let documentRevision: UInt64
+    let onCommit: (Cue) -> Void
+
+    @State private var nameDraft = ""
+    @State private var numberDraft = ""
+    @State private var fadeInDraft = ""
+    @State private var fadeOutDraft = ""
+    @State private var delayDraft = ""
+    @State private var tracking: TrackingMode = .track
+    @FocusState private var fieldFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextField("Name", text: $nameDraft)
+                .textFieldStyle(.roundedBorder)
+                .font(AuroraTypography.workspaceTitle)
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
+                .focused($fieldFocused)
+                .onSubmit { commit() }
+            AuroraInspectorSection("Cue") {
+                labeled("List", list.name)
+                fieldRow("Number (display)", $numberDraft)
+                fieldRow("Fade in (s)", $fadeInDraft)
+                fieldRow("Fade out (s)", $fadeOutDraft)
+                fieldRow("Delay (s)", $delayDraft)
+                Picker("Tracking", selection: $tracking) {
+                    Text("Track").tag(TrackingMode.track)
+                    Text("Cue only").tag(TrackingMode.cueOnly)
+                }
+                .onChange(of: tracking) { _, _ in commit() }
+                labeled("Fixture levels", "\(cue.levels.fixtures.count)")
+                if isCurrent {
+                    Text("CURRENT")
+                        .font(AuroraTypography.status)
+                        .foregroundStyle(AuroraColor.accentBright)
+                }
+                Text("Playback order = list position, not number")
+                    .font(AuroraTypography.metadata)
+                    .foregroundStyle(AuroraColor.textTertiary)
+            }
+            Button("Save Cue Fields") { commit() }
+                .controlSize(.small)
+                .padding(.horizontal, 8)
+        }
+        .onAppear { load() }
+        .onChange(of: cue.id) { _, _ in load() }
+        .onChange(of: documentRevision) { _, _ in
+            if !fieldFocused { load() }
+        }
+    }
+
+    private func load() {
+        nameDraft = cue.name
+        numberDraft = NSDecimalNumber(decimal: cue.number).stringValue
+        fadeInDraft = String(format: "%.2f", cue.fadeIn)
+        fadeOutDraft = String(format: "%.2f", cue.fadeOut)
+        delayDraft = String(format: "%.2f", cue.delay)
+        tracking = cue.tracking
+    }
+
+    private func commit() {
+        var updated = cue
+        let trimmed = nameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.name = trimmed
+        if let n = Decimal(string: numberDraft.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            updated.number = n
+        }
+        if let v = Double(fadeInDraft) { updated.fadeIn = max(0, v) }
+        if let v = Double(fadeOutDraft) { updated.fadeOut = max(0, v) }
+        if let v = Double(delayDraft) { updated.delay = max(0, v) }
+        updated.tracking = tracking
+        // Levels intentionally untouched here (Record/Update owns levels).
+        updated.levels = cue.levels
+        guard updated != cue else { return }
+        onCommit(updated)
+    }
+
+    private func fieldRow(_ title: String, _ text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title.uppercased())
+                .font(AuroraTypography.controlLabel)
+                .foregroundStyle(AuroraColor.textTertiary)
+            TextField(title, text: text)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit { commit() }
+        }
+    }
+
+    private func labeled(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title.uppercased())
+                .font(AuroraTypography.controlLabel)
+                .foregroundStyle(AuroraColor.textTertiary)
+            Text(value)
+                .font(AuroraTypography.secondary)
+                .foregroundStyle(AuroraColor.textPrimary)
+        }
+    }
+}
+
+private struct PaletteInspectorContent: View {
+    let palette: Palette
+    let referenceCount: Int
+    let referenceSummaries: [String]
+    let documentRevision: UInt64
+    let onCommit: (Palette) -> Void
+
+    @State private var nameDraft: String = ""
+    @State private var notesDraft: String = ""
+    @FocusState private var fieldFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextField("Name", text: $nameDraft)
+                .textFieldStyle(.roundedBorder)
+                .font(AuroraTypography.workspaceTitle)
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
+                .focused($fieldFocused)
+                .onSubmit { commit() }
+            AuroraInspectorSection("Palette") {
+                labeled("Type", palette.type.rawValue)
+                labeled("Attributes", "\(palette.values.count)")
+                ForEach(palette.values.keys.sorted(), id: \.self) { key in
+                    labeled(key, String(format: "%.2f", palette.values[key] ?? 0))
+                }
+            }
+            AuroraInspectorSection("References") {
+                labeled("Fixture slots", "\(referenceCount)")
+                if referenceSummaries.isEmpty {
+                    Text("Not referenced by cues or presets")
+                        .font(AuroraTypography.metadata)
+                        .foregroundStyle(AuroraColor.textTertiary)
+                } else {
+                    ForEach(Array(referenceSummaries.prefix(8)), id: \.self) { line in
+                        Text(line)
+                            .font(AuroraTypography.metadata)
+                            .foregroundStyle(AuroraColor.textSecondary)
+                    }
+                    if referenceSummaries.count > 8 {
+                        Text("…and \(referenceSummaries.count - 8) more")
+                            .font(AuroraTypography.metadata)
+                            .foregroundStyle(AuroraColor.textTertiary)
+                    }
+                }
+            }
+            AuroraInspectorSection("Notes") {
+                TextField("Notes", text: $notesDraft, axis: .vertical)
+                    .lineLimit(2...4)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { commit() }
+            }
+            Button("Save Name / Notes") { commit() }
+                .controlSize(.small)
+                .padding(.horizontal, 8)
+        }
+        .onAppear { load() }
+        .onChange(of: palette.id) { _, _ in load() }
+        .onChange(of: documentRevision) { _, _ in
+            if !fieldFocused { load() }
+        }
+    }
+
+    private func load() {
+        nameDraft = palette.name
+        notesDraft = palette.notes
+    }
+
+    private func commit() {
+        var updated = palette
+        let trimmed = nameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.name = trimmed.isEmpty ? palette.name : trimmed
+        updated.notes = notesDraft
+        guard updated != palette else { return }
+        onCommit(updated)
+    }
+
+    private func labeled(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title.uppercased())
+                .font(AuroraTypography.controlLabel)
+                .foregroundStyle(AuroraColor.textTertiary)
+            Text(value)
+                .font(AuroraTypography.secondary)
+                .foregroundStyle(AuroraColor.textPrimary)
+        }
+    }
+}
+
+private struct PresetInspectorContent: View {
+    let preset: Preset
+    let documentRevision: UInt64
+    let onCommit: (Preset) -> Void
+
+    @State private var nameDraft: String = ""
+    @State private var notesDraft: String = ""
+    @FocusState private var fieldFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextField("Name", text: $nameDraft)
+                .textFieldStyle(.roundedBorder)
+                .font(AuroraTypography.workspaceTitle)
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
+                .focused($fieldFocused)
+                .onSubmit { commit() }
+            AuroraInspectorSection("Preset / Look") {
+                labeled("Fixture levels", "\(preset.levels.fixtures.count)")
+            }
+            AuroraInspectorSection("Notes") {
+                TextField("Notes", text: $notesDraft, axis: .vertical)
+                    .lineLimit(2...4)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { commit() }
+            }
+            Button("Save Name / Notes") { commit() }
+                .controlSize(.small)
+                .padding(.horizontal, 8)
+        }
+        .onAppear { load() }
+        .onChange(of: preset.id) { _, _ in load() }
+        .onChange(of: documentRevision) { _, _ in
+            if !fieldFocused { load() }
+        }
+    }
+
+    private func load() {
+        nameDraft = preset.name
+        notesDraft = preset.notes
+    }
+
+    private func commit() {
+        var updated = preset
+        let trimmed = nameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.name = trimmed.isEmpty ? preset.name : trimmed
+        updated.notes = notesDraft
+        guard updated != preset else { return }
+        onCommit(updated)
+    }
+
+    private func labeled(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title.uppercased())
+                .font(AuroraTypography.controlLabel)
+                .foregroundStyle(AuroraColor.textTertiary)
+            Text(value)
+                .font(AuroraTypography.secondary)
+                .foregroundStyle(AuroraColor.textPrimary)
+        }
+    }
 }

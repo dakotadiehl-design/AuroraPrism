@@ -120,12 +120,42 @@ public extension ShowProject {
             Palette(id: UUID(uuidString: "A1000000-0000-4000-8000-00000000040A")!, name: "Half", type: .intensity, values: ["intensity": 0.5]),
         ]
 
+        // UI-04: Looks carry real multi-fixture levels so apply is demonstrable.
+        let warmRGB: [String: Double] = ["colorR": 1, "colorG": 0.55, "colorB": 0.15, "intensity": 0.85]
+        let coolRGB: [String: Double] = ["colorR": 0.1, "colorG": 0.25, "colorB": 0.9, "intensity": 0.7]
+        let fullRGB: [String: Double] = ["colorR": 1, "colorG": 0.95, "colorB": 0.9, "intensity": 1]
+        func lookLevels(_ ids: [UUID], attrs: [String: Double], panTilt: (Double, Double)? = nil) -> CueLevelData {
+            CueLevelData(fixtures: ids.map { id in
+                var a = attrs
+                if let panTilt {
+                    a["pan"] = panTilt.0
+                    a["tilt"] = panTilt.1
+                }
+                return FixtureCueLevels(fixtureId: id, attributes: a)
+            })
+        }
+        let allWashes = [front1, front2, front3, front4, back1, back2, back3, back4]
+        let movers = [spot1, spot2, spot3, spot4]
         let presets: [Preset] = [
-            Preset(id: UUID(uuidString: "A1000000-0000-4000-8000-000000000501")!, name: "Warm Concert", notes: "I+C look"),
-            Preset(id: UUID(uuidString: "A1000000-0000-4000-8000-000000000502")!, name: "Cool Theater", notes: "I+C look"),
-            Preset(id: UUID(uuidString: "A1000000-0000-4000-8000-000000000503")!, name: "Full Stage", notes: "I+C+P"),
+            Preset(
+                id: UUID(uuidString: "A1000000-0000-4000-8000-000000000501")!,
+                name: "Warm Concert",
+                levels: lookLevels(allWashes, attrs: warmRGB),
+                notes: "I+C look"
+            ),
+            Preset(
+                id: UUID(uuidString: "A1000000-0000-4000-8000-000000000502")!,
+                name: "Cool Theater",
+                levels: lookLevels(allWashes, attrs: coolRGB),
+                notes: "I+C look"
+            ),
+            Preset(
+                id: UUID(uuidString: "A1000000-0000-4000-8000-000000000503")!,
+                name: "Full Stage",
+                levels: lookLevels(allWashes + movers, attrs: fullRGB, panTilt: (0.5, 0.45)),
+                notes: "I+C+P"
+            ),
         ]
-        // Preset levels empty — visual demo uses palettes for color application
 
         // UI-02 C7: fixed cue UUIDs for deterministic demo / tests / screenshots.
         func cueID(_ suffix: String) -> UUID {
@@ -149,8 +179,6 @@ public extension ShowProject {
             )
         }
 
-        let allWashes = [front1, front2, front3, front4, back1, back2, back3, back4]
-        let movers = [spot1, spot2, spot3, spot4]
         func map(_ ids: [UUID], _ v: Double) -> [UUID: Double] {
             Dictionary(uniqueKeysWithValues: ids.map { ($0, v) })
         }

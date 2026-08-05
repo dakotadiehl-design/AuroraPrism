@@ -1,5 +1,8 @@
 import AuroraModel
 import Foundation
+#if os(macOS)
+import Darwin
+#endif
 
 /// ENTTEC **DMX USB Pro** framed serial protocol (label-6 Send DMX Packet).
 ///
@@ -62,11 +65,149 @@ public struct LocalDMXDeviceDescriptor: Equatable, Sendable, Identifiable, Hasha
     }
 }
 
-/// Placeholder enumerator until macOS IOKit serial transport lands.
+/// Injectable local-DMX discovery (HW-01 / CR integration).
+public protocol LocalDMXDeviceDiscovering: AnyObject {
+    func enumerate() -> [LocalDMXDeviceDescriptor]
+}
+
+/// Default production enumerator — macOS serial discovery when available.
+///
+/// HW-05: presents candidates as **Serial device** (not confirmed ENTTEC) unless
+/// the path name strongly suggests DMX/Pro. Path is the current endpoint; full
+/// IOKit vendor/serial identity is a follow-up for UI-08 persistence.
+public final class MacLocalDMXDeviceEnumerator: LocalDMXDeviceDiscovering {
+    public init() {}
+
+    public func enumerate() -> [LocalDMXDeviceDescriptor] {
+        #if os(macOS)
+        let fm = FileManager.default
+        let dev = "/dev"
+        guard let names = try? fm.contentsOfDirectory(atPath: dev) else { return [] }
+        let candidates = names.filter { name in
+            name.hasPrefix("cu.") && (
+                name.localizedCaseInsensitiveContains("usbserial")
+                || name.localizedCaseInsensitiveContains("usbmodem")
+                || name.localizedCaseInsensitiveContains("SLAB")
+                || name.localizedCaseInsensitiveContains("DMX")
+                || name.localizedCaseInsensitiveContains("FTDI")
+            )
+        }
+        return candidates.sorted().map { name in
+            let path = "\(dev)/\(name)"
+            let looksDMX = name.localizedCaseInsensitiveContains("DMX")
+                || name.localizedCaseInsensitiveContains("ENTTEC")
+            return LocalDMXDeviceDescriptor(
+                id: path,
+                displayName: looksDMX ? "Likely DMX \(name)" : "Serial \(name)",
+                serialPath: path,
+                hardwareIdentifier: path,
+                deviceType: .enttecUSBDMXPro,
+                connectionState: .available,
+                supportedUniverses: [1]
+            )
+        }
+        #else
+        return []
+        #endif
+    }
+}
+
+/// Test double for Local DMX discovery.
+public final class MockLocalDMXDeviceEnumerator: LocalDMXDeviceDiscovering {
+    public var devices: [LocalDMXDeviceDescriptor] = []
+    public init(devices: [LocalDMXDeviceDescriptor] = []) {
+        self.devices = devices
+    }
+    public func enumerate() -> [LocalDMXDeviceDescriptor] { devices }
+}
+
+/// Back-compat static entry point.
 public enum LocalDMXDeviceEnumerator {
-    /// Returns discovered local DMX devices. Currently empty (no physical transport).
+    public static var shared: LocalDMXDeviceDiscovering = MacLocalDMXDeviceEnumerator()
+
     public static func enumerate() -> [LocalDMXDeviceDescriptor] {
-        []
+        shared.enumerate()
+    }
+}
+
+/// POSIX raw serial transport for ENTTEC USB Pro binary framing (HW-04).
+///
+/// Opens the tty with O_RDWR | O_NOCTTY, applies raw termios (no canonical / NL
+/// processing), then optionally wraps a FileHandle for writes. `open()` is
+/// owned by the driver lifecycle — callers must not pre-open.
+public final class MacENTTECSerialTransport: ENTTECSerialTransport, @unchecked Sendable {
+    private let path: String
+    private var fd: Int32 = -1
+    private var handle: FileHandle?
+    public private(set) var isOpen = false
+
+    public init(path: String) {
+        self.path = path
+    }
+
+    public func open() throws {
+        if isOpen { return }
+        #if os(macOS)
+        let opened = path.withCString { cPath in
+            Darwin.open(cPath, O_RDWR | O_NOCTTY | O_NONBLOCK)
+        }
+        guard opened >= 0 else {
+            isOpen = false
+            throw ENTTECError.deviceMissing
+        }
+        // Clear non-blocking for bulk writes after open.
+        let flags = fcntl(opened, F_GETFL)
+        if flags >= 0 {
+            _ = fcntl(opened, F_SETFL, flags & ~O_NONBLOCK)
+        }
+        var tio = termios()
+        if tcgetattr(opened, &tio) == 0 {
+            // Raw binary: disable ICANON, ECHO, ISIG, and output post-processing.
+            cfmakeraw(&tio)
+            tio.c_cflag |= tcflag_t(CLOCAL | CREAD)
+            tio.c_cflag &= ~tcflag_t(CRTSCTS)
+            tio.c_iflag &= ~tcflag_t(IXON | IXOFF | IXANY)
+            // Baud is a dummy for USB VCOM on ENTTEC Pro; leave as-is after raw.
+            _ = tcsetattr(opened, TCSANOW, &tio)
+        }
+        fd = opened
+        handle = FileHandle(fileDescriptor: opened, closeOnDealloc: false)
+        isOpen = true
+        #else
+        throw ENTTECError.deviceMissing
+        #endif
+    }
+
+    public func close() {
+        #if os(macOS)
+        handle = nil
+        if fd >= 0 {
+            Darwin.close(fd)
+            fd = -1
+        }
+        #else
+        handle = nil
+        #endif
+        isOpen = false
+    }
+
+    public func write(_ data: Data) throws {
+        guard isOpen, fd >= 0 else { throw ENTTECError.notOpen }
+        #if os(macOS)
+        let result = data.withUnsafeBytes { buf -> Int in
+            guard let base = buf.baseAddress else { return -1 }
+            return Darwin.write(fd, base, buf.count)
+        }
+        if result < 0 || result != data.count {
+            throw ENTTECError.writeFailed("write returned \(result)")
+        }
+        #else
+        throw ENTTECError.notOpen
+        #endif
+    }
+
+    deinit {
+        close()
     }
 }
 
@@ -74,16 +215,27 @@ public enum LocalDMXDeviceEnumerator {
 public final class MockENTTECTransport: ENTTECSerialTransport, @unchecked Sendable {
     public private(set) var isOpen = false
     public private(set) var written: [Data] = []
+    public private(set) var openCount = 0
+    public private(set) var closeCount = 0
     public var failOpen = false
+    /// When true, a second open() throws (detects double-open) (HW-02 tests).
+    public var failOnSecondOpen = false
 
     public init() {}
 
     public func open() throws {
         if failOpen { throw ENTTECError.deviceMissing }
+        if failOnSecondOpen, openCount >= 1 {
+            throw ENTTECError.deviceMissing
+        }
+        openCount += 1
         isOpen = true
     }
 
     public func close() {
+        if isOpen {
+            closeCount += 1
+        }
         isOpen = false
     }
 

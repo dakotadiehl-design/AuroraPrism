@@ -1,11 +1,16 @@
 import AuroraCore
+import AuroraEngine
 import AuroraModel
 import Foundation
 import SwiftUI
 
-/// Cue list — single-click select/inspect; double-click fires (UI-02 hardening).
+/// Cue list editor — select ≠ fire; record/update from Programmer (UI-05).
+///
+/// **Ordering authority (A4):** playback follows `CueList.cues` array order.
+/// `Cue.number` is display metadata only. New cues append to the array.
 public struct CueListPanel: View {
     public var context: WorkspacePanelContext
+    public var programmer: Programmer
     public var playbackCueIndex: Int
     public var playbackCueListID: UUID?
     public var playbackCueID: UUID?
@@ -16,14 +21,18 @@ public struct CueListPanel: View {
     public var onProjectChanged: () -> Void
     public var onInspectCue: (UUID) -> Void
     public var onSelectCue: (UUID, UUID?) -> Void
-    /// Bumps when document is replaced so list selection self-heals.
     public var documentEpoch: Int
 
     @State private var selectedListID: UUID?
     @State private var selectedCueID: UUID?
+    @State private var statusText: String?
+    @State private var cuePendingDelete: Cue?
+    @State private var showDeleteCueConfirm = false
+    @State private var showDeleteListConfirm = false
 
     public init(
         context: WorkspacePanelContext,
+        programmer: Programmer = Programmer(),
         playbackCueIndex: Int = -1,
         playbackCueListID: UUID? = nil,
         playbackCueID: UUID? = nil,
@@ -37,6 +46,7 @@ public struct CueListPanel: View {
         documentEpoch: Int = 0
     ) {
         self.context = context
+        self.programmer = programmer
         self.playbackCueIndex = playbackCueIndex
         self.playbackCueListID = playbackCueListID
         self.playbackCueID = playbackCueID
@@ -63,50 +73,18 @@ public struct CueListPanel: View {
         VStack(spacing: 0) {
             transportBar
             Divider().overlay(AuroraColor.separator)
-            if let list = currentList {
-                if list.cues.isEmpty {
-                    AuroraEmptyState(
-                        title: "No cues",
-                        detail: "Record looks into this list to build the show.",
-                        systemImage: "list.number"
-                    )
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(Array(list.cues.enumerated()), id: \.element.id) { index, cue in
-                                AuroraCueRow(
-                                    number: cueNumberString(cue),
-                                    name: cue.name,
-                                    timing: String(format: "%.1fs", cue.fadeIn),
-                                    trigger: "Manual",
-                                    role: role(for: index, cue: cue, list: list),
-                                    onSelect: {
-                                        selectCue(cue, list: list)
-                                    },
-                                    onDoubleClickFire: {
-                                        selectCue(cue, list: list)
-                                        onFire(cue.id)
-                                    }
-                                )
-                                .contextMenu {
-                                    Button("Fire Cue") {
-                                        selectCue(cue, list: list)
-                                        onFire(cue.id)
-                                    }
-                                    Button("Inspect") {
-                                        selectCue(cue, list: list)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                AuroraEmptyState(
-                    title: "No cue list",
-                    detail: "Create a cue list to begin programming.",
-                    systemImage: "list.bullet"
-                )
+            editorToolbar
+            Divider().overlay(AuroraColor.separator)
+            listPicker
+            Divider().overlay(AuroraColor.separator)
+            cueBody
+            if let statusText {
+                Text(statusText)
+                    .font(AuroraTypography.metadata)
+                    .foregroundStyle(AuroraColor.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
             }
         }
         .background(AuroraColor.surfacePanel)
@@ -119,27 +97,32 @@ public struct CueListPanel: View {
         .onChange(of: lists.map(\.id)) { _, _ in
             healListSelection()
         }
+        .confirmationDialog(
+            "Delete cue?",
+            isPresented: $showDeleteCueConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Cue", role: .destructive) {
+                if let cue = cuePendingDelete { deleteCue(cue) }
+                cuePendingDelete = nil
+            }
+            Button("Cancel", role: .cancel) { cuePendingDelete = nil }
+        } message: {
+            Text("Removes the cue from this list. Songs may keep missing targets.")
+        }
+        .confirmationDialog(
+            "Delete cue list?",
+            isPresented: $showDeleteListConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete List", role: .destructive) { deleteCurrentList() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Deletes the list and all of its cues. Song entries may become missing targets.")
+        }
     }
 
-    private func selectCue(_ cue: Cue, list: CueList) {
-        selectedCueID = cue.id
-        selectedListID = list.id
-        context.session.selection.selectCues([cue.id], extending: false)
-        context.session.selection.selectCueLists([list.id], extending: false)
-        onSelectCue(cue.id, list.id)
-        onInspectCue(cue.id)
-    }
-
-    private func healListSelection() {
-        if let selectedListID, lists.contains(where: { $0.id == selectedListID }) {
-            return
-        }
-        selectedListID = lists.first?.id
-        if let selectedCueID,
-           currentList?.cues.contains(where: { $0.id == selectedCueID }) != true {
-            self.selectedCueID = nil
-        }
-    }
+    // MARK: - Chrome
 
     private var transportBar: some View {
         HStack(spacing: 8) {
@@ -164,8 +147,283 @@ public struct CueListPanel: View {
         .auroraDensity(.standard)
     }
 
-    private func role(for index: Int, cue: Cue, list: CueList) -> AuroraCueRowRole {
-        if selectedCueID == cue.id { return .selected }
+    private var editorToolbar: some View {
+        HStack(spacing: 6) {
+            Button("+ List") { addList() }
+                .controlSize(.small)
+            Button("Delete List", role: .destructive) {
+                showDeleteListConfirm = true
+            }
+            .controlSize(.small)
+            .disabled(currentList == nil)
+
+            Divider().frame(height: 16)
+
+            Button("Record") { recordCue() }
+                .controlSize(.small)
+                .disabled(currentList == nil)
+            Button("Update") { updateSelectedCue() }
+                .controlSize(.small)
+                .disabled(selectedCue == nil)
+            Button("+ Empty") { addEmptyCue() }
+                .controlSize(.small)
+                .disabled(currentList == nil)
+            Button("Fire") {
+                if let cue = selectedCue { onFire(cue.id) }
+            }
+            .controlSize(.small)
+            .disabled(selectedCue == nil)
+            Button("Delete", role: .destructive) {
+                if let cue = selectedCue {
+                    cuePendingDelete = cue
+                    showDeleteCueConfirm = true
+                }
+            }
+            .controlSize(.small)
+            .disabled(selectedCue == nil)
+            Spacer()
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+    }
+
+    private var listPicker: some View {
+        HStack {
+            if lists.isEmpty {
+                Text("No cue lists")
+                    .font(AuroraTypography.metadata)
+                    .foregroundStyle(AuroraColor.textTertiary)
+            } else {
+                Picker("List", selection: Binding(
+                    get: { selectedListID ?? currentList?.id },
+                    set: { selectedListID = $0; selectedCueID = nil }
+                )) {
+                    ForEach(lists) { list in
+                        Text(list.name).tag(Optional(list.id))
+                    }
+                }
+                .labelsHidden()
+                .frame(maxWidth: 220)
+            }
+            Spacer()
+            if let list = currentList {
+                Text("\(list.cues.count) cues · order = list order")
+                    .font(AuroraTypography.metadata)
+                    .foregroundStyle(AuroraColor.textTertiary)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private var cueBody: some View {
+        if let list = currentList {
+            if list.cues.isEmpty {
+                AuroraEmptyState(
+                    title: "No cues",
+                    detail: "Record from the programmer or add an empty cue.",
+                    systemImage: "list.number"
+                )
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(list.cues.enumerated()), id: \.element.id) { index, cue in
+                            AuroraCueRow(
+                                number: cueNumberString(cue),
+                                name: cue.name.isEmpty ? "Cue \(cueNumberString(cue))" : cue.name,
+                                timing: String(format: "%.1fs", cue.fadeIn),
+                                trigger: "Manual",
+                                playbackRole: playbackRole(for: index, cue: cue, list: list),
+                                isSelected: selectedCueID == cue.id,
+                                onSelect: { selectCue(cue, list: list) },
+                                onDoubleClickFire: {
+                                    selectCue(cue, list: list)
+                                    onFire(cue.id)
+                                }
+                            )
+                            .contextMenu {
+                                Button("Fire Cue") {
+                                    selectCue(cue, list: list)
+                                    onFire(cue.id)
+                                }
+                                Button("Inspect") { selectCue(cue, list: list) }
+                                Button("Update from Programmer") {
+                                    selectCue(cue, list: list)
+                                    updateSelectedCue()
+                                }
+                                Button("Delete", role: .destructive) {
+                                    cuePendingDelete = cue
+                                    showDeleteCueConfirm = true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            AuroraEmptyState(
+                title: "No cue list",
+                detail: "Create a cue list to begin programming.",
+                systemImage: "list.bullet"
+            )
+        }
+    }
+
+    private var selectedCue: Cue? {
+        guard let list = currentList, let selectedCueID else { return nil }
+        return list.cues.first(where: { $0.id == selectedCueID })
+    }
+
+    // MARK: - Selection
+
+    private func selectCue(_ cue: Cue, list: CueList) {
+        selectedCueID = cue.id
+        selectedListID = list.id
+        context.session.selection.selectCues([cue.id], extending: false)
+        context.session.selection.selectCueLists([list.id], extending: false)
+        onSelectCue(cue.id, list.id)
+        onInspectCue(cue.id)
+    }
+
+    private func healListSelection() {
+        if let selectedListID, lists.contains(where: { $0.id == selectedListID }) {
+            return
+        }
+        selectedListID = lists.first?.id
+        if let selectedCueID,
+           currentList?.cues.contains(where: { $0.id == selectedCueID }) != true {
+            self.selectedCueID = nil
+        }
+    }
+
+    // MARK: - Mutations
+
+    private func addList() {
+        let list = CueList(name: "List \(context.project.cueLists.count + 1)")
+        do {
+            try context.session.perform(AddCueListCommand(list: list))
+            selectedListID = list.id
+            selectedCueID = nil
+            statusText = "Created \(list.name)"
+            onProjectChanged()
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    private func deleteCurrentList() {
+        guard let list = currentList else { return }
+        do {
+            try context.session.perform(RemoveCueListCommand(listID: list.id))
+            selectedListID = nil
+            selectedCueID = nil
+            statusText = "Deleted list \(list.name)"
+            onProjectChanged()
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    /// Append empty cue to array end (playback order = append position). Number is display only.
+    private func addEmptyCue() {
+        guard let list = currentList else { return }
+        let prefs = context.project.preferences
+        let displayNumber = nextDisplayNumber(in: list)
+        let cue = Cue(
+            number: displayNumber,
+            name: "Cue \(NSDecimalNumber(decimal: displayNumber).stringValue)",
+            fadeIn: prefs.defaultFadeIn,
+            fadeOut: prefs.defaultFadeOut,
+            tracking: prefs.defaultTracking
+        )
+        do {
+            try context.session.perform(AddCueCommand(listID: list.id, cue: cue))
+            selectCue(cue, list: refreshedList(list.id) ?? list)
+            statusText = "Added empty cue (appended)"
+            onProjectChanged()
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    /// Record new cue from Programmer capture — appends to list (A4 array order).
+    private func recordCue() {
+        guard let list = currentList else { return }
+        let levels = programmer.captureLevels()
+        guard !levels.fixtures.isEmpty else {
+            statusText = "Programmer empty — set values before Record"
+            return
+        }
+        let prefs = context.project.preferences
+        let displayNumber = nextDisplayNumber(in: list)
+        let cue = Cue(
+            number: displayNumber,
+            name: "Cue \(NSDecimalNumber(decimal: displayNumber).stringValue)",
+            fadeIn: prefs.defaultFadeIn,
+            fadeOut: prefs.defaultFadeOut,
+            tracking: prefs.defaultTracking,
+            levels: levels
+        )
+        do {
+            try context.session.perform(AddCueCommand(listID: list.id, cue: cue))
+            if let updated = refreshedList(list.id) {
+                selectCue(cue, list: updated)
+            }
+            statusText = "Recorded \(cue.name) (\(levels.fixtures.count) fixture(s))"
+            onProjectChanged()
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    /// Immediate level replace — no modal (A3). Metadata/timing preserved.
+    private func updateSelectedCue() {
+        guard let list = currentList, var cue = selectedCue else {
+            statusText = "Select a cue to Update"
+            return
+        }
+        let levels = programmer.captureLevels()
+        guard !levels.fixtures.isEmpty else {
+            statusText = "Programmer empty — nothing to Update"
+            return
+        }
+        cue.levels = levels
+        do {
+            try context.session.perform(UpdateCueCommand(listID: list.id, cue: cue))
+            statusText = "Updated \(cue.name.isEmpty ? "cue" : cue.name) levels"
+            onProjectChanged()
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    private func deleteCue(_ cue: Cue) {
+        guard let list = currentList else { return }
+        do {
+            try context.session.perform(RemoveCueCommand(listID: list.id, cueID: cue.id))
+            if selectedCueID == cue.id { selectedCueID = nil }
+            statusText = "Deleted cue"
+            onProjectChanged()
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    private func refreshedList(_ id: UUID) -> CueList? {
+        context.project.cueLists.first(where: { $0.id == id })
+    }
+
+    /// Display number only — does not control playback order (A4).
+    private func nextDisplayNumber(in list: CueList) -> Decimal {
+        let maxNum = list.cues.map(\.number).max() ?? 0
+        return maxNum + 1
+    }
+
+    // MARK: - Role / format
+
+    /// Playback role only — selection is a separate overlay (CR-09).
+    private func playbackRole(for index: Int, cue: Cue, list: CueList) -> AuroraCuePlaybackRole {
         if let playbackCueID, cue.id == playbackCueID { return .current }
         if let playbackCueListID, list.id == playbackCueListID, index == playbackCueIndex {
             return .current

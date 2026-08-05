@@ -20,5 +20,8 @@
 	<!-- ENTTEC USB DMX Pro / local USB serial DMX -->
 	<key>com.apple.security.device.usb</key>
 	<true/>
+	<!-- Serial/VCP devices (/dev/cu.*) for ENTTEC USB Pro framing -->
+	<key>com.apple.security.device.serial</key>
+	<true/>
 </dict>
 </plist>

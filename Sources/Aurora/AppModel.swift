@@ -119,8 +119,11 @@ final class AppModel: ObservableObject {
 
         document.onLog = { [weak self] msg in self?.diagnostics.log(msg) }
         document.onProjectModified = { [weak self] in
-            self?.applyProjectUpdate()
-            self?.refreshProgrammerPresentation()
+            guard let self else { return }
+            self.applyProjectUpdate()
+            self.refreshProgrammerPresentation()
+            // CR-05: keep loaded song cursor identity coherent after entry edits.
+            self.songDirector.reconcile(project: self.session.project)
         }
         document.onSelectionChanged = { [weak self] snap in
             guard let self else { return }
@@ -136,6 +139,7 @@ final class AppModel: ObservableObject {
 
         reloadEngine()
         showControl.startEngineIfPossible()
+        output.startLocalDMXIfNeeded()
         // UI-GATE-1: multi-observer — MIDI log and show-control both subscribe; neither replaces the other.
         input.startMIDI(
             router: showControl.controlRouter,

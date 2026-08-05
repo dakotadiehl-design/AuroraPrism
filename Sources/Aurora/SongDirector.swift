@@ -45,9 +45,12 @@ struct SongPerformanceSnapshot: Equatable, Sendable {
 }
 
 /// Orchestrates song entries onto the existing cue playback engine (not a second engine).
+///
+/// **CR-05:** Cursor prefers `currentEntryID` identity; reconcile after document edits.
 @MainActor
 final class SongDirector {
     private(set) var songID: UUID?
+    private(set) var currentEntryID: UUID?
     private(set) var entryIndex: Int = -1
     /// Always `.manual` until automatic progression is implemented (UI-GATE-6).
     private(set) var progressionMode: SongProgressionMode = .manual
@@ -59,15 +62,20 @@ final class SongDirector {
 
     func reset() {
         songID = nil
+        currentEntryID = nil
         entryIndex = -1
         progressionMode = .manual
     }
 
     func load(song: Song?, project: ShowProject, engine: LightingEngine) {
-        songID = song?.id
-        entryIndex = -1
-        guard let song, !song.entries.isEmpty else { return }
-        entryIndex = 0
+        guard let song, !song.entries.isEmpty else {
+            songID = song?.id
+            currentEntryID = nil
+            entryIndex = -1
+            return
+        }
+        let cursor = SongCursorReconcile.withEntryIndex(0, song: song)
+        applyCursor(cursor)
         applyEntry(song.entries[0], project: project, engine: engine)
     }
 
@@ -75,7 +83,6 @@ final class SongDirector {
     @discardableResult
     func setProgressionMode(_ mode: SongProgressionMode) -> Bool {
         guard mode == .manual else {
-            // Keep truthful: do not flip a control that does nothing.
             progressionMode = .manual
             return false
         }
@@ -84,22 +91,34 @@ final class SongDirector {
     }
 
     func next(project: ShowProject, engine: LightingEngine) {
+        reconcile(project: project)
         guard let song = project.songs.first(where: { $0.id == songID }),
               entryIndex + 1 < song.entries.count
         else { return }
-        entryIndex += 1
-        applyEntry(song.entries[entryIndex], project: project, engine: engine)
+        let cursor = SongCursorReconcile.withEntryIndex(entryIndex + 1, song: song)
+        applyCursor(cursor)
+        applyEntry(song.entries[cursor.entryIndex], project: project, engine: engine)
     }
 
     func previous(project: ShowProject, engine: LightingEngine) {
+        reconcile(project: project)
         guard let song = project.songs.first(where: { $0.id == songID }),
               entryIndex > 0
         else { return }
-        entryIndex -= 1
-        applyEntry(song.entries[entryIndex], project: project, engine: engine)
+        let cursor = SongCursorReconcile.withEntryIndex(entryIndex - 1, song: song)
+        applyCursor(cursor)
+        applyEntry(song.entries[cursor.entryIndex], project: project, engine: engine)
+    }
+
+    /// CR-05: re-resolve entry identity after document mutations. Does not fire entries.
+    func reconcile(project: ShowProject) {
+        let state = SongCursorState(songID: songID, currentEntryID: currentEntryID, entryIndex: entryIndex)
+        let next = SongCursorReconcile.reconcile(state, project: project)
+        applyCursor(next)
     }
 
     func snapshot(project: ShowProject) -> SongPerformanceSnapshot {
+        reconcile(project: project)
         guard let songID,
               let song = project.songs.first(where: { $0.id == songID })
         else {
@@ -143,6 +162,12 @@ final class SongDirector {
             progressionMode: progressionMode,
             hasMissingTarget: missing
         )
+    }
+
+    private func applyCursor(_ cursor: SongCursorState) {
+        songID = cursor.songID
+        currentEntryID = cursor.currentEntryID
+        entryIndex = cursor.entryIndex
     }
 
     private func defaultLabel(_ entry: SongEntry, project: ShowProject) -> String {
