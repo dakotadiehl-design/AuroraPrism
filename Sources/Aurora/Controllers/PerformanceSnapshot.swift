@@ -2,6 +2,9 @@ import AuroraEngine
 import AuroraModel
 import Foundation
 
+// Re-export presentation type used by shell views.
+typealias PerformanceCueSummary = AuroraEngine.PerformanceCueSummary
+
 /// Shared Mac Perform + remote presentation state (Stage C / P1-15 / UI-GATE-4).
 /// Built on a timer / after transport actions — not every engine frame for SwiftUI.
 struct PerformanceSnapshot: Equatable, Sendable {
@@ -13,6 +16,8 @@ struct PerformanceSnapshot: Equatable, Sendable {
     var cueIndex: Int
     var cueName: String
     var cueListID: UUID?
+    /// Live playback cue id when known (for Inspector CURRENT).
+    var playbackCueID: UUID?
     var playbackPhase: String
     var song: SongPerformanceSnapshot
     var validationIssueCount: Int
@@ -21,6 +26,9 @@ struct PerformanceSnapshot: Equatable, Sendable {
     var activeChannelCount: Int
     /// Number of universes that currently have at least one active channel.
     var activeUniverseCount: Int
+    /// Semantically resolved current / next cue (never invent from index+1 alone).
+    var currentCue: PerformanceCueSummary
+    var nextCue: PerformanceCueSummary
 
     static let empty = PerformanceSnapshot(
         showName: "Untitled",
@@ -31,12 +39,15 @@ struct PerformanceSnapshot: Equatable, Sendable {
         cueIndex: -1,
         cueName: "",
         cueListID: nil,
+        playbackCueID: nil,
         playbackPhase: "idle",
         song: .empty,
         validationIssueCount: 0,
         outputStatusLine: "Output: Null",
         activeChannelCount: 0,
-        activeUniverseCount: 0
+        activeUniverseCount: 0,
+        currentCue: .empty,
+        nextCue: .empty
     )
 
     /// Sum of channels with level > 0 across every universe (UI-GATE-4).
@@ -61,13 +72,24 @@ struct PerformanceSnapshot: Equatable, Sendable {
         outputStatusLine: String
     ) -> PerformanceSnapshot {
         let pb = engineSnap.playback
-        var cueName = pb.cueName
-        if cueName.isEmpty, pb.cueIndex >= 0,
-           let list = project.cueLists.first(where: { $0.id == pb.listID })
-            ?? project.cueLists.first,
-           list.cues.indices.contains(pb.cueIndex) {
-            cueName = list.cues[pb.cueIndex].name
+        let songCtx = SongCueResolveContext(
+            songID: song.songID,
+            entryIndex: song.entryIndex,
+            entryCount: song.entryCount,
+            currentEntryLabel: song.currentEntryLabel,
+            nextEntryLabel: song.nextEntryLabel
+        )
+        let (current, next) = PerformanceCuePresentation.resolveCues(
+            project: project,
+            playback: pb,
+            song: songCtx
+        )
+
+        var cueName = current.name
+        if cueName.isEmpty {
+            cueName = pb.cueName
         }
+
         let totals = activeChannelTotals(universeLevels: engineSnap.universeLevels)
         return PerformanceSnapshot(
             showName: project.metadata.name,
@@ -77,13 +99,16 @@ struct PerformanceSnapshot: Equatable, Sendable {
             frameRateHz: engineSnap.frameRateHz,
             cueIndex: pb.cueIndex,
             cueName: cueName,
-            cueListID: pb.listID,
+            cueListID: pb.listID ?? current.listID,
+            playbackCueID: pb.cueID ?? current.cueID,
             playbackPhase: pb.phase.rawValue,
             song: song,
             validationIssueCount: engineSnap.resolutionIssues.count,
             outputStatusLine: outputStatusLine,
             activeChannelCount: totals.channels,
-            activeUniverseCount: totals.universes
+            activeUniverseCount: totals.universes,
+            currentCue: current,
+            nextCue: next
         )
     }
 }

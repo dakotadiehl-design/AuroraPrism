@@ -2,7 +2,7 @@
 
 **Purpose:** Authoritative API and domain contract for the **visual UI redesign**.  
 **Read with:** `docs/PROJECT_HANDOFF.md`, `docs/STAGE_C_UI_STATE_HANDOFF.md`.  
-**Last updated:** 2026-08-05 (post Pre-UI blockers: save coordinator + output health)
+**Last updated:** 2026-08-05 (future-architecture guardrails cross-link)
 
 Do **not** invent controls for unimplemented behavior. Do **not** bypass commands / `ControlActionRouter` / controllers.
 
@@ -114,6 +114,9 @@ Do not label `none` as “all drivers”. Mock drivers with protocol `.none` are
 - Status UI binds to `InputController` (`midiStatus`, `lastMIDIEvent`, `midiLog`)
 - Parser preserves running status **and** incomplete messages across packets
 - Realtime (`0xF8+`) may interleave without destroying pending channel messages
+- Live path: `ControlActionRouter.handleMIDIEvents` (may be non-MainActor) → `ShowAction` (go/stop/back/fireCue*/**programmerAttribute**, etc.)
+- **Do not seal MIDI as “event → fire cue only.”** Mappings use an open action key space plus optional scalar (velocity/CC). Preserve rich `MIDIEvent` payloads (source, channel, note, velocity, CC).
+- Long-term direction (not current acceptance): Advanced MIDI performance engine — see `docs/ARCHITECTURE_FUTURE_GUARDRAILS.md` and `FutureReference/Aurora_Future_Features_and_Long_Term_Vision.md`. Do **not** implement that vision unless the user asks.
 
 ### Package save / autosave
 
@@ -139,6 +142,8 @@ Do not label `none` as “all drivers”. Mock drivers with protocol `.none` are
 4. Building Settings controls for unimplemented behavior (automatic song, Open DMX, project frame-rate override)
 5. Stuffing 40 Hz DMX into `@Published` app-wide state
 6. Second lighting engine for remote/iPad
+7. Treating MIDI mappings as cue-fire-only, or collapsing MIDI events to note identity without source/velocity/CC
+8. Moving live control dispatch onto MainActor solely for view convenience
 
 ---
 

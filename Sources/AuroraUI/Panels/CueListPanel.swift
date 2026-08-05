@@ -1,47 +1,60 @@
 import AuroraCore
 import AuroraModel
+import Foundation
 import SwiftUI
 
-/// Cue list editor and transport controls.
+/// Cue list — single-click select/inspect; double-click fires (UI-02 hardening).
 public struct CueListPanel: View {
     public var context: WorkspacePanelContext
     public var playbackCueIndex: Int
+    public var playbackCueListID: UUID?
+    public var playbackCueID: UUID?
     public var onGo: () -> Void
     public var onStop: () -> Void
     public var onBack: () -> Void
     public var onFire: (UUID) -> Void
     public var onProjectChanged: () -> Void
+    public var onInspectCue: (UUID) -> Void
+    public var onSelectCue: (UUID, UUID?) -> Void
+    /// Bumps when document is replaced so list selection self-heals.
+    public var documentEpoch: Int
 
     @State private var selectedListID: UUID?
     @State private var selectedCueID: UUID?
-    @State private var errorText: String?
-    @State private var editName: String = ""
-    @State private var editFadeIn: String = "0"
-    @State private var editDelay: String = "0"
 
     public init(
         context: WorkspacePanelContext,
         playbackCueIndex: Int = -1,
+        playbackCueListID: UUID? = nil,
+        playbackCueID: UUID? = nil,
         onGo: @escaping () -> Void = {},
         onStop: @escaping () -> Void = {},
         onBack: @escaping () -> Void = {},
         onFire: @escaping (UUID) -> Void = { _ in },
-        onProjectChanged: @escaping () -> Void = {}
+        onProjectChanged: @escaping () -> Void = {},
+        onInspectCue: @escaping (UUID) -> Void = { _ in },
+        onSelectCue: @escaping (UUID, UUID?) -> Void = { _, _ in },
+        documentEpoch: Int = 0
     ) {
         self.context = context
         self.playbackCueIndex = playbackCueIndex
+        self.playbackCueListID = playbackCueListID
+        self.playbackCueID = playbackCueID
         self.onGo = onGo
         self.onStop = onStop
         self.onBack = onBack
         self.onFire = onFire
         self.onProjectChanged = onProjectChanged
+        self.onInspectCue = onInspectCue
+        self.onSelectCue = onSelectCue
+        self.documentEpoch = documentEpoch
     }
 
     private var lists: [CueList] { context.project.cueLists }
 
     private var currentList: CueList? {
-        if let selectedListID {
-            return lists.first { $0.id == selectedListID }
+        if let selectedListID, let match = lists.first(where: { $0.id == selectedListID }) {
+            return match
         }
         return lists.first
     }
@@ -49,203 +62,122 @@ public struct CueListPanel: View {
     public var body: some View {
         VStack(spacing: 0) {
             transportBar
-            Divider()
-            listHeader
-            Divider()
+            Divider().overlay(AuroraColor.separator)
             if let list = currentList {
-                cueTable(list)
-                Divider()
-                cueEditor(list)
+                if list.cues.isEmpty {
+                    AuroraEmptyState(
+                        title: "No cues",
+                        detail: "Record looks into this list to build the show.",
+                        systemImage: "list.number"
+                    )
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(Array(list.cues.enumerated()), id: \.element.id) { index, cue in
+                                AuroraCueRow(
+                                    number: cueNumberString(cue),
+                                    name: cue.name,
+                                    timing: String(format: "%.1fs", cue.fadeIn),
+                                    trigger: "Manual",
+                                    role: role(for: index, cue: cue, list: list),
+                                    onSelect: {
+                                        selectCue(cue, list: list)
+                                    },
+                                    onDoubleClickFire: {
+                                        selectCue(cue, list: list)
+                                        onFire(cue.id)
+                                    }
+                                )
+                                .contextMenu {
+                                    Button("Fire Cue") {
+                                        selectCue(cue, list: list)
+                                        onFire(cue.id)
+                                    }
+                                    Button("Inspect") {
+                                        selectCue(cue, list: list)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             } else {
-                PlaceholderPanel(
-                    title: "Cue List",
-                    detail: "Add a cue list to start programming cues."
+                AuroraEmptyState(
+                    title: "No cue list",
+                    detail: "Create a cue list to begin programming.",
+                    systemImage: "list.bullet"
                 )
             }
-            if let errorText {
-                Text(errorText)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .padding(6)
-            }
         }
-        .onAppear {
-            if selectedListID == nil {
-                selectedListID = lists.first?.id
-            }
+        .background(AuroraColor.surfacePanel)
+        .auroraDensity(.compact)
+        .onAppear { healListSelection() }
+        .onChange(of: documentEpoch) { _, _ in
+            healListSelection()
+            selectedCueID = nil
+        }
+        .onChange(of: lists.map(\.id)) { _, _ in
+            healListSelection()
+        }
+    }
+
+    private func selectCue(_ cue: Cue, list: CueList) {
+        selectedCueID = cue.id
+        selectedListID = list.id
+        context.session.selection.selectCues([cue.id], extending: false)
+        context.session.selection.selectCueLists([list.id], extending: false)
+        onSelectCue(cue.id, list.id)
+        onInspectCue(cue.id)
+    }
+
+    private func healListSelection() {
+        if let selectedListID, lists.contains(where: { $0.id == selectedListID }) {
+            return
+        }
+        selectedListID = lists.first?.id
+        if let selectedCueID,
+           currentList?.cues.contains(where: { $0.id == selectedCueID }) != true {
+            self.selectedCueID = nil
         }
     }
 
     private var transportBar: some View {
         HStack(spacing: 8) {
-            Button("Go") { onGo() }
-                .keyboardShortcut(.space, modifiers: [])
-            Button("Stop") { onStop() }
-            Button("Back") { onBack() }
+            AuroraTransportButton(kind: .back, useIcon: true, action: onBack)
+            AuroraTransportButton(kind: .go, useIcon: true, action: onGo)
+            AuroraTransportButton(kind: .stop, useIcon: true, action: onStop)
             Spacer()
-            if playbackCueIndex >= 0 {
+            if let playbackCueID,
+               let list = currentList,
+               let cue = list.cues.first(where: { $0.id == playbackCueID }) {
+                Text("Playing \(cueNumberString(cue))")
+                    .font(AuroraTypography.metadata)
+                    .foregroundStyle(AuroraColor.textTertiary)
+            } else if playbackCueIndex >= 0 {
                 Text("Playing #\(playbackCueIndex + 1)")
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
+                    .font(AuroraTypography.metadata)
+                    .foregroundStyle(AuroraColor.textTertiary)
             }
         }
         .padding(8)
+        .background(AuroraColor.surfaceHeader)
+        .auroraDensity(.standard)
     }
 
-    private var listHeader: some View {
-        HStack {
-            if lists.isEmpty {
-                Text("No lists")
-                    .foregroundStyle(.secondary)
-            } else {
-                Picker("List", selection: Binding(
-                    get: { currentList?.id ?? lists[0].id },
-                    set: { selectedListID = $0 }
-                )) {
-                    ForEach(lists) { list in
-                        Text(list.name).tag(list.id)
-                    }
-                }
-                .labelsHidden()
-            }
-            Spacer()
-            Button("Add List") { addList() }
-            Button("+ Cue") { addCue() }
-                .disabled(currentList == nil)
-            Button("Delete Cue", role: .destructive) { deleteCue() }
-                .disabled(selectedCueID == nil)
+    private func role(for index: Int, cue: Cue, list: CueList) -> AuroraCueRowRole {
+        if selectedCueID == cue.id { return .selected }
+        if let playbackCueID, cue.id == playbackCueID { return .current }
+        if let playbackCueListID, list.id == playbackCueListID, index == playbackCueIndex {
+            return .current
         }
-        .padding(8)
-    }
-
-    private func cueTable(_ list: CueList) -> some View {
-        List(list.cues, id: \.id, selection: $selectedCueID) { cue in
-            HStack {
-                Text(cue.number.description)
-                    .font(.body.monospaced())
-                    .frame(width: 48, alignment: .leading)
-                Text(cue.name.isEmpty ? "—" : cue.name)
-                Spacer()
-                Text(String(format: "F %.1f", cue.fadeIn))
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-                if let idx = list.cues.firstIndex(where: { $0.id == cue.id }), idx == playbackCueIndex {
-                    Image(systemName: "play.fill")
-                        .foregroundStyle(.green)
-                        .font(.caption)
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                selectedCueID = cue.id
-                syncSelection(listID: list.id, cueID: cue.id)
-                loadEditor(cue)
-            }
-            .onChange(of: selectedCueID) { _, newID in
-                if let newID, let cue = list.cues.first(where: { $0.id == newID }) {
-                    syncSelection(listID: list.id, cueID: newID)
-                    loadEditor(cue)
-                }
-            }
+        if let playbackCueListID, list.id == playbackCueListID,
+           playbackCueIndex >= 0, index == playbackCueIndex + 1 {
+            return .next
         }
+        return .normal
     }
 
-    private func cueEditor(_ list: CueList) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Selected cue")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            TextField("Name", text: $editName)
-            HStack {
-                Text("Fade in")
-                TextField("0", text: $editFadeIn)
-                    .frame(width: 60)
-                Text("Delay")
-                TextField("0", text: $editDelay)
-                    .frame(width: 60)
-            }
-            HStack {
-                Button("Apply") { applyEdits(list) }
-                Button("Fire") {
-                    if let selectedCueID { onFire(selectedCueID) }
-                }
-                .disabled(selectedCueID == nil)
-            }
-        }
-        .padding(8)
-    }
-
-    private func loadEditor(_ cue: Cue) {
-        editName = cue.name
-        editFadeIn = String(cue.fadeIn)
-        editDelay = String(cue.delay)
-    }
-
-    /// Publishes cue/list selection so other panels (e.g. Palettes Record Ref) can target them.
-    private func syncSelection(listID: UUID, cueID: UUID) {
-        context.session.selection.selectCues([cueID])
-        context.session.selection.selectCueLists([listID])
-    }
-
-    private func addList() {
-        errorText = nil
-        let list = CueList(name: "List \(lists.count + 1)")
-        do {
-            try context.session.perform(AddCueListCommand(list: list))
-            selectedListID = list.id
-            onProjectChanged()
-        } catch {
-            errorText = error.localizedDescription
-        }
-    }
-
-    private func addCue() {
-        errorText = nil
-        guard let list = currentList else { return }
-        let nextNum = (list.cues.count + 1)
-        let cue = Cue(
-            number: Decimal(nextNum),
-            name: "Cue \(nextNum)",
-            fadeIn: context.project.preferences.defaultFadeIn,
-            fadeOut: context.project.preferences.defaultFadeOut,
-            tracking: context.project.preferences.defaultTracking
-        )
-        do {
-            try context.session.perform(AddCueCommand(listID: list.id, cue: cue))
-            selectedCueID = cue.id
-            syncSelection(listID: list.id, cueID: cue.id)
-            loadEditor(cue)
-            onProjectChanged()
-        } catch {
-            errorText = error.localizedDescription
-        }
-    }
-
-    private func deleteCue() {
-        errorText = nil
-        guard let list = currentList, let selectedCueID else { return }
-        do {
-            try context.session.perform(RemoveCueCommand(listID: list.id, cueID: selectedCueID))
-            self.selectedCueID = nil
-            onProjectChanged()
-        } catch {
-            errorText = error.localizedDescription
-        }
-    }
-
-    private func applyEdits(_ list: CueList) {
-        errorText = nil
-        guard let selectedCueID,
-              var cue = list.cues.first(where: { $0.id == selectedCueID })
-        else { return }
-        cue.name = editName
-        cue.fadeIn = Double(editFadeIn) ?? cue.fadeIn
-        cue.delay = Double(editDelay) ?? cue.delay
-        do {
-            try context.session.perform(UpdateCueCommand(listID: list.id, cue: cue))
-            onProjectChanged()
-        } catch {
-            errorText = error.localizedDescription
-        }
+    private func cueNumberString(_ cue: Cue) -> String {
+        NSDecimalNumber(decimal: cue.number).stringValue
     }
 }

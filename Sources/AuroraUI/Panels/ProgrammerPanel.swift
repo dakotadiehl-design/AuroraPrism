@@ -3,7 +3,7 @@ import AuroraEngine
 import AuroraModel
 import SwiftUI
 
-/// Live programmer editors for the current fixture selection.
+/// Dominant Build-mode Programmer using UI-01C controls (UI-02A).
 public struct ProgrammerPanel: View {
     public var context: WorkspacePanelContext
     public var programmer: Programmer
@@ -17,11 +17,8 @@ public struct ProgrammerPanel: View {
     @State private var colorW: Double = 0
     @State private var pan: Double = 0.5
     @State private var tilt: Double = 0.5
-    @State private var fanStart: Double = 0
-    @State private var fanEnd: Double = 1
-    @State private var fanAttribute: String = "intensity"
-    @State private var hue: Double = 0
-    @State private var sat: Double = 1
+    @State private var hue: Double = 0.08
+    @State private var sat: Double = 0.8
     @State private var val: Double = 1
 
     public init(
@@ -37,7 +34,7 @@ public struct ProgrammerPanel: View {
     }
 
     private var selectedIDs: [UUID] {
-        Array(context.session.selection.snapshot.fixtureIDs)
+        Array(context.session.selection.snapshot.orderedFixtureIDs)
     }
 
     private var availableAttributes: Set<String> {
@@ -52,34 +49,54 @@ public struct ProgrammerPanel: View {
     }
 
     private var state: ProgrammerState { programmer.snapshot() }
+    private var hasColor: Bool {
+        availableAttributes.contains("colorR")
+            || availableAttributes.contains("colorG")
+            || availableAttributes.contains("colorB")
+    }
+    private var hasPosition: Bool {
+        availableAttributes.contains("pan") || availableAttributes.contains("tilt")
+    }
 
     public var body: some View {
         if selectedIDs.isEmpty {
-            PlaceholderPanel(
-                title: "Programmer",
-                detail: "Select fixtures in the Patch panel to edit live values."
+            AuroraEmptyState(
+                title: "No selection",
+                detail: "Select fixtures in the browser to create a look.",
+                systemImage: "slider.horizontal.3"
             )
+            .background(AuroraColor.surfacePanel)
         } else {
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    header
-                    tools
-                    if availableAttributes.contains("intensity") {
-                        sliderRow("Intensity", value: $intensity, attribute: "intensity")
+                VStack(alignment: .leading, spacing: AuroraSpacing.md) {
+                    headerBar
+                    HStack(alignment: .top, spacing: AuroraSpacing.lg) {
+                        if availableAttributes.contains("intensity") {
+                            AuroraFader(
+                                value: intensityBinding,
+                                label: "Intensity",
+                                iconName: AuroraLightingIcon.intensity.rawValue,
+                                showsOwnedChrome: true
+                            )
+                        }
+                        if hasPosition {
+                            AuroraPositionPad(pan: panBinding, tilt: tiltBinding)
+                        }
+                        if hasColor {
+                            AuroraColorWheel(hue: $hue, saturation: $sat, brightness: val, size: 120)
+                                .onChange(of: hue) { _, _ in applyHSV() }
+                                .onChange(of: sat) { _, _ in applyHSV() }
+                        }
+                        if hasColor {
+                            AuroraBeamWell(label: "Beam", zoom: intensity, isSelected: false)
+                        }
                     }
-                    if availableAttributes.contains("colorR") || availableAttributes.contains("colorG") || availableAttributes.contains("colorB") {
-                        colorSection
-                    }
-                    if availableAttributes.contains("pan") {
-                        sliderRow("Pan", value: $pan, attribute: "pan")
-                    }
-                    if availableAttributes.contains("tilt") {
-                        sliderRow("Tilt", value: $tilt, attribute: "tilt")
-                    }
-                    fanAlignSection
+                    fixtureChips
+                    toolRow
                 }
-                .padding(12)
+                .padding(AuroraSpacing.md)
             }
+            .background(AuroraColor.surfacePanel)
             .onAppear { loadFromProgrammer() }
             .onChange(of: context.session.selection.snapshot.fixtureIDs) { _, _ in
                 loadFromProgrammer()
@@ -87,85 +104,104 @@ public struct ProgrammerPanel: View {
         }
     }
 
-    private var header: some View {
+    private var headerBar: some View {
         HStack {
-            Text("\(selectedIDs.count) selected")
-                .font(.headline)
+            Text("\(selectedIDs.count) fixtures")
+                .font(AuroraTypography.sectionHeading)
+                .foregroundStyle(AuroraColor.accentBright)
+            Text(selectedNames)
+                .font(AuroraTypography.metadata)
+                .foregroundStyle(AuroraColor.textSecondary)
+                .lineLimit(1)
             Spacer()
             Toggle("Blind", isOn: Binding(
                 get: { state.isBlind },
-                set: {
-                    programmer.setBlind($0)
-                    onChanged()
-                }
+                set: { programmer.setBlind($0); onChanged() }
             ))
             .toggleStyle(.switch)
-            Toggle("Highlight", isOn: Binding(
+            .controlSize(.mini)
+            Toggle("HL", isOn: Binding(
                 get: { state.isHighlight },
-                set: {
-                    programmer.setHighlight($0)
-                    onChanged()
-                }
+                set: { programmer.setHighlight($0); onChanged() }
             ))
             .toggleStyle(.switch)
+            .controlSize(.mini)
+            .help("Highlight")
         }
     }
 
-    private var tools: some View {
-        HStack {
-            Button("Locate") {
+    private var selectedNames: String {
+        let names = selectedIDs.prefix(4).compactMap { id in
+            project.fixtures.first(where: { $0.id == id })?.name
+        }
+        let extra = selectedIDs.count > 4 ? " +\(selectedIDs.count - 4)" : ""
+        return names.joined(separator: ", ") + extra
+    }
+
+    private var fixtureChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 4) {
+                ForEach(selectedIDs, id: \.self) { id in
+                    let name = project.fixtures.first(where: { $0.id == id })?.name ?? "·"
+                    AuroraFixtureChip(name: name, isSelected: true)
+                }
+            }
+        }
+    }
+
+    private var toolRow: some View {
+        HStack(spacing: 8) {
+            AuroraButton("Locate", kind: .secondary) {
                 programmer.locate(fixtureIDs: Set(selectedIDs), project: project)
                 loadFromProgrammer()
                 onChanged()
             }
-            Button("Home") {
+            AuroraButton("Home", kind: .secondary) {
                 programmer.home(fixtureIDs: Set(selectedIDs), project: project)
                 loadFromProgrammer()
                 onChanged()
             }
-            Button("Clear Sel") {
+            AuroraButton("Clear", kind: .quiet) {
                 programmer.clear(fixtureIDs: Set(selectedIDs))
                 loadFromProgrammer()
                 onChanged()
             }
-            Button("Clear All") {
-                programmer.clearAll()
-                loadFromProgrammer()
-                onChanged()
-            }
+            Spacer()
         }
-        .buttonStyle(.bordered)
     }
 
-    private var colorSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Color (HSV)").font(.subheadline.weight(.semibold))
-            HStack {
-                Text("H")
-                Slider(value: $hue, in: 0...360)
+    private var intensityBinding: Binding<Double> {
+        Binding(
+            get: { intensity },
+            set: { newValue in
+                intensity = newValue
+                apply(attribute: "intensity", value: newValue)
             }
-            HStack {
-                Text("S")
-                Slider(value: $sat, in: 0...1)
+        )
+    }
+
+    private var panBinding: Binding<Double> {
+        Binding(
+            get: { pan },
+            set: { newValue in
+                pan = newValue
+                apply(attribute: "pan", value: newValue)
             }
-            HStack {
-                Text("V")
-                Slider(value: $val, in: 0...1)
+        )
+    }
+
+    private var tiltBinding: Binding<Double> {
+        Binding(
+            get: { tilt },
+            set: { newValue in
+                tilt = newValue
+                apply(attribute: "tilt", value: newValue)
             }
-            .onChange(of: hue) { _, _ in applyHSV() }
-            .onChange(of: sat) { _, _ in applyHSV() }
-            .onChange(of: val) { _, _ in applyHSV() }
-            sliderRow("Red", value: $colorR, attribute: "colorR")
-            sliderRow("Green", value: $colorG, attribute: "colorG")
-            sliderRow("Blue", value: $colorB, attribute: "colorB")
-            if availableAttributes.contains("colorW") {
-                sliderRow("White", value: $colorW, attribute: "colorW")
-            }
-        }
+        )
     }
 
     private func applyHSV() {
-        let rgb = ColorMath.rgb(from: HSVColor(h: hue, s: sat, v: val))
+        let rgb = ColorMath.rgb(from: HSVColor(h: hue * 360, s: sat, v: val))
         let includeW = availableAttributes.contains("colorW")
         let attrs = ColorMath.programmerAttributes(from: rgb, includeWhite: includeW)
         for id in selectedIDs {
@@ -180,75 +216,11 @@ public struct ProgrammerPanel: View {
         onChanged()
     }
 
-    private var fanAlignSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Fan / Align")
-                .font(.subheadline.weight(.semibold))
-            Picker("Attribute", selection: $fanAttribute) {
-                ForEach(Array(availableAttributes).sorted(), id: \.self) { attr in
-                    Text(attr).tag(attr)
-                }
-            }
-            HStack {
-                Text("Fan")
-                Slider(value: $fanStart, in: 0...1)
-                Slider(value: $fanEnd, in: 0...1)
-                Button("Apply Fan") { applyFan() }
-            }
-            HStack {
-                Text("Align")
-                Slider(value: $intensity, in: 0...1)
-                Button("Apply Align") { applyAlign() }
-            }
-        }
-    }
-
-    private func sliderRow(_ title: String, value: Binding<Double>, attribute: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text(title)
-                Spacer()
-                Text(String(format: "%.0f%%", value.wrappedValue * 100))
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-            }
-            Slider(value: value, in: 0...1) { editing in
-                if !editing {
-                    apply(attribute: attribute, value: value.wrappedValue)
-                }
-            }
-            .onChange(of: value.wrappedValue) { _, newValue in
-                apply(attribute: attribute, value: newValue)
-            }
-        }
-    }
-
     private func apply(attribute: String, value: Double) {
-        let ordered = orderedSelection()
+        let ordered = selectedIDs
         let map = ProgrammerGeometry.align(fixtureIDs: ordered, value: value)
         programmer.setMany(attribute: attribute, values: map)
         onChanged()
-    }
-
-    private func applyFan() {
-        let ordered = orderedSelection()
-        let map = ProgrammerGeometry.fan(fixtureIDs: ordered, start: fanStart, end: fanEnd)
-        programmer.setMany(attribute: fanAttribute, values: map)
-        loadFromProgrammer()
-        onChanged()
-    }
-
-    private func applyAlign() {
-        apply(attribute: fanAttribute, value: intensity)
-        loadFromProgrammer()
-    }
-
-    private func orderedSelection() -> [UUID] {
-        let selected = Set(selectedIDs)
-        return project.fixtures
-            .filter { selected.contains($0.id) }
-            .sorted { $0.address < $1.address }
-            .map(\.id)
     }
 
     private func loadFromProgrammer() {
@@ -262,8 +234,9 @@ public struct ProgrammerPanel: View {
         colorW = attrs["colorW"] ?? 0
         pan = attrs["pan"] ?? 0.5
         tilt = attrs["tilt"] ?? 0.5
-        if let attr = availableAttributes.sorted().first {
-            fanAttribute = attr
-        }
+        let hsv = ColorMath.hsv(from: RGBColor(r: colorR, g: colorG, b: colorB))
+        hue = hsv.h / 360
+        sat = hsv.s
+        val = hsv.v
     }
 }

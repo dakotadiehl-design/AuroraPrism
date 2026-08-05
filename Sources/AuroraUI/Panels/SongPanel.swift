@@ -9,6 +9,7 @@ public struct SongPanel: View {
     public var onNext: () -> Void
     public var onPrevious: () -> Void
     public var onChanged: () -> Void
+    public var onInspectSong: (UUID) -> Void
 
     @State private var selectedSongID: UUID?
 
@@ -18,7 +19,8 @@ public struct SongPanel: View {
         onLoadSong: @escaping (Song) -> Void = { _ in },
         onNext: @escaping () -> Void = {},
         onPrevious: @escaping () -> Void = {},
-        onChanged: @escaping () -> Void = {}
+        onChanged: @escaping () -> Void = {},
+        onInspectSong: @escaping (UUID) -> Void = { _ in }
     ) {
         self.context = context
         self.entryIndex = entryIndex
@@ -26,6 +28,7 @@ public struct SongPanel: View {
         self.onNext = onNext
         self.onPrevious = onPrevious
         self.onChanged = onChanged
+        self.onInspectSong = onInspectSong
     }
 
     public var body: some View {
@@ -48,7 +51,10 @@ public struct SongPanel: View {
                     HStack {
                         Text(song.title).font(.body.weight(.semibold))
                         Spacer()
-                        Button("Load") { onLoadSong(song) }
+                        Button("Load") {
+                            onInspectSong(song.id)
+                            onLoadSong(song)
+                        }
                         Button("Delete", role: .destructive) {
                             try? context.session.perform(RemoveSongCommand(songID: song.id))
                             onChanged()

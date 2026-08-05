@@ -56,34 +56,61 @@ public final class PlaybackController: @unchecked Sendable {
     }
 
     /// Non-destructive project update: refreshes model + cue list content while
-    /// preserving active index, phase, and current stage look when still valid.
+    /// preserving **active cue UUID** (not array index), phase, and current stage look.
+    ///
+    /// If the active cue or list is deleted: keep the current stage look, set index to -1,
+    /// phase idle, clear follow/loop. Next manual GO on a loaded list starts at cue 0.
     public func updateProject(_ project: ShowProject) {
         lock.lock()
         defer { lock.unlock() }
         self.project = project
-        if let listID = list?.id, let updated = project.cueLists.first(where: { $0.id == listID }) {
+
+        let previousListID = list?.id
+        let previousCueID: UUID? = {
+            guard let list, index >= 0, index < list.cues.count else { return nil }
+            return list.cues[index].id
+        }()
+
+        guard let previousListID else {
+            // No list was loaded; nothing to rebind.
+            return
+        }
+
+        if let updated = project.cueLists.first(where: { $0.id == previousListID }) {
             self.list = updated
-            if index >= updated.cues.count {
-                index = updated.cues.isEmpty ? -1 : updated.cues.count - 1
-                if index < 0 {
-                    phase = .idle
-                    pendingFollowAt = nil
-                    clearLoopStateLocked()
+            if let previousCueID {
+                if let newIndex = updated.cues.firstIndex(where: { $0.id == previousCueID }) {
+                    // Same semantic cue — reindex after insert/reorder.
+                    index = newIndex
+                    if phase == .active {
+                        toLook = CueResolver.resolveLook(
+                            cues: updated.cues,
+                            index: index,
+                            project: project,
+                            priorLook: currentLook
+                        )
+                    }
+                } else {
+                    // Active cue deleted: do not substitute another cue at the old index.
+                    detachPlaybackIdentityLocked(keepList: true)
                 }
             }
-            if index >= 0, index < updated.cues.count, phase == .active {
-                toLook = CueResolver.resolveLook(
-                    cues: updated.cues,
-                    index: index,
-                    project: project,
-                    priorLook: currentLook
-                )
-            }
-        } else if list != nil {
+            // else: already idle on this list — leave index as-is (-1)
+        } else {
+            // Active list removed: detach identity, keep stage look.
             self.list = nil
-            pendingFollowAt = nil
-            clearLoopStateLocked()
+            detachPlaybackIdentityLocked(keepList: false)
         }
+    }
+
+    /// Clears cue index / phase / follow / loop without blacking out currentLook.
+    private func detachPlaybackIdentityLocked(keepList: Bool) {
+        _ = keepList
+        index = -1
+        phase = .idle
+        pendingFollowAt = nil
+        lastFadeProgress = 0
+        clearLoopStateLocked()
     }
 
     public func snapshot() -> PlaybackSnapshot {
@@ -127,6 +154,7 @@ public final class PlaybackController: @unchecked Sendable {
         // Manual GO always leaves a loop and advances.
         clearLoopStateLocked()
 
+        // After detach (index == -1), next GO starts at the first cue.
         let nextIndex = index + 1
         guard nextIndex < list.cues.count else {
             return

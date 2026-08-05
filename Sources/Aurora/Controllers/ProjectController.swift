@@ -80,9 +80,16 @@ final class ProjectController: ObservableObject {
         }
     }
 
-    @discardableResult
-    func confirmDiscardIfDirty(actionName: String, save: () -> Void) -> Bool {
-        guard session.isDirty else { return true }
+    enum DirtyDocumentDecision: Sendable, Equatable {
+        case proceedClean
+        case save
+        case discard
+        case cancel
+    }
+
+    /// Prompt only — does not save. Caller awaits save on `.save` (UI-02 B5).
+    func promptDirtyDocumentDecision(actionName: String) -> DirtyDocumentDecision {
+        guard session.isDirty else { return .proceedClean }
         let alert = NSAlert()
         alert.messageText = "Do you want to save the changes to this show before \(actionName)?"
         alert.informativeText = "Your changes will be lost if you don't save them."
@@ -92,13 +99,11 @@ final class ProjectController: ObservableObject {
         alert.addButton(withTitle: "Cancel")
         switch alert.runModal() {
         case .alertFirstButtonReturn:
-            save()
-            // Save is async via coordinator; caller that needs completion (quit) must await save separately.
-            return !session.isDirty
+            return .save
         case .alertSecondButtonReturn:
-            return true
+            return .discard
         default:
-            return false
+            return .cancel
         }
     }
 
@@ -108,6 +113,16 @@ final class ProjectController: ObservableObject {
         statusMessage = "New show"
         wireEvents()
         objectWillChange.send()
+    }
+
+    /// Load deterministic UI-02A demo project (real model objects, not view hard-coding).
+    func loadDemoSummerNight() {
+        session = DocumentSession(project: .demoSummerNight())
+        documentURL = nil
+        statusMessage = "Loaded demo: Summer Night Show"
+        wireEvents()
+        objectWillChange.send()
+        onLog?("Loaded UI-02A demo Summer Night Show")
     }
 
     /// Manual Save / Save As through the shared coordinator (BLOCKER-1).

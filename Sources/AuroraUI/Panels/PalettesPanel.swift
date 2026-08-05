@@ -3,145 +3,164 @@ import AuroraEngine
 import AuroraModel
 import SwiftUI
 
+/// Visual palette / look shelf (UI-02A).
 public struct PalettesPanel: View {
     public var context: WorkspacePanelContext
     public var programmer: Programmer
     public var onChanged: () -> Void
+    public var onInspectPalette: (UUID) -> Void
+    public var onInspectPreset: (UUID) -> Void
 
     @State private var statusText: String?
-    @State private var palettePendingDelete: Palette?
-    @State private var showDeleteConfirm = false
 
-    public init(context: WorkspacePanelContext, programmer: Programmer, onChanged: @escaping () -> Void = {}) {
+    public init(
+        context: WorkspacePanelContext,
+        programmer: Programmer,
+        onChanged: @escaping () -> Void = {},
+        onInspectPalette: @escaping (UUID) -> Void = { _ in },
+        onInspectPreset: @escaping (UUID) -> Void = { _ in }
+    ) {
         self.context = context
         self.programmer = programmer
         self.onChanged = onChanged
+        self.onInspectPalette = onInspectPalette
+        self.onInspectPreset = onInspectPreset
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Palettes").font(.headline)
-                Spacer()
-                Button("New Color from Prog") { createColorPalette() }
-                Button("New Preset from Prog") { createPresetFromProgrammer() }
-            }
-            List(context.project.palettes) { palette in
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(palette.name)
-                        Text(palette.type.rawValue)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button("Apply") { apply(palette) }
-                    Button("Record Ref to Cue") { recordRef(palette) }
-                    Button("Delete", role: .destructive) {
-                        requestDelete(palette)
+        ScrollView {
+            VStack(alignment: .leading, spacing: AuroraSpacing.sm) {
+                if context.project.palettes.isEmpty && context.project.presets.isEmpty {
+                    AuroraEmptyState(
+                        title: "No palettes",
+                        detail: "Create color or position palettes from the programmer.",
+                        systemImage: "paintpalette"
+                    )
+                    .frame(height: 120)
+                } else {
+                    colorSection
+                    positionSection
+                    otherSection
+                    if !context.project.presets.isEmpty {
+                        presetsSection
                     }
                 }
+                if let statusText {
+                    Text(statusText)
+                        .font(AuroraTypography.metadata)
+                        .foregroundStyle(AuroraColor.textTertiary)
+                }
             }
-            if !context.project.presets.isEmpty {
-                Text("Presets").font(.subheadline.weight(.semibold))
-                List(context.project.presets) { preset in
-                    HStack {
-                        Text(preset.name)
-                        Spacer()
-                        Button("Apply") { applyPreset(preset) }
-                        Button("Delete", role: .destructive) {
-                            try? context.session.perform(RemovePresetCommand(presetID: preset.id))
-                            onChanged()
+            .padding(8)
+        }
+        .background(AuroraColor.surfacePanel)
+    }
+
+    private var colorPalettes: [Palette] {
+        context.project.palettes.filter { $0.type == .color || $0.type == .intensity }
+    }
+    private var positionPalettes: [Palette] {
+        context.project.palettes.filter { $0.type == .position }
+    }
+    private var otherPalettes: [Palette] {
+        context.project.palettes.filter { $0.type == .beam || $0.type == .gobo || $0.type == .general }
+    }
+
+    private var colorSection: some View {
+        Group {
+            if !colorPalettes.isEmpty {
+                AuroraSectionHeader("Colors")
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(colorPalettes) { palette in
+                            AuroraPaletteTile(
+                                name: palette.name,
+                                swatch: color(from: palette),
+                                kind: .color,
+                                action: {
+                                    onInspectPalette(palette.id)
+                                    apply(palette)
+                                }
+                            )
                         }
                     }
                 }
-                .frame(minHeight: 80)
-            }
-            if let statusText {
-                Text(statusText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            if !context.project.validateReferences().isEmpty {
-                Text("⚠ \(context.project.validateReferences().count) broken palette ref(s)")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
             }
         }
-        .padding(8)
-        .confirmationDialog(
-            deleteDialogTitle,
-            isPresented: $showDeleteConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Delete Palette", role: .destructive) {
-                if let palette = palettePendingDelete {
-                    performDelete(palette)
+    }
+
+    private var positionSection: some View {
+        Group {
+            if !positionPalettes.isEmpty {
+                AuroraSectionHeader("Position")
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(positionPalettes) { palette in
+                            AuroraPaletteTile(
+                                name: palette.name,
+                                kind: .position,
+                                positionSymbol: "scope",
+                                action: {
+                                    onInspectPalette(palette.id)
+                                    apply(palette)
+                                }
+                            )
+                        }
+                    }
                 }
-                palettePendingDelete = nil
             }
-            Button("Cancel", role: .cancel) {
-                palettePendingDelete = nil
+        }
+    }
+
+    private var otherSection: some View {
+        Group {
+            if !otherPalettes.isEmpty {
+                AuroraSectionHeader("Beam / Other")
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(otherPalettes) { palette in
+                            AuroraPaletteTile(
+                                name: palette.name,
+                                kind: palette.type == .gobo ? .gobo : .beam,
+                                action: {
+                                    onInspectPalette(palette.id)
+                                    apply(palette)
+                                }
+                            )
+                        }
+                    }
+                }
             }
-        } message: {
-            Text(deleteDialogMessage)
         }
     }
 
-    private var deleteDialogTitle: String {
-        if let p = palettePendingDelete {
-            return "Delete “\(p.name)”?"
+    private var presetsSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            AuroraSectionHeader("Looks")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(context.project.presets) { preset in
+                        AuroraLookTile(name: preset.name, action: {
+                            onInspectPreset(preset.id)
+                            applyPreset(preset)
+                        })
+                    }
+                }
+            }
         }
-        return "Delete palette?"
     }
 
-    private var deleteDialogMessage: String {
-        guard let p = palettePendingDelete else { return "" }
-        let count = context.project.paletteReferenceCount(p.id)
-        if count == 0 {
-            return "This palette is not referenced by any cue or preset."
-        }
-        let sites = context.project.paletteReferenceCueSummaries(p.id)
-        let preview = sites.prefix(5).joined(separator: "\n")
-        let more = sites.count > 5 ? "\n…and \(sites.count - 5) more" : ""
-        return "Referenced in \(count) fixture slot(s). Cues/presets will keep broken refs until fixed:\n\(preview)\(more)"
-    }
-
-    private func createColorPalette() {
-        let snap = programmer.snapshot()
-        let ordered = context.session.selection.snapshot.orderedFixtureIDs
-        let selected = ordered.isEmpty ? Array(snap.values.keys) : ordered
-        let record = PaletteRecord.fromProgrammer(
-            programmerValues: snap.values,
-            selectedFixtureIDs: selected,
-            attributeKeys: ["colorR", "colorG", "colorB", "colorW", "intensity"]
-        )
-        var values = record.values
-        if values.isEmpty {
-            values = ["colorR": 1, "colorG": 0.47, "colorB": 0.12]
-        }
-        let palette = Palette(
-            name: "Palette \(context.project.palettes.count + 1)",
-            type: .color,
-            values: values
-        )
-        try? context.session.perform(AddPaletteCommand(palette: palette))
-        if record.isMixed {
-            statusText = "Created \(palette.name) (common only; mixed: \(record.mixedAttributes.joined(separator: ", ")))"
-        } else {
-            statusText = "Created \(palette.name)"
-        }
-        onChanged()
+    private func color(from palette: Palette) -> Color {
+        let r = palette.values["colorR"] ?? palette.values["intensity"] ?? 0.5
+        let g = palette.values["colorG"] ?? r
+        let b = palette.values["colorB"] ?? r * 0.6
+        return Color(red: r, green: g, blue: b)
     }
 
     private func apply(_ palette: Palette) {
         let ids = context.session.selection.snapshot.fixtureIDs
         guard !ids.isEmpty else {
-            statusText = "Select fixtures before Apply"
-            return
-        }
-        guard !palette.values.isEmpty else {
-            statusText = "Palette \(palette.name) has no values — apply aborted"
+            statusText = "Select fixtures first"
             return
         }
         for id in ids {
@@ -149,90 +168,22 @@ public struct PalettesPanel: View {
                 programmer.set(fixtureID: id, attribute: attr, value: value)
             }
         }
-        statusText = "Applied \(palette.name) to \(ids.count) fixture(s)"
-        onChanged()
-    }
-
-    /// Stores palette *references* on selected cue(s) for selected fixtures.
-    /// Falls back to first cue of first list if no cue is selected (session selection).
-    private func recordRef(_ palette: Palette) {
-        let selectedFixtures = context.session.selection.snapshot.fixtureIDs
-        guard !selectedFixtures.isEmpty else {
-            statusText = "Select fixtures before Record Ref"
-            return
-        }
-
-        let targets = context.project.targetCuesForPaletteRecord(
-            selectedCueIDs: context.session.selection.snapshot.cueIDs
-        )
-        guard !targets.isEmpty else {
-            statusText = "No cue available — add a cue list and cue first"
-            return
-        }
-
-        var updatedNames: [String] = []
-        for (listID, var cue) in targets {
-            cue.recordPaletteRef(palette: palette, fixtureIDs: selectedFixtures)
-            do {
-                try context.session.perform(UpdateCueCommand(listID: listID, cue: cue))
-                let name = cue.name.isEmpty ? "Cue \(cue.number)" : cue.name
-                updatedNames.append(name)
-            } catch {
-                statusText = error.localizedDescription
-                return
-            }
-        }
-        let usedSelection = !context.session.selection.snapshot.cueIDs.isEmpty
-        statusText = "Ref \(palette.name) → \(updatedNames.joined(separator: ", "))"
-            + (usedSelection ? "" : " (fallback: first cue)")
-            + " · \(selectedFixtures.count) fixture(s)"
-        onChanged()
-    }
-
-    private func requestDelete(_ palette: Palette) {
-        palettePendingDelete = palette
-        showDeleteConfirm = true
-    }
-
-    private func performDelete(_ palette: Palette) {
-        try? context.session.perform(RemovePaletteCommand(paletteID: palette.id))
-        statusText = "Deleted \(palette.name)"
-        onChanged()
-    }
-
-    private func createPresetFromProgrammer() {
-        let levels = programmer.captureLevels()
-        guard !levels.fixtures.isEmpty else {
-            statusText = "Programmer empty — set values first"
-            return
-        }
-        let preset = Preset(
-            name: "Preset \(context.project.presets.count + 1)",
-            levels: levels
-        )
-        try? context.session.perform(AddPresetCommand(preset: preset))
-        statusText = "Created \(preset.name)"
+        statusText = "Applied \(palette.name)"
         onChanged()
     }
 
     private func applyPreset(_ preset: Preset) {
-        let resolved = PaletteResolver.resolve(levels: preset.levels, project: context.project)
-        if !resolved.issues.isEmpty {
-            statusText = "Preset \(preset.name): \(resolved.issues.count) resolution issue(s) — partial apply"
+        let ids = context.session.selection.snapshot.fixtureIDs
+        guard !ids.isEmpty else {
+            statusText = "Select fixtures first"
+            return
         }
-        var applied = 0
-        for fx in resolved.levels.fixtures {
-            guard !fx.attributes.isEmpty else { continue }
-            for (attr, value) in fx.attributes {
-                programmer.set(fixtureID: fx.fixtureId, attribute: attr, value: value)
+        for fl in preset.levels.fixtures where ids.contains(fl.fixtureId) {
+            for (attr, value) in fl.attributes {
+                programmer.set(fixtureID: fl.fixtureId, attribute: attr, value: value)
             }
-            applied += 1
         }
-        if applied == 0 {
-            statusText = "Preset \(preset.name) applied nothing (empty or unresolved)"
-        } else if resolved.issues.isEmpty {
-            statusText = "Applied \(preset.name) (\(applied) fixture(s))"
-        }
+        statusText = "Applied look \(preset.name)"
         onChanged()
     }
 }

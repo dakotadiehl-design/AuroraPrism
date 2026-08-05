@@ -37,7 +37,9 @@ final class AuroraAppDelegate: NSObject, NSApplicationDelegate {
     func application(_ application: NSApplication, open urls: [URL]) {
         guard let appModel else { return }
         for url in urls {
-            appModel.openShow(at: url)
+            Task { @MainActor in
+                await appModel.openShow(at: url)
+            }
         }
     }
 }
@@ -47,39 +49,66 @@ struct AuroraApp: App {
     @NSApplicationDelegateAdaptor(AuroraAppDelegate.self) private var appDelegate
     @StateObject private var appModel = AppModel()
 
+    private var isPerform: Bool { appModel.workspace.mode == .perform }
+    private var textEditing: Bool { KeyboardCommandGate.isTextEditingActive }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(appModel)
-                .onAppear { appDelegate.appModel = appModel }
+                .onAppear {
+                    appDelegate.appModel = appModel
+                    // UI-02 C1: no DEBUG auto-demo. Explicit File / Welcome only.
+                    // Optional automation: --load-demo-show launch argument.
+                    if ProcessInfo.processInfo.arguments.contains("--load-demo-show") {
+                        Task { @MainActor in
+                            await appModel.openDemoSummerNightAsync()
+                        }
+                    }
+                }
         }
-        .defaultSize(width: 1100, height: 720)
+        .defaultSize(width: 1280, height: 800)
+        Settings {
+            AuroraSettingsRoot()
+                .environmentObject(appModel)
+        }
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("New Show") {
-                    appModel.newShow()
-                }
-                .keyboardShortcut("n", modifiers: .command)
+                if !isPerform {
+                    Button("New Show") {
+                        Task { @MainActor in await appModel.newShowAsync() }
+                    }
+                    .keyboardShortcut("n", modifiers: .command)
 
-                Button("Open…") {
-                    appModel.openShow()
+                    Button("Open…") {
+                        Task { @MainActor in await appModel.openShowAsync() }
+                    }
+                    .keyboardShortcut("o", modifiers: .command)
                 }
-                .keyboardShortcut("o", modifiers: .command)
 
                 Button("Save") {
                     appModel.saveShow()
                 }
                 .keyboardShortcut("s", modifiers: .command)
 
-                Button("Save As…") {
-                    appModel.saveShowAs()
-                }
-                .keyboardShortcut("s", modifiers: [.command, .shift])
+                if !isPerform {
+                    Button("Save As…") {
+                        appModel.saveShowAs()
+                    }
+                    .keyboardShortcut("s", modifiers: [.command, .shift])
 
-                Divider()
+                    Divider()
 
-                Button("Import Fixture Definition…") {
-                    appModel.importFixtureDefinition()
+                    Button("Open Demo Show (Summer Night)") {
+                        Task { @MainActor in await appModel.openDemoSummerNightAsync() }
+                    }
+                    .keyboardShortcut("d", modifiers: [.command, .shift])
+
+                    Divider()
+
+                    Button("Import Fixture Definition…") {
+                        appModel.importFixtureDefinition()
+                    }
                 }
             }
 
@@ -88,13 +117,13 @@ struct AuroraApp: App {
                     appModel.undo()
                 }
                 .keyboardShortcut("z", modifiers: .command)
-                .disabled(!appModel.session.canUndo)
+                .disabled(!appModel.session.canUndo || isPerform)
 
                 Button("Redo \(appModel.session.redoActionName ?? "")") {
                     appModel.redo()
                 }
                 .keyboardShortcut("z", modifiers: [.command, .shift])
-                .disabled(!appModel.session.canRedo)
+                .disabled(!appModel.session.canRedo || isPerform)
             }
 
             CommandMenu("View") {
@@ -106,32 +135,62 @@ struct AuroraApp: App {
                     appModel.workspace.setMode(.perform)
                     appModel.notifyUI()
                 }
-                Divider()
-                ForEach(WorkspacePanelID.allCases) { panel in
-                    Button {
-                        appModel.togglePanel(panel)
-                    } label: {
-                        HStack {
-                            Text(panel.title)
-                            if appModel.workspace.isVisible(panel) {
-                                Image(systemName: "checkmark")
-                            }
-                        }
+                if !isPerform {
+                    Divider()
+                    Button("Browser") {
+                        appModel.workspace.setLeftTool(.browser)
+                        appModel.notifyUI()
+                    }
+                    Button("Patch") {
+                        appModel.workspace.setLeftTool(.patch)
+                        appModel.notifyUI()
+                    }
+                    Button("Groups") {
+                        appModel.workspace.setLeftTool(.groups)
+                        appModel.notifyUI()
+                    }
+                    Divider()
+                    Button("Palettes") {
+                        appModel.workspace.setLowerTool(.palettes)
+                        appModel.notifyUI()
+                    }
+                    Button("Cues") {
+                        appModel.workspace.setLowerTool(.cues)
+                        appModel.notifyUI()
+                    }
+                    Button("Song") {
+                        appModel.workspace.setLowerTool(.song)
+                        appModel.notifyUI()
                     }
                 }
             }
 
             CommandMenu("Playback") {
-                Button("Go") { appModel.go() }
-                    .keyboardShortcut(.space, modifiers: [])
-                Button("Go") { appModel.go() }
-                    .keyboardShortcut(.return, modifiers: [])
-                Button("Stop") { appModel.stopPlayback() }
-                    .keyboardShortcut(.escape, modifiers: [])
-                Button("Back") { appModel.back() }
-                    .keyboardShortcut(.leftArrow, modifiers: [])
-                Button("Back") { appModel.back() }
-                    .keyboardShortcut("b", modifiers: [])
+                Button("Go") {
+                    if !KeyboardCommandGate.isTextEditingActive { appModel.go() }
+                }
+                .keyboardShortcut(.space, modifiers: [])
+                .disabled(textEditing)
+                Button("Go") {
+                    if !KeyboardCommandGate.isTextEditingActive { appModel.go() }
+                }
+                .keyboardShortcut(.return, modifiers: [])
+                .disabled(textEditing)
+                Button("Stop") {
+                    if !KeyboardCommandGate.isTextEditingActive { appModel.stopPlayback() }
+                }
+                .keyboardShortcut(.escape, modifiers: [])
+                .disabled(textEditing)
+                Button("Back") {
+                    if !KeyboardCommandGate.isTextEditingActive { appModel.back() }
+                }
+                .keyboardShortcut(.leftArrow, modifiers: [])
+                .disabled(textEditing)
+                Button("Back") {
+                    if !KeyboardCommandGate.isTextEditingActive { appModel.back() }
+                }
+                .keyboardShortcut("b", modifiers: [])
+                .disabled(textEditing)
             }
 
             CommandMenu("MIDI") {
@@ -177,4 +236,3 @@ struct AuroraApp: App {
         }
     }
 }
-

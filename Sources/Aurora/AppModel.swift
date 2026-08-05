@@ -187,40 +187,49 @@ final class AppModel: ObservableObject {
 
     // MARK: - Document
 
-    @discardableResult
-    func confirmDiscardIfDirty(actionName: String) -> Bool {
-        // Menu-driven new/open: kick async save if user chooses Save (best-effort).
-        document.confirmDiscardIfDirty(actionName: actionName) { [weak self] in
-            self?.saveShow()
-        }
-    }
-
-    /// Quit flow: prompt, await save if needed, then caller shuts down.
-    /// Returns `true` if termination should proceed.
-    func prepareToTerminate() async -> Bool {
-        guard document.isDirty else { return true }
-        let alert = NSAlert()
-        alert.messageText = "Do you want to save the changes to this show before quitting?"
-        alert.informativeText = "Your changes will be lost if you don't save them."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Save")
-        alert.addButton(withTitle: "Don't Save")
-        alert.addButton(withTitle: "Cancel")
-        switch alert.runModal() {
-        case .alertFirstButtonReturn:
-            return await saveShowAsync()
-        case .alertSecondButtonReturn:
+    /// Await dirty prompt + optional save. Returns true if the requested operation may continue (UI-02 B5).
+    func confirmDiscardIfDirtyAsync(actionName: String) async -> Bool {
+        switch document.promptDirtyDocumentDecision(actionName: actionName) {
+        case .proceedClean, .discard:
             return true
-        default:
+        case .save:
+            return await saveShowAsync()
+        case .cancel:
             return false
         }
     }
 
+    /// Quit flow: prompt, await save if needed, then caller shuts down.
+    func prepareToTerminate() async -> Bool {
+        await confirmDiscardIfDirtyAsync(actionName: "quitting")
+    }
+
+    /// Sync wrapper for call sites that cannot await (prefer async variants).
     func newShow() {
-        guard confirmDiscardIfDirty(actionName: "creating a new show") else { return }
+        Task { @MainActor in await newShowAsync() }
+    }
+
+    func newShowAsync() async {
+        guard await confirmDiscardIfDirtyAsync(actionName: "creating a new show") else { return }
         document.newShow()
         showControl.resetSong()
-        reloadEngine()
+        afterDocumentReplaced()
+    }
+
+    /// UI-02A: open deterministic populated demo for visual validation.
+    func openDemoSummerNight() {
+        Task { @MainActor in await openDemoSummerNightAsync() }
+    }
+
+    func openDemoSummerNightAsync() async {
+        guard await confirmDiscardIfDirtyAsync(actionName: "opening the demo show") else { return }
+        document.loadDemoSummerNight()
+        showControl.resetSong()
+        afterDocumentReplaced()
+        let first = Array(session.project.fixtures.prefix(4).map(\.id))
+        if !first.isEmpty {
+            session.selectFixturesOrdered(first, extending: false)
+        }
         notifyUI()
     }
 
@@ -243,7 +252,11 @@ final class AppModel: ObservableObject {
     }
 
     func openShow() {
-        guard confirmDiscardIfDirty(actionName: "opening") else { return }
+        Task { @MainActor in await openShowAsync() }
+    }
+
+    func openShowAsync() async {
+        guard await confirmDiscardIfDirtyAsync(actionName: "opening") else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
@@ -252,24 +265,36 @@ final class AppModel: ObservableObject {
         panel.message = "Choose a .aurora package (folder)"
         panel.prompt = "Open"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        openShow(at: url, skipDirtyConfirm: true)
+        await openShow(at: url, skipDirtyConfirm: true)
     }
 
     /// Open a package URL (Finder, recent documents, or panel).
     func openShow(at url: URL, skipDirtyConfirm: Bool = false) {
+        Task { @MainActor in
+            await openShow(at: url, skipDirtyConfirm: skipDirtyConfirm)
+        }
+    }
+
+    func openShow(at url: URL, skipDirtyConfirm: Bool = false) async {
         if !skipDirtyConfirm {
-            guard confirmDiscardIfDirty(actionName: "opening") else { return }
+            guard await confirmDiscardIfDirtyAsync(actionName: "opening") else { return }
         }
         do {
             try document.openShow(from: url)
             showControl.resetSong()
-            reloadEngine()
+            afterDocumentReplaced()
             NSDocumentController.shared.noteNewRecentDocumentURL(url)
-            notifyUI()
         } catch {
             document.statusMessage = "Open failed: \(error.localizedDescription)"
             document.presentError(error, title: "Open Failed")
         }
+    }
+
+    /// Shared post-replace: reset document-scoped UI + reload engine (UI-02 B2).
+    private func afterDocumentReplaced() {
+        workspace.didReplaceDocument(project: session.project)
+        reloadEngine()
+        notifyUI()
     }
 
     func saveShow() {
