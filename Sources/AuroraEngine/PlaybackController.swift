@@ -6,6 +6,7 @@ public final class PlaybackController: @unchecked Sendable {
     private let lock = NSLock()
 
     private var list: CueList?
+    private var project: ShowProject = .empty()
     private var index: Int = -1
     private var phase: PlaybackPhase = .idle
     private var phaseStart: TimeInterval = 0
@@ -20,9 +21,10 @@ public final class PlaybackController: @unchecked Sendable {
 
     public init() {}
 
-    public func load(list: CueList?) {
+    public func load(list: CueList?, project: ShowProject = .empty()) {
         lock.lock()
         self.list = list
+        self.project = project
         index = -1
         phase = .idle
         phaseStart = 0
@@ -120,7 +122,7 @@ public final class PlaybackController: @unchecked Sendable {
     private func beginTransition(to newIndex: Int, at now: TimeInterval, list: CueList) {
         let cue = list.cues[newIndex]
         fromLook = currentLook
-        toLook = CueResolver.resolveLook(cues: list.cues, index: newIndex)
+        toLook = CueResolver.resolveLook(cues: list.cues, index: newIndex, project: project)
         index = newIndex
         delayDuration = max(0, cue.delay)
         fadeDuration = max(0, cue.fadeIn)

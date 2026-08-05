@@ -7,6 +7,9 @@ public enum WorkspacePanelID: String, Codable, CaseIterable, Sendable, Identifia
     case cueList
     case programmer
     case livePlayback
+    case groups
+    case palettes
+    case midi
     case universeMonitor
     case inspector
     case console
@@ -21,6 +24,9 @@ public enum WorkspacePanelID: String, Codable, CaseIterable, Sendable, Identifia
         case .cueList: return "Cue List"
         case .programmer: return "Programmer"
         case .livePlayback: return "Live"
+        case .groups: return "Groups"
+        case .palettes: return "Palettes"
+        case .midi: return "MIDI"
         case .universeMonitor: return "Universe Monitor"
         case .inspector: return "Inspector"
         case .console: return "Console"
@@ -30,15 +36,18 @@ public enum WorkspacePanelID: String, Codable, CaseIterable, Sendable, Identifia
 
     public var placeholderDetail: String {
         switch self {
-        case .fixtureBrowser: return "Library browser lands in PR8."
-        case .patch: return "Visual patch map lands in PR8."
-        case .cueList: return "Cue list UI lands in PR12."
-        case .programmer: return "Programmer UI lands in PR14."
-        case .livePlayback: return "Live ops panel lands in PR19."
-        case .universeMonitor: return "Live levels land with engine/diagnostics."
-        case .inspector: return "Selection details (PR8+)."
-        case .console: return "Log stream lands in PR24."
-        case .song: return "Song mode UI lands in PR21."
+        case .fixtureBrowser: return "Library browser."
+        case .patch: return "Patch map."
+        case .cueList: return "Cue list."
+        case .programmer: return "Programmer."
+        case .livePlayback: return "Live ops."
+        case .groups: return "Fixture groups."
+        case .palettes: return "Palettes & presets."
+        case .midi: return "MIDI mappings & learn."
+        case .universeMonitor: return "Universe monitor."
+        case .inspector: return "Inspector."
+        case .console: return "Console."
+        case .song: return "Song mode."
         }
     }
 }

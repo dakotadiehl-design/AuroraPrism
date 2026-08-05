@@ -123,15 +123,15 @@ public struct WorkspaceView: View {
     }
 
     private var leadingTabs: [WorkspacePanelID] {
-        [.fixtureBrowser, .patch, .song].filter { layout.isVisible($0) }
+        [.fixtureBrowser, .patch, .groups, .palettes, .song].filter { layout.isVisible($0) }
     }
 
     private var centerTabs: [WorkspacePanelID] {
-        [.livePlayback, .patch, .cueList, .programmer].filter { layout.isVisible($0) }
+        [.livePlayback, .patch, .cueList, .programmer, .midi].filter { layout.isVisible($0) }
     }
 
     private var bottomTabs: [WorkspacePanelID] {
-        [.universeMonitor, .console, .cueList].filter { layout.isVisible($0) }
+        [.universeMonitor, .console, .cueList, .midi].filter { layout.isVisible($0) }
     }
 
     private var resolvedLeadingTab: WorkspacePanelID {

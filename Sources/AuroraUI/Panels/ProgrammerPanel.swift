@@ -20,6 +20,9 @@ public struct ProgrammerPanel: View {
     @State private var fanStart: Double = 0
     @State private var fanEnd: Double = 1
     @State private var fanAttribute: String = "intensity"
+    @State private var hue: Double = 0
+    @State private var sat: Double = 1
+    @State private var val: Double = 1
 
     public init(
         context: WorkspacePanelContext,
@@ -64,17 +67,8 @@ public struct ProgrammerPanel: View {
                     if availableAttributes.contains("intensity") {
                         sliderRow("Intensity", value: $intensity, attribute: "intensity")
                     }
-                    if availableAttributes.contains("colorR") {
-                        sliderRow("Red", value: $colorR, attribute: "colorR")
-                    }
-                    if availableAttributes.contains("colorG") {
-                        sliderRow("Green", value: $colorG, attribute: "colorG")
-                    }
-                    if availableAttributes.contains("colorB") {
-                        sliderRow("Blue", value: $colorB, attribute: "colorB")
-                    }
-                    if availableAttributes.contains("colorW") {
-                        sliderRow("White", value: $colorW, attribute: "colorW")
+                    if availableAttributes.contains("colorR") || availableAttributes.contains("colorG") || availableAttributes.contains("colorB") {
+                        colorSection
                     }
                     if availableAttributes.contains("pan") {
                         sliderRow("Pan", value: $pan, attribute: "pan")
@@ -141,6 +135,49 @@ public struct ProgrammerPanel: View {
             }
         }
         .buttonStyle(.bordered)
+    }
+
+    private var colorSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Color (HSV)").font(.subheadline.weight(.semibold))
+            HStack {
+                Text("H")
+                Slider(value: $hue, in: 0...360)
+            }
+            HStack {
+                Text("S")
+                Slider(value: $sat, in: 0...1)
+            }
+            HStack {
+                Text("V")
+                Slider(value: $val, in: 0...1)
+            }
+            .onChange(of: hue) { _, _ in applyHSV() }
+            .onChange(of: sat) { _, _ in applyHSV() }
+            .onChange(of: val) { _, _ in applyHSV() }
+            sliderRow("Red", value: $colorR, attribute: "colorR")
+            sliderRow("Green", value: $colorG, attribute: "colorG")
+            sliderRow("Blue", value: $colorB, attribute: "colorB")
+            if availableAttributes.contains("colorW") {
+                sliderRow("White", value: $colorW, attribute: "colorW")
+            }
+        }
+    }
+
+    private func applyHSV() {
+        let rgb = ColorMath.rgb(from: HSVColor(h: hue, s: sat, v: val))
+        let includeW = availableAttributes.contains("colorW")
+        let attrs = ColorMath.programmerAttributes(from: rgb, includeWhite: includeW)
+        for id in selectedIDs {
+            for (k, v) in attrs {
+                programmer.set(fixtureID: id, attribute: k, value: v)
+            }
+        }
+        colorR = attrs["colorR"] ?? 0
+        colorG = attrs["colorG"] ?? 0
+        colorB = attrs["colorB"] ?? 0
+        colorW = attrs["colorW"] ?? 0
+        onChanged()
     }
 
     private var fanAlignSection: some View {

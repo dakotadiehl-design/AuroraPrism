@@ -21,6 +21,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var engineStatus: String = "Engine stopped"
     @Published private(set) var midiStatus: String = "MIDI: off"
     @Published private(set) var lastMIDIEvent: String = ""
+    @Published private(set) var isMIDILearning: Bool = false
+    @Published var songStatus: String = ""
 
     private var eventToken: EventSubscriptionToken?
     private let fixtureLibrary: FixtureLibrary?
@@ -28,6 +30,8 @@ final class AppModel: ObservableObject {
     private let nullDriver = NullOutputDriver(name: "Null")
     let engine: LightingEngine
     private let midi = MIDIInputManager()
+    let midiLearn = MIDILearnSession()
+    let songDirector = SongDirector()
     private var statusTimer: Timer?
 
     init(project: ShowProject = .empty(name: "Untitled Show")) {
@@ -228,10 +232,8 @@ final class AppModel: ObservableObject {
 
     private func startMIDI() {
         midi.setHandler { [weak self] events in
-            guard let last = events.last else { return }
             Task { @MainActor in
-                self?.lastMIDIEvent = last.summary
-                self?.midiStatus = "MIDI: \(self?.midi.connectedCount ?? 0) src · \(last.summary)"
+                self?.handleMIDI(events)
             }
         }
         do {
@@ -240,6 +242,67 @@ final class AppModel: ObservableObject {
         } catch {
             midiStatus = "MIDI: error"
             statusMessage = error.localizedDescription
+        }
+    }
+
+    func armMIDILearn(_ action: ShowAction) {
+        midiLearn.arm(action)
+        isMIDILearning = true
+        statusMessage = "MIDI Learn: \(action.storageKey) — send a message…"
+        bump()
+    }
+
+    func cancelMIDILearn() {
+        midiLearn.cancel()
+        isMIDILearning = false
+        statusMessage = "MIDI Learn cancelled"
+        bump()
+    }
+
+    private func handleMIDI(_ events: [MIDIEvent]) {
+        for event in events {
+            lastMIDIEvent = event.summary
+            if let learned = midiLearn.completeIfArmed(event: event) {
+                isMIDILearning = false
+                do {
+                    try session.perform(AddMIDIMappingCommand(mapping: learned.mapping))
+                    statusMessage = "Learned \(learned.action.storageKey) ← \(event.summary)"
+                } catch {
+                    statusMessage = "Learn failed: \(error.localizedDescription)"
+                }
+                bump()
+                continue
+            }
+            if let action = MIDIActionResolver.match(event: event, mappings: session.project.midiMappings) {
+                perform(action: action, midiValue: ccValue(event))
+            }
+        }
+        midiStatus = "MIDI: \(midi.connectedCount) src · \(lastMIDIEvent)"
+    }
+
+    private func ccValue(_ event: MIDIEvent) -> UInt8? {
+        if case .controlChange(_, _, let v, _) = event { return v }
+        return nil
+    }
+
+    func perform(action: ShowAction, midiValue: UInt8? = nil) {
+        switch action {
+        case .go: go()
+        case .stop: stopPlayback()
+        case .back: back()
+        case .fireCue(let id): fireCue(id: id)
+        case .fireCueIndex(let index):
+            if let list = session.project.cueLists.first,
+               list.cues.indices.contains(index) {
+                fireCue(id: list.cues[index].id)
+            }
+        case .programmerAttribute(let attr):
+            let value = MIDIActionResolver.ccNormalized(midiValue ?? 0)
+            let ids = session.selection.snapshot.fixtureIDs
+            for id in ids {
+                engine.programmer.set(fixtureID: id, attribute: attr, value: value)
+            }
+            bump()
         }
     }
 

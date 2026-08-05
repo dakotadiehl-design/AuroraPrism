@@ -160,7 +160,7 @@ public struct ShowProject: Codable, Equatable, Sendable {
                 Palette(
                     id: paletteID,
                     name: "Half",
-                    kind: "intensity",
+                    type: .intensity,
                     values: ["intensity": 0.5]
                 )
             ],

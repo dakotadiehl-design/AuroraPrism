@@ -49,6 +49,47 @@ enum PanelRegistry {
                     onHighlight: { appModel.engine.programmer.setHighlight($0); appModel.bump() }
                 )
             )
+        case .groups:
+            return AnyView(GroupsPanel(context: context, onChanged: { appModel.bump() }))
+        case .palettes:
+            return AnyView(
+                PalettesPanel(
+                    context: context,
+                    programmer: appModel.engine.programmer,
+                    onChanged: { appModel.bump() }
+                )
+            )
+        case .midi:
+            return AnyView(
+                MIDIMappingsPanel(
+                    context: context,
+                    isLearning: appModel.isMIDILearning,
+                    onLearn: { appModel.armMIDILearn($0) },
+                    onCancelLearn: { appModel.cancelMIDILearn() },
+                    onChanged: { appModel.bump() }
+                )
+            )
+        case .song:
+            return AnyView(
+                SongPanel(
+                    context: context,
+                    entryIndex: appModel.songDirector.entryIndex,
+                    onLoadSong: { song in
+                        appModel.songDirector.load(song: song, project: appModel.session.project, engine: appModel.engine)
+                        appModel.songStatus = "\(song.title)"
+                        appModel.bump()
+                    },
+                    onNext: {
+                        appModel.songDirector.next(project: appModel.session.project, engine: appModel.engine)
+                        appModel.bump()
+                    },
+                    onPrevious: {
+                        appModel.songDirector.previous(project: appModel.session.project, engine: appModel.engine)
+                        appModel.bump()
+                    },
+                    onChanged: { appModel.bump() }
+                )
+            )
         default:
             return WorkspaceView.defaultPanel(id: id, context: context)
         }

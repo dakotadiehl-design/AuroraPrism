@@ -61,11 +61,11 @@ public final class LightingEngine: @unchecked Sendable {
         // Keep playback list content in sync when possible.
         if let current = playback.snapshot().listID,
            let list = project.cueLists.first(where: { $0.id == current }) {
-            playback.load(list: list)
+            playback.load(list: list, project: project)
         } else if let first = project.cueLists.first {
-            playback.load(list: first)
+            playback.load(list: first, project: project)
         } else {
-            playback.load(list: nil)
+            playback.load(list: nil, project: project)
         }
     }
 
@@ -93,7 +93,10 @@ public final class LightingEngine: @unchecked Sendable {
     }
 
     public func loadCueList(_ list: CueList?) {
-        playback.load(list: list)
+        lock.lock()
+        let project = self.project
+        lock.unlock()
+        playback.load(list: list, project: project)
     }
 
     public func currentSnapshot() -> EngineFrameSnapshot {

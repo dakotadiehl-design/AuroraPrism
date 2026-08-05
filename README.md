@@ -4,7 +4,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 ## Status
 
-**PR14/16/19 live desk** is in tree: programmer UI, CoreMIDI input, and large Live transport. MIDI Learn (PR17) and effects still ahead.
+**PR15–21 show craft** is in tree: MIDI learn, color math, first-class palette refs, groups, and song orchestration. Effects (PR22) still ahead.
 
 | Doc | Description |
 |-----|-------------|

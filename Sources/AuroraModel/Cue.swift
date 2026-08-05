@@ -8,13 +8,10 @@ public enum FollowMode: String, Codable, Sendable, Hashable, CaseIterable {
 }
 
 public enum TrackingMode: String, Codable, Sendable, Hashable, CaseIterable {
-    /// Unresolved attributes inherit from previous cues when resolving a look.
     case track
-    /// Cue contributes only its stored levels (cue-only / non-tracking).
     case cueOnly
 }
 
-/// Optional loop behavior for a cue stack entry.
 public struct LoopSpec: Codable, Equatable, Sendable, Hashable {
     public var count: Int?
     public var infinite: Bool
@@ -27,15 +24,22 @@ public struct LoopSpec: Codable, Equatable, Sendable, Hashable {
     public static let infiniteLoop = LoopSpec(count: nil, infinite: true)
 }
 
-/// Sparse per-fixture attribute targets stored on a cue or preset.
+/// Sparse per-fixture targets: literals and/or palette references.
 public struct FixtureCueLevels: Codable, Equatable, Sendable, Hashable {
     public var fixtureId: UUID
-    /// Attribute tag → normalized or absolute value (engine interprets).
+    /// Literal attribute tag → 0…1.
     public var attributes: [String: Double]
+    /// Attribute family or tag → palette UUID (“use whatever this palette means”).
+    public var paletteRefs: [String: UUID]
 
-    public init(fixtureId: UUID, attributes: [String: Double] = [:]) {
+    public init(
+        fixtureId: UUID,
+        attributes: [String: Double] = [:],
+        paletteRefs: [String: UUID] = [:]
+    ) {
         self.fixtureId = fixtureId
         self.attributes = attributes
+        self.paletteRefs = paletteRefs
     }
 }
 
@@ -49,10 +53,8 @@ public struct CueLevelData: Codable, Equatable, Sendable, Hashable {
     public static let empty = CueLevelData()
 }
 
-/// One cue in a cue list.
 public struct Cue: Codable, Equatable, Sendable, Identifiable, Hashable {
     public var id: UUID
-    /// User-facing cue number (supports 1.5-style numbering via Decimal).
     public var number: Decimal
     public var name: String
     public var fadeIn: TimeInterval
@@ -91,7 +93,6 @@ public struct Cue: Codable, Equatable, Sendable, Identifiable, Hashable {
     }
 }
 
-/// Ordered list of cues (a cue stack / sequence).
 public struct CueList: Codable, Equatable, Sendable, Identifiable, Hashable {
     public var id: UUID
     public var name: String
