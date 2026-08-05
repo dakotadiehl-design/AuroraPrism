@@ -106,16 +106,6 @@ final class ProjectController: ObservableObject {
         objectWillChange.send()
     }
 
-    func openShow(from url: URL) throws {
-        let project = try ProjectPackage.load(from: url)
-        session = DocumentSession(project: project)
-        documentURL = url
-        session.markSaved()
-        statusMessage = "Opened \(url.lastPathComponent)"
-        wireEvents()
-        objectWillChange.send()
-    }
-
     func save(to url: URL) throws {
         let assetSource: URL?
         if let documentURL,
@@ -124,10 +114,23 @@ final class ProjectController: ObservableObject {
         } else {
             assetSource = nil
         }
-        try ProjectPackage.save(session.project, to: url, preservingAssetsFrom: assetSource)
+        // Crash recovery for orphan bak/tmp near destination (P2-8).
+        _ = try? ProjectPackage.recoverOrphanedPackages(around: url)
+        let writtenAt = try ProjectPackage.save(session.project, to: url, preservingAssetsFrom: assetSource)
+        documentURL = url
+        session.applySavedMetadata(modifiedAt: writtenAt)
+        statusMessage = "Saved \(url.lastPathComponent)"
+        objectWillChange.send()
+    }
+
+    func openShow(from url: URL) throws {
+        _ = try? ProjectPackage.recoverOrphanedPackages(around: url)
+        let project = try ProjectPackage.load(from: url)
+        session = DocumentSession(project: project)
         documentURL = url
         session.markSaved()
-        statusMessage = "Saved \(url.lastPathComponent)"
+        statusMessage = "Opened \(url.lastPathComponent)"
+        wireEvents()
         objectWillChange.send()
     }
 

@@ -12,9 +12,12 @@ public final class RemoteWebServer: @unchecked Sendable {
     private var actionHandler: (@Sendable (RemoteShowAction) -> Void)?
     private var snapshotProvider: (@Sendable () -> RemoteSnapshot)?
     private let indexHTML: Data
-    /// Max HTTP body accepted (P2-9).
+    /// Max HTTP body accepted.
     public static let maxBodyBytes = 64 * 1024
+    /// Pre-delimiter header cap — disconnect if exceeded before `\r\n\r\n` (P2-13).
     public static let maxHeaderBytes = 16 * 1024
+    /// Pre-delimiter TCP-style line buffer for any streaming receive helpers.
+    public static let maxLineBufferBytes = 64 * 1024
 
     public init(
         sessions: RemoteSessionManager,
@@ -63,6 +66,10 @@ public final class RemoteWebServer: @unchecked Sendable {
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
         guard let nwPort = NWEndpoint.Port(rawValue: port) else { throw RemoteHostError.invalidPort }
+        let bind = sessions.configSnapshot.bindPolicy
+        if let host = RemoteSessionManager.listenerHost(for: bind) {
+            params.requiredLocalEndpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(host), port: nwPort)
+        }
         let listener = try NWListener(using: params, on: nwPort)
         listener.newConnectionHandler = { [weak self] conn in
             self?.handle(connection: conn)
@@ -236,8 +243,17 @@ public final class RemoteWebServer: @unchecked Sendable {
             guard let self else { return }
             var buf = buffer
             if let content { buf.append(content) }
+            // Pre-delimiter limit (P2-13): reject before finding header terminator.
+            if buf.count > Self.maxHeaderBytes, buf.range(of: Data("\r\n\r\n".utf8)) == nil {
+                connection.cancel()
+                return
+            }
             if let headerEnd = buf.range(of: Data("\r\n\r\n".utf8)) {
                 let headerData = buf.subdata(in: buf.startIndex..<headerEnd.lowerBound)
+                if headerData.count > Self.maxHeaderBytes {
+                    connection.cancel()
+                    return
+                }
                 let headerText = String(data: headerData, encoding: .utf8) ?? ""
                 let lines = headerText.split(separator: "\r\n", omittingEmptySubsequences: false).map(String.init)
                 guard let requestLine = lines.first else {
@@ -254,10 +270,6 @@ public final class RemoteWebServer: @unchecked Sendable {
                         let value = String(line[line.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
                         headers[key] = value
                     }
-                }
-                if headerData.count > Self.maxHeaderBytes {
-                    connection.cancel()
-                    return
                 }
                 let lengthStr = headers["Content-Length"] ?? headers["content-length"] ?? "0"
                 guard let contentLength = Int(lengthStr), contentLength >= 0, contentLength <= Self.maxBodyBytes else {

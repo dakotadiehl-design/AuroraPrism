@@ -24,16 +24,33 @@ public struct DMXBuffer: Equatable, Sendable {
 
     /// 1-based DMX address write.
     public mutating func setDMX(address: UInt16, value: UInt8) {
-        precondition(address >= 1)
+        guard address >= 1 else { return }
         let index = Int(address) - 1
         guard index < channels.count else { return }
         channels[index] = value
     }
 
+    /// Copy levels; **clear unused tail** so short frames never leave stale data (P2-7).
     public mutating func setLevels(_ values: [UInt8]) {
         let count = min(values.count, channels.count)
-        for i in 0..<count {
-            channels[i] = values[i]
+        if count > 0 {
+            channels.replaceSubrange(0..<count, with: values[0..<count])
+        }
+        if count < channels.count {
+            for i in count..<channels.count {
+                channels[i] = 0
+            }
+        }
+    }
+
+    /// Resize buffer; new slots zero-filled, existing prefix preserved when shrinking/growing.
+    public mutating func resize(to newCount: Int) {
+        guard newCount > 0 else { return }
+        if newCount == channels.count { return }
+        if newCount < channels.count {
+            channels = Array(channels.prefix(newCount))
+        } else {
+            channels.append(contentsOf: Array(repeating: 0, count: newCount - channels.count))
         }
     }
 

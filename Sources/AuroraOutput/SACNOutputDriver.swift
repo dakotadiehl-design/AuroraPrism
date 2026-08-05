@@ -13,9 +13,14 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
     private let cid: UUID
     private let queue = DispatchQueue(label: "com.aurora.sacn", qos: .userInteractive)
     private let lock = NSLock()
-    private var sequence: UInt8 = 0
+    /// Per-show-universe sACN sequence (P2-3).
+    private var sequences: [UInt16: UInt8] = [:]
     private var connections: [String: NWConnection] = [:]
     private var _lastError: String?
+    private var _packetsSent: UInt64 = 0
+    private var _packetsDropped: UInt64 = 0
+    private var _lastSuccessAt: Date?
+    private var _state: OutputDriverState = .disabled
 
     public var lastError: String? {
         lock.lock()
@@ -41,21 +46,34 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
         self.cid = cid
     }
 
-    public func updateConfig(_ config: SACNConfig) {
+    public func updateConfig(_ config: SACNConfig) throws {
         lock.lock()
         self.config = config
+        let wasRunning = isRunning
         lock.unlock()
-        if isRunning {
+        if wasRunning {
             stop()
-            try? start()
+            try start()
+        }
+    }
+
+    public func applyConfig(_ config: SACNConfig) {
+        do {
+            try updateConfig(config)
+        } catch {
+            lock.lock()
+            _lastError = error.localizedDescription
+            _state = .failed
+            lock.unlock()
         }
     }
 
     public func start() throws {
         lock.lock()
         isRunning = true
-        sequence = 0
+        sequences.removeAll()
         _lastError = nil
+        _state = .ready
         lock.unlock()
     }
 
@@ -66,18 +84,22 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
         }
         connections.removeAll()
         isRunning = false
+        _state = .disabled
         lock.unlock()
     }
 
     public func send(universe: UInt16, dmx: UnsafeBufferPointer<UInt8>) {
         lock.lock()
         guard isRunning else {
+            _packetsDropped &+= 1
             lock.unlock()
             return
         }
         let cfg = config
-        let seq = sequence
-        sequence &+= 1
+        var seq = sequences[universe] ?? 0
+        let current = seq
+        seq &+= 1
+        sequences[universe] = seq
         let componentID = cid
         lock.unlock()
 
@@ -85,7 +107,7 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
         let host = cfg.destinationHost(forSACNUniverse: sacnUniverse)
         let packet = SACNPacket.dataPacket(
             universe: sacnUniverse,
-            sequence: seq,
+            sequence: current,
             priority: cfg.priority,
             cid: componentID.uuid,
             sourceName: cfg.sourceName,
@@ -94,11 +116,18 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
 
         let connection = connection(forHost: host, port: cfg.destinationPort)
         connection.send(content: packet, completion: .contentProcessed { [weak self] error in
+            guard let self else { return }
+            self.lock.lock()
             if let error {
-                self?.lock.lock()
-                self?._lastError = error.localizedDescription
-                self?.lock.unlock()
+                self._lastError = error.localizedDescription
+                self._packetsDropped &+= 1
+                self._state = .degraded
+            } else {
+                self._packetsSent &+= 1
+                self._lastSuccessAt = Date()
+                if self._state == .degraded { self._state = .ready }
             }
+            self.lock.unlock()
         })
     }
 
@@ -120,5 +149,25 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
         connections[host] = conn
         lock.unlock()
         return conn
+    }
+}
+
+extension SACNOutputDriver: OutputHealthReporting {
+    public func healthSnapshot() -> OutputHealthSnapshot {
+        lock.lock()
+        defer { lock.unlock() }
+        let dest = config.destinationHost ?? "multicast"
+        return OutputHealthSnapshot(
+            driverID: id,
+            name: name,
+            outputProtocol: outputProtocol,
+            state: isRunning ? _state : .disabled,
+            target: "\(dest):\(config.destinationPort)",
+            lastError: _lastError,
+            lastSuccessAt: _lastSuccessAt,
+            packetsSent: _packetsSent,
+            packetsDropped: _packetsDropped,
+            activeUniverses: Array(sequences.keys).sorted()
+        )
     }
 }

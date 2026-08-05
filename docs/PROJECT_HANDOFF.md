@@ -256,7 +256,19 @@ Scaffold → model → core → fixtures/patch → UI shell → engine/cues/prog
 - Shared `PerformanceSnapshot` + Build/Perform workspace mode
 - Ownership map: **`docs/STAGE_C_UI_STATE_HANDOFF.md`**
 
-**Next:** Visual UI redesign against Stage C contracts (separate plan). P2/P3 may run in parallel.
+### Stage E (P2/P3 hardening) — complete
+
+| Area | Delivered |
+|------|-----------|
+| MIDI | Hotplug reconcile, per-source running status |
+| Output | Per-universe sequences, health snapshots, buffer tail clear, ENTTEC driver |
+| Package | Orphan bak/tmp recovery, schema migration pipeline, modifiedAt ownership |
+| Remote | Bind policy, session TTL/reuse, pre-delimiter limits |
+| Metrics | p95/p99/overrun frame metrics |
+| Plugins | Stable protocol surfaces (no dylib yet) |
+| Packaging | App/Info.plist, autosave, packaging notes |
+
+**Next:** Visual UI redesign against Stage C contracts. Real Art-Net/sACN hardware soak on desk hardware still recommended before live shows.
 
 ### Intentionally incomplete
 

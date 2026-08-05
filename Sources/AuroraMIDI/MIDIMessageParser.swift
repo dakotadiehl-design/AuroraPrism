@@ -1,12 +1,23 @@
 import Foundation
 
-/// Pure MIDI byte stream parser (channel voice only for PR16).
-public enum MIDIMessageParser {
-    /// Parses a flat list of MIDI bytes (running status supported within the buffer).
-    public static func parse(bytes: [UInt8], sourceID: String) -> [MIDIEvent] {
+/// Stateful MIDI byte stream parser (channel voice). Running status survives packet boundaries (P2-2).
+public final class MIDIStreamParser: @unchecked Sendable {
+    private let lock = NSLock()
+    private var runningStatus: UInt8?
+
+    public init() {}
+
+    public func reset() {
+        lock.lock()
+        runningStatus = nil
+        lock.unlock()
+    }
+
+    public func parse(bytes: [UInt8], sourceID: String) -> [MIDIEvent] {
+        lock.lock()
+        defer { lock.unlock() }
         var events: [MIDIEvent] = []
         var i = 0
-        var runningStatus: UInt8?
 
         while i < bytes.count {
             var status = bytes[i]
@@ -21,7 +32,6 @@ public enum MIDIMessageParser {
                 if status < 0xF0 {
                     runningStatus = status
                 } else if status >= 0xF8 {
-                    // Realtime — ignore single byte
                     continue
                 } else {
                     runningStatus = nil
@@ -60,15 +70,21 @@ public enum MIDIMessageParser {
                 i += 1
                 events.append(.programChange(channel: channel, program: prog, sourceID: sourceID))
             case 0xA0, 0xE0:
-                // poly AT, pitch bend — skip 2 data bytes
                 i = min(i + 2, bytes.count)
             case 0xD0:
                 i = min(i + 1, bytes.count)
             default:
-                // Unknown / system — skip
                 break
             }
         }
         return events
+    }
+}
+
+/// Pure MIDI byte stream parser (channel voice only for PR16).
+public enum MIDIMessageParser {
+    /// Parses a flat list of MIDI bytes (running status supported within the buffer only).
+    public static func parse(bytes: [UInt8], sourceID: String) -> [MIDIEvent] {
+        MIDIStreamParser().parse(bytes: bytes, sourceID: sourceID)
     }
 }

@@ -70,9 +70,14 @@ public final class OutputManager: @unchecked Sendable {
     }
 
     public func ensureUniverse(_ number: UInt16, channelCount: Int? = nil) {
+        let desired = channelCount ?? defaultChannelCount
         lock.lock()
         if buffers[number] == nil {
-            buffers[number] = DMXBuffer(channelCount: channelCount ?? defaultChannelCount)
+            buffers[number] = DMXBuffer(channelCount: desired)
+        } else if let current = buffers[number], current.channelCount != desired {
+            var buf = current
+            buf.resize(to: desired)
+            buffers[number] = buf
         }
         lock.unlock()
     }
@@ -80,10 +85,30 @@ public final class OutputManager: @unchecked Sendable {
     public func setLevels(universe: UInt16, values: [UInt8]) {
         lock.lock()
         if buffers[universe] == nil {
-            buffers[universe] = DMXBuffer(channelCount: defaultChannelCount)
+            buffers[universe] = DMXBuffer(channelCount: max(values.count, defaultChannelCount))
         }
         buffers[universe]?.setLevels(values)
         lock.unlock()
+    }
+
+    /// Aggregate health from drivers that report it (P2-6).
+    public func healthSnapshots() -> [OutputHealthSnapshot] {
+        lock.lock()
+        let list = Array(drivers.values)
+        let active = Array(buffers.keys).sorted()
+        lock.unlock()
+        return list.compactMap { driver -> OutputHealthSnapshot? in
+            if let reporting = driver as? OutputHealthReporting {
+                return reporting.healthSnapshot()
+            }
+            return OutputHealthSnapshot(
+                driverID: driver.id,
+                name: driver.name,
+                outputProtocol: driver.outputProtocol,
+                state: driver.isRunning ? .ready : .disabled,
+                activeUniverses: active
+            )
+        }
     }
 
     public func setChannel(universe: UInt16, address: UInt16, value: UInt8) {

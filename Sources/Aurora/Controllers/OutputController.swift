@@ -51,7 +51,7 @@ final class OutputController: ObservableObject {
         artNetConfig.destinationHost = host
         artNetConfig.useBroadcast = host.contains("255")
         artNetConfig.save()
-        artNetDriver.updateConfig(artNetConfig)
+        artNetDriver.applyConfig(artNetConfig)
         refreshOutputStatus()
         objectWillChange.send()
     }
@@ -69,9 +69,13 @@ final class OutputController: ObservableObject {
         let trimmed = host?.trimmingCharacters(in: .whitespacesAndNewlines)
         sacnConfig.destinationHost = (trimmed?.isEmpty == false) ? trimmed : nil
         sacnConfig.save()
-        sacnDriver.updateConfig(sacnConfig)
+        sacnDriver.applyConfig(sacnConfig)
         refreshOutputStatus()
         objectWillChange.send()
+    }
+
+    func healthSnapshots() -> [OutputHealthSnapshot] {
+        outputManager.healthSnapshots()
     }
 
     func promptArtNetDestination(engineRunning: Bool, enableIfNeeded: (Bool) -> Void) {
@@ -111,10 +115,14 @@ final class OutputController: ObservableObject {
 
     private func applyArtNetRegistration(engineRunning: Bool) {
         if artNetConfig.enabled {
-            artNetDriver.updateConfig(artNetConfig)
+            artNetDriver.applyConfig(artNetConfig)
             outputManager.register(artNetDriver)
             if engineRunning {
-                try? artNetDriver.start()
+                do {
+                    try artNetDriver.start()
+                } catch {
+                    // Health snapshot carries the error.
+                }
             }
         } else {
             artNetDriver.stop()
@@ -124,10 +132,13 @@ final class OutputController: ObservableObject {
 
     private func applySACNRegistration(engineRunning: Bool) {
         if sacnConfig.enabled {
-            sacnDriver.updateConfig(sacnConfig)
+            sacnDriver.applyConfig(sacnConfig)
             outputManager.register(sacnDriver)
             if engineRunning {
-                try? sacnDriver.start()
+                do {
+                    try sacnDriver.start()
+                } catch {
+                }
             }
         } else {
             sacnDriver.stop()
@@ -136,15 +147,25 @@ final class OutputController: ObservableObject {
     }
 
     func refreshOutputStatus() {
+        let health = healthSnapshots()
         var parts: [String] = []
+        for h in health where h.outputProtocol == .artNet || h.outputProtocol == .sACN {
+            if h.state == .disabled { continue }
+            let err = h.lastError.map { " err:\($0)" } ?? ""
+            parts.append("\(h.name) \(h.state.rawValue)\(err)")
+        }
         if artNetConfig.enabled {
             let err = artNetDriver.lastError.map { " err:\($0)" } ?? ""
-            parts.append("Art-Net \(artNetConfig.destinationHost):\(artNetConfig.destinationPort)\(err)")
+            if !parts.contains(where: { $0.contains("Art") }) {
+                parts.append("Art-Net \(artNetConfig.destinationHost):\(artNetConfig.destinationPort)\(err)")
+            }
         }
         if sacnConfig.enabled {
             let dest = sacnConfig.destinationHost ?? "multicast"
             let err = sacnDriver.lastError.map { " err:\($0)" } ?? ""
-            parts.append("sACN \(dest):\(sacnConfig.destinationPort)\(err)")
+            if !parts.contains(where: { $0.contains("sACN") || $0.contains("sACN") }) {
+                parts.append("sACN \(dest):\(sacnConfig.destinationPort)\(err)")
+            }
         }
         outputStatus = parts.isEmpty ? "Output: Null only" : parts.joined(separator: " · ")
     }

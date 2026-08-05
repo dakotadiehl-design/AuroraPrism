@@ -53,6 +53,10 @@ public final class RemoteHost: @unchecked Sendable {
         guard let port = NWEndpoint.Port(rawValue: config.port) else {
             throw RemoteHostError.invalidPort
         }
+        // Enforce bind policy (P2-11).
+        if let host = RemoteSessionManager.listenerHost(for: config.bindPolicy) {
+            params.requiredLocalEndpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(host), port: port)
+        }
         let listener = try NWListener(using: params, on: port)
         listener.newConnectionHandler = { [weak self] conn in
             self?.accept(conn)
@@ -148,6 +152,11 @@ public final class RemoteHost: @unchecked Sendable {
             guard let self else { return }
             var buf = buffer
             if let content { buf.append(content) }
+            // Pre-delimiter line buffer limit (P2-13).
+            if buf.count > 64 * 1024, buf.range(of: Data([0x0A])) == nil {
+                connection.cancel()
+                return
+            }
             var currentSession = sessionId
 
             while let range = buf.range(of: Data([0x0A])) {

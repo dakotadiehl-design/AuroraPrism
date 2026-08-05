@@ -30,8 +30,19 @@ public struct PatchedFixture: Codable, Equatable, Sendable, Identifiable, Hashab
     }
 
     /// Inclusive DMX end address for a fixture of the given footprint.
+    /// Uses `Int` arithmetic to avoid trapping UInt16 overflow on bad imports (P2-10).
     public func endAddress(channelCount: UInt16) -> UInt16 {
         guard channelCount > 0 else { return address }
-        return address + channelCount - 1
+        let end = Int(address) + Int(channelCount) - 1
+        if end < 1 { return 1 }
+        if end > Int(UInt16.max) { return UInt16.max }
+        return UInt16(end)
+    }
+
+    /// Validates standard DMX universe bounds (1…512).
+    public static func validateDMXFootprint(address: UInt16, channelCount: UInt16, universeChannels: UInt16 = 512) -> Bool {
+        guard address >= 1, channelCount >= 1 else { return false }
+        let end = Int(address) + Int(channelCount) - 1
+        return end <= Int(universeChannels)
     }
 }

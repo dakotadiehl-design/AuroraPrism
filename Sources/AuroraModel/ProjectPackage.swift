@@ -75,15 +75,18 @@ public enum ProjectPackage {
     /// **Media/layouts:** copies `media/` and `layouts/` from `preservingAssetsFrom`
     /// when provided (true Save As from an open package); otherwise from any existing
     /// package already at `url` (ordinary Save).
+    /// Saves and returns the canonical `modifiedAt` stamped into the package (P2-21).
+    @discardableResult
     public static func save(
         _ project: ShowProject,
         to url: URL,
         preservingAssetsFrom assetSource: URL? = nil
-    ) throws {
+    ) throws -> Date {
         let fm = FileManager.default
         let parent = url.deletingLastPathComponent()
         let tmpName = ".\(url.lastPathComponent).tmp-\(UUID().uuidString)"
         let tmpURL = parent.appendingPathComponent(tmpName, isDirectory: true)
+        let writtenAt = Date()
 
         if fm.fileExists(atPath: tmpURL.path) {
             try? fm.removeItem(at: tmpURL)
@@ -91,7 +94,9 @@ public enum ProjectPackage {
 
         do {
             let binariesFrom = assetSource ?? url
-            try writePackageContents(project, to: tmpURL, preservingBinariesFrom: binariesFrom)
+            var stamped = project
+            stamped.metadata.modifiedAt = writtenAt
+            try writePackageContents(stamped, to: tmpURL, preservingBinariesFrom: binariesFrom)
             _ = try load(from: tmpURL)
 
             if fm.fileExists(atPath: url.path) {
@@ -110,10 +115,38 @@ public enum ProjectPackage {
             } else {
                 try fm.moveItem(at: tmpURL, to: url)
             }
+            return writtenAt
         } catch {
             try? fm.removeItem(at: tmpURL)
             throw error
         }
+    }
+
+    /// Recover orphan `.tmp-` / `.bak-` packages after crash during save (P2-8).
+    /// Returns recovered package URL if a backup was restored into a missing destination.
+    @discardableResult
+    public static func recoverOrphanedPackages(around url: URL) throws -> URL? {
+        let fm = FileManager.default
+        let parent = url.deletingLastPathComponent()
+        let base = url.lastPathComponent
+        let contents = try fm.contentsOfDirectory(at: parent, includingPropertiesForKeys: nil)
+        let bak = contents.filter { $0.lastPathComponent.hasPrefix(".\(base).bak-") }
+        let tmp = contents.filter { $0.lastPathComponent.hasPrefix(".\(base).tmp-") }
+
+        // Prefer restoring newest valid backup if destination missing.
+        if !fm.fileExists(atPath: url.path), let newestBak = bak.sorted(by: { $0.lastPathComponent > $1.lastPathComponent }).first {
+            _ = try load(from: newestBak)
+            try fm.moveItem(at: newestBak, to: url)
+            for t in tmp { try? fm.removeItem(at: t) }
+            for b in bak where b != newestBak { try? fm.removeItem(at: b) }
+            return url
+        }
+        // Clean leftover temps when destination is healthy.
+        if fm.fileExists(atPath: url.path) {
+            for t in tmp { try? fm.removeItem(at: t) }
+            for b in bak { try? fm.removeItem(at: b) }
+        }
+        return nil
     }
 
     private static func writePackageContents(
@@ -140,7 +173,7 @@ public enum ProjectPackage {
 
         var projectToWrite = project
         projectToWrite.schemaVersion = currentSchemaVersion
-        projectToWrite.metadata.modifiedAt = Date()
+        // modifiedAt is stamped by `save` before calling this (P2-21).
 
         let encoder = makeEncoder()
 
@@ -265,7 +298,7 @@ public enum ProjectPackage {
             cueLists.append(list)
         }
 
-        return ShowProject(
+        let loaded = ShowProject(
             schemaVersion: root.schemaVersion,
             metadata: root.metadata,
             preferences: root.preferences,
@@ -282,6 +315,7 @@ public enum ProjectPackage {
             effects: effects,
             workspaceLayoutId: root.workspaceLayoutId
         )
+        return try SchemaMigration.migrate(loaded)
     }
 
     // MARK: - Helpers

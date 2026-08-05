@@ -2,6 +2,7 @@ import CoreMIDI
 import Foundation
 
 /// Enumerates and connects CoreMIDI sources; delivers parsed `MIDIEvent`s with stable source IDs.
+/// Hotplug reconciles inventory: removed endpoints disconnect, new ones connect (P2-1).
 public final class MIDIInputManager: @unchecked Sendable {
     private var client = MIDIClientRef()
     private var inputPort = MIDIPortRef()
@@ -11,6 +12,9 @@ public final class MIDIInputManager: @unchecked Sendable {
     private var handler: (@Sendable ([MIDIEvent]) -> Void)?
     /// Keeps source ID strings alive for CoreMIDI refCon pointers.
     private var sourceIDStorage: [String: NSString] = [:]
+    /// Per-source stream parsers so running status survives packet boundaries (P2-2).
+    private var streamParsers: [String: MIDIStreamParser] = [:]
+    private var diagnostics: ((String) -> Void)?
 
     public init() {}
 
@@ -32,12 +36,18 @@ public final class MIDIInputManager: @unchecked Sendable {
         lock.unlock()
     }
 
+    public func setDiagnosticsLogger(_ logger: @escaping (String) -> Void) {
+        lock.lock()
+        diagnostics = logger
+        lock.unlock()
+    }
+
     public func start() throws {
         lock.lock()
         let alreadyStarted = client != 0 && inputPort != 0
         lock.unlock()
         if alreadyStarted {
-            try connectAllSources()
+            try reconcileSources()
             return
         }
 
@@ -54,7 +64,6 @@ public final class MIDIInputManager: @unchecked Sendable {
             self?.handlePacketList(packetList, srcConnRefCon: srcConnRefCon)
         }
         guard status == noErr else {
-            // P1-3: dispose client created above.
             if client != 0 {
                 MIDIClientDispose(client)
                 client = 0
@@ -63,8 +72,7 @@ public final class MIDIInputManager: @unchecked Sendable {
             throw MIDIError.coreMIDI("MIDIInputPortCreate failed: \(status)")
         }
 
-        refreshSources()
-        try connectAllSources()
+        try reconcileSources()
     }
 
     public func stop() {
@@ -74,6 +82,7 @@ public final class MIDIInputManager: @unchecked Sendable {
         }
         connected.removeAll()
         sourceIDStorage.removeAll()
+        streamParsers.removeAll()
         lock.unlock()
         if inputPort != 0 {
             MIDIPortDispose(inputPort)
@@ -100,11 +109,32 @@ public final class MIDIInputManager: @unchecked Sendable {
         lock.unlock()
     }
 
-    public func connectAllSources() throws {
+    /// Full inventory reconcile (P2-1).
+    public func reconcileSources() throws {
         refreshSources()
         let count = MIDIGetNumberOfSources()
+        var liveEndpoints = Set<MIDIEndpointRef>()
         for i in 0..<count {
-            let endpoint = MIDIGetSource(i)
+            liveEndpoints.insert(MIDIGetSource(i))
+        }
+
+        lock.lock()
+        let previous = connected
+        lock.unlock()
+
+        // Disconnect removed
+        for (endpoint, sourceID) in previous where !liveEndpoints.contains(endpoint) {
+            MIDIPortDisconnectSource(inputPort, endpoint)
+            lock.lock()
+            connected[endpoint] = nil
+            sourceIDStorage[sourceID] = nil
+            streamParsers[sourceID] = nil
+            lock.unlock()
+            logDiag("MIDI source removed: \(sourceID)")
+        }
+
+        // Connect new
+        for endpoint in liveEndpoints {
             lock.lock()
             let already = connected[endpoint] != nil
             lock.unlock()
@@ -114,6 +144,7 @@ public final class MIDIInputManager: @unchecked Sendable {
             let retained = sourceID as NSString
             lock.lock()
             sourceIDStorage[sourceID] = retained
+            streamParsers[sourceID] = MIDIStreamParser()
             lock.unlock()
 
             let refCon = Unmanaged.passUnretained(retained).toOpaque()
@@ -122,11 +153,17 @@ public final class MIDIInputManager: @unchecked Sendable {
                 lock.lock()
                 connected[endpoint] = sourceID
                 lock.unlock()
+                logDiag("MIDI source connected: \(sourceID)")
+            } else {
+                logDiag("MIDI connect failed \(sourceID): \(status)")
             }
         }
     }
 
-    /// Stable CoreMIDI unique ID when available (P1-2).
+    public func connectAllSources() throws {
+        try reconcileSources()
+    }
+
     public static func stableSourceID(for endpoint: MIDIEndpointRef) -> String {
         var unique: Int32 = 0
         let status = MIDIObjectGetIntegerProperty(endpoint, kMIDIPropertyUniqueID, &unique)
@@ -143,8 +180,7 @@ public final class MIDIInputManager: @unchecked Sendable {
     private func handleNotification(_ notification: UnsafePointer<MIDINotification>) {
         let id = notification.pointee.messageID
         if id == .msgObjectAdded || id == .msgObjectRemoved || id == .msgSetupChanged {
-            refreshSources()
-            try? connectAllSources()
+            try? reconcileSources()
         }
     }
 
@@ -159,6 +195,17 @@ public final class MIDIInputManager: @unchecked Sendable {
             sourceID = "coremidi"
         }
 
+        lock.lock()
+        let parser: MIDIStreamParser
+        if let existing = streamParsers[sourceID] {
+            parser = existing
+        } else {
+            let created = MIDIStreamParser()
+            streamParsers[sourceID] = created
+            parser = created
+        }
+        lock.unlock()
+
         var packet = packetList.pointee.packet
         var events: [MIDIEvent] = []
         for _ in 0..<packetList.pointee.numPackets {
@@ -168,7 +215,7 @@ public final class MIDIInputManager: @unchecked Sendable {
                 let buf = raw.bindMemory(to: UInt8.self)
                 bytes = Array(buf.prefix(length))
             }
-            events.append(contentsOf: MIDIMessageParser.parse(bytes: bytes, sourceID: sourceID))
+            events.append(contentsOf: parser.parse(bytes: bytes, sourceID: sourceID))
             packet = MIDIPacketNext(&packet).pointee
         }
         emit(events)
@@ -180,6 +227,13 @@ public final class MIDIInputManager: @unchecked Sendable {
         let h = handler
         lock.unlock()
         h?(events)
+    }
+
+    private func logDiag(_ message: String) {
+        lock.lock()
+        let d = diagnostics
+        lock.unlock()
+        d?(message)
     }
 
     private func stringProperty(_ object: MIDIObjectRef, _ property: CFString) -> String? {

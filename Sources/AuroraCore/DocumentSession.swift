@@ -50,6 +50,12 @@ public final class DocumentSession {
         savedGeneration = documentGeneration
     }
 
+    /// Apply canonical package metadata after save so memory matches disk (P2-21).
+    public func applySavedMetadata(modifiedAt: Date) {
+        project.metadata.modifiedAt = modifiedAt
+        markSaved()
+    }
+
     /// Reset session to a loaded/new project as clean.
     public func reset(to project: ShowProject) {
         self.project = project

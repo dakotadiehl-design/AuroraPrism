@@ -7,19 +7,23 @@ public struct RemoteClientInfo: Equatable, Sendable, Identifiable {
     public var displayName: String
     public var role: RemoteRole
     public var connectedAt: Date
+    /// Last activity for expiry / reconnect (P2-12).
+    public var lastSeenAt: Date
 
     public init(
         id: UUID = UUID(),
         clientId: String,
         displayName: String,
         role: RemoteRole,
-        connectedAt: Date = Date()
+        connectedAt: Date = Date(),
+        lastSeenAt: Date = Date()
     ) {
         self.id = id
         self.clientId = clientId
         self.displayName = displayName
         self.role = role
         self.connectedAt = connectedAt
+        self.lastSeenAt = lastSeenAt
     }
 }
 
@@ -40,6 +44,8 @@ public struct RemoteHostConfig: Equatable, Sendable {
     public var maxCommandsPerSecond: Int
     public var maxAuthFailuresPerMinute: Int
     public var bindPolicy: RemoteBindPolicy
+    /// Inactive client TTL seconds (P2-12).
+    public var sessionIdleTTL: TimeInterval
 
     public init(
         enabled: Bool = false,
@@ -49,7 +55,8 @@ public struct RemoteHostConfig: Equatable, Sendable {
         port: UInt16 = 8742,
         maxCommandsPerSecond: Int = 20,
         maxAuthFailuresPerMinute: Int = 10,
-        bindPolicy: RemoteBindPolicy = .privateLAN
+        bindPolicy: RemoteBindPolicy = .privateLAN,
+        sessionIdleTTL: TimeInterval = 120
     ) {
         self.enabled = enabled
         self.pin = pin
@@ -59,6 +66,7 @@ public struct RemoteHostConfig: Equatable, Sendable {
         self.maxCommandsPerSecond = max(1, maxCommandsPerSecond)
         self.maxAuthFailuresPerMinute = max(1, maxAuthFailuresPerMinute)
         self.bindPolicy = bindPolicy
+        self.sessionIdleTTL = max(15, sessionIdleTTL)
     }
 
     /// Cryptographically random 6-digit PIN (never "0000" as a product default) — P1-5.
@@ -158,6 +166,22 @@ public final class RemoteSessionManager: @unchecked Sendable {
             authFailureTimestamps.append(now)
             return .reject("invalid PIN")
         }
+
+        // Reclaim idle sessions before enforcing maxClients (P2-12).
+        reclaimInactiveLocked(now: now)
+
+        // Reuse existing session for same clientId (browser reload).
+        if let existing = clients.values.first(where: { $0.clientId == clientId }) {
+            var updated = existing
+            updated.lastSeenAt = Date(timeIntervalSince1970: now)
+            updated.displayName = displayName ?? existing.displayName
+            if config.lockedToViewer {
+                updated.role = .viewer
+            }
+            clients[updated.id] = updated
+            return .welcome(updated)
+        }
+
         guard clients.count < config.maxClients else {
             return .reject("client limit reached")
         }
@@ -166,10 +190,36 @@ public final class RemoteSessionManager: @unchecked Sendable {
         let info = RemoteClientInfo(
             clientId: clientId,
             displayName: displayName ?? clientId,
-            role: role
+            role: role,
+            lastSeenAt: Date(timeIntervalSince1970: now)
         )
         clients[info.id] = info
         return .welcome(info)
+    }
+
+    /// Drop clients idle longer than `sessionIdleTTL`.
+    @discardableResult
+    public func reclaimInactive(now: TimeInterval = Date().timeIntervalSince1970) -> [UUID] {
+        lock.lock()
+        defer { lock.unlock() }
+        return reclaimInactiveLocked(now: now)
+    }
+
+    private func reclaimInactiveLocked(now: TimeInterval) -> [UUID] {
+        let ttl = config.sessionIdleTTL
+        let stale = clients.filter { now - $0.value.lastSeenAt.timeIntervalSince1970 > ttl }.map(\.key)
+        for id in stale {
+            clients[id] = nil
+            commandTimestamps[id] = nil
+            tokens = tokens.filter { $0.value != id }
+        }
+        return stale
+    }
+
+    public func touch(sessionId: UUID, now: TimeInterval = Date().timeIntervalSince1970) {
+        lock.lock()
+        clients[sessionId]?.lastSeenAt = Date(timeIntervalSince1970: now)
+        lock.unlock()
     }
 
     // MARK: - Tokens (P1-6)
@@ -234,7 +284,9 @@ public final class RemoteSessionManager: @unchecked Sendable {
     public func authorize(sessionId: UUID, action: RemoteShowAction, now: TimeInterval = Date().timeIntervalSince1970) -> RemoteShowAction? {
         lock.lock()
         defer { lock.unlock() }
-        guard let client = clients[sessionId] else { return nil }
+        guard var client = clients[sessionId] else { return nil }
+        client.lastSeenAt = Date(timeIntervalSince1970: now)
+        clients[sessionId] = client
         if client.role == .viewer { return nil }
         if config.lockedToViewer { return nil }
         guard RemoteCommandAllowList.isAllowed(action) else { return nil }
@@ -246,6 +298,14 @@ public final class RemoteSessionManager: @unchecked Sendable {
         times.append(now)
         commandTimestamps[sessionId] = times
         return action
+    }
+
+    /// NWParameters host restriction from bind policy (P2-11).
+    public static func listenerHost(for policy: RemoteBindPolicy) -> String? {
+        switch policy {
+        case .loopbackOnly: return "127.0.0.1"
+        case .privateLAN, .allInterfaces: return nil // all interfaces
+        }
     }
 }
 

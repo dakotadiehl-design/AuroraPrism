@@ -29,8 +29,9 @@ final class AppModel: ObservableObject {
     let remote: RemoteController
     let diagnostics: DiagnosticsController
     let settings: AppSettingsStore
+    let autosave = AutosaveController()
 
-    /// In-process plugin registry (PR29 skeleton).
+    /// In-process plugin registry (PR29 / P3-4 protocol surfaces).
     let pluginHost = PluginHost()
 
     private var cancellables = Set<AnyCancellable>()
@@ -135,6 +136,8 @@ final class AppModel: ObservableObject {
             session: { [weak self] in self?.document.session ?? DocumentSession(project: .empty()) },
             onLog: { [weak self] msg in self?.diagnostics.log(msg) }
         )
+        // P2-17: MIDI subsystem diagnostics bridge
+        // (InputController can log connect/disconnect via setDiagnosticsLogger when wired)
         showControl.setUINotify { [weak self] action, summary in
             Task { @MainActor in
                 self?.input.objectWillChange.send()
@@ -151,6 +154,22 @@ final class AppModel: ObservableObject {
             isDirty: { [weak self] in self?.document.isDirty ?? false }
         )
         output.refreshOutputStatus()
+        // P2-22: preferred frame rate from app settings affects engine when possible.
+        if let period = Optional(1.0 / max(1, settings.preferredFrameRateHz)) {
+            showControl.engine.frameMetrics.setTargetPeriodMs(period * 1000)
+        }
+        autosave.onAutosave = { [weak self] in
+            guard let self, let url = self.document.documentURL, self.document.isDirty else { return false }
+            do {
+                try self.document.save(to: url)
+                self.diagnostics.log("Autosave \(url.lastPathComponent)")
+                return true
+            } catch {
+                self.diagnostics.log("Autosave failed: \(error.localizedDescription)")
+                return false
+            }
+        }
+        autosave.start()
         notifyUI()
     }
 
@@ -444,28 +463,34 @@ final class AppModel: ObservableObject {
     }
 
     private func performRemote(_ action: RemoteShowAction) {
+        // Live transport/programmer via ControlActionRouter (not MainActor-bound engine wait) — P2-15.
         switch action {
-        case .go: go()
-        case .stop: stopPlayback()
-        case .back: back()
-        case .next: go()
+        case .go:
+            showControl.controlRouter.dispatch(.go)
+        case .stop:
+            showControl.controlRouter.dispatch(.stop)
+        case .back:
+            showControl.controlRouter.dispatch(.back)
+        case .next:
+            showControl.controlRouter.dispatch(.go)
         case .fireCueIndex(let i):
-            perform(action: .fireCueIndex(i))
+            showControl.controlRouter.dispatch(.fireCueIndex(i))
         case .fireCue(let id):
-            fireCue(id: id)
+            showControl.controlRouter.dispatch(.fireCue(id))
         case .songNext:
             showControl.songNext(project: session.project)
-            notifyUI()
         case .songPrevious:
             showControl.songPrevious(project: session.project)
-            notifyUI()
         case .setProgrammerAttribute(let attr, let value):
-            for id in session.selection.snapshot.fixtureIDs {
-                engine.programmer.set(fixtureID: id, attribute: attr, value: value)
-            }
-            notifyUI()
+            let control = MIDIControlValue(normalized: value, isTrigger: false)
+            showControl.controlRouter.dispatch(
+                .programmerAttribute(attr),
+                control: control
+            )
         }
+        showControl.refreshEngineStatus()
         diagnostics.log("Remote \(String(describing: action))")
+        notifyUI()
     }
 
     func setRemoteLockedToViewer(_ locked: Bool) {
@@ -485,6 +510,7 @@ final class AppModel: ObservableObject {
 
     /// Shutdown hook for app delegate if needed later.
     func shutdown() {
+        autosave.stop()
         showControl.stopTimers()
         input.stopAll()
         output.stopAll()
