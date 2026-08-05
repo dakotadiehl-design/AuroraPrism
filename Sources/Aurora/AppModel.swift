@@ -257,8 +257,11 @@ final class AppModel: ObservableObject {
         eventToken = session.eventBus.subscribe { [weak self] event in
             guard let self else { return }
             self.bump()
-            if case .projectModified = event {
+            switch event {
+            case .projectModified:
                 self.reloadEngine()
+            case .selectionChanged(let snap):
+                self.engine.programmer.setHighlightSelection(snap.fixtureIDs)
             }
         }
     }

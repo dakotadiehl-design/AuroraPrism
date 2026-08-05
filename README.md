@@ -4,7 +4,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 ## Status
 
-**PR10 engine** is in tree: ~40 Hz scheduler, merge stub, DMX output, multi-pane patch UI. Cue timing (PR11) is next.
+**PR11–13 live core** is in tree: cue playback with fades/follows, cue list UI, and programmer layer. MIDI and effects still ahead.
 
 | Doc | Description |
 |-----|-------------|
@@ -20,6 +20,9 @@ Professional-grade **lighting control** for macOS — live performance show cont
 | [`docs/design/pr8-patch-fixture-browser.md`](./docs/design/pr8-patch-fixture-browser.md) | **PR8** patch + fixture browser |
 | [`docs/design/pr9-output-layer.md`](./docs/design/pr9-output-layer.md) | **PR9** output / DMX |
 | [`docs/design/pr10-playback-engine.md`](./docs/design/pr10-playback-engine.md) | **PR10** engine / scheduler |
+| [`docs/design/pr11-cue-engine.md`](./docs/design/pr11-cue-engine.md) | **PR11** cue timing / tracking |
+| [`docs/design/pr12-cue-list-ui.md`](./docs/design/pr12-cue-list-ui.md) | **PR12** cue list UI |
+| [`docs/design/pr13-programmer-core.md`](./docs/design/pr13-programmer-core.md) | **PR13** programmer core |
 | [`docs/design/remote-companion.md`](./docs/design/remote-companion.md) | Stage iPad remote (web first, native later) |
 | [`docs/development-workflow.md`](./docs/development-workflow.md) | Mac toolchain & dual-host notes |
 
@@ -69,4 +72,4 @@ Dependency rules are documented in [PR1 scaffold](./docs/design/pr1-project-scaf
 
 ## Next
 
-See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR11** adds cue timing, fades, and tracking.
+See the [PR plan](./docs/design/aurora-system-design.md#17-pr-plan). **PR14** adds programmer UI; **PR16** adds CoreMIDI.

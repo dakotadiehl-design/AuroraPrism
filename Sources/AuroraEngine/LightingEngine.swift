@@ -18,6 +18,7 @@ public final class LightingEngine: @unchecked Sendable {
     private var startedOutput = false
 
     public let playback = PlaybackController()
+    public let programmer = Programmer()
 
     public init(
         output: OutputManager,
@@ -141,12 +142,13 @@ public final class LightingEngine: @unchecked Sendable {
         let running = scheduler.isRunning
         lock.unlock()
 
-        let look: ActiveLook
+        let playbackLook: ActiveLook
         if let manual {
-            look = manual
+            playbackLook = manual
         } else {
-            look = playback.look(at: time)
+            playbackLook = playback.look(at: time)
         }
+        let look = programmer.apply(onPlayback: playbackLook, project: project)
         let playbackSnap = playback.snapshot()
 
         let levels = MergeStub.merge(project: project, look: look, channelCount: config.channelCount)
