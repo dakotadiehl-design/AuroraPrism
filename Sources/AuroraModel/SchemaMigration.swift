@@ -28,12 +28,24 @@ public enum SchemaMigration {
         return result
     }
 
-    /// Per-version step. v1 is current — identity path only until v2 lands.
+    /// Per-version step.
     private static func migrateStep(_ project: ShowProject, from version: Int) throws -> ShowProject {
         switch version {
         case 1:
-            // Future: 1 → 2 transforms go here.
-            return project
+            // v1 → v2: ensure stage layout exists; fixture generic/cell fields default via decode.
+            var next = project
+            if next.stageLayout.fixtures.isEmpty && next.stageLayout.scenic.isEmpty {
+                next.stageLayout = .empty
+            }
+            return next
+        case 2:
+            // v2 → v3: advanced MIDI assets default empty if absent.
+            var next = project
+            if next.drumProfiles.isEmpty {
+                // Seed a GM kit so Electronic Drums scenario has a starting profile.
+                next.drumProfiles = [.generalMIDIKit]
+            }
+            return next
         default:
             throw SchemaMigrationError.unsupportedVersion(found: version, supportedMaximum: currentVersion)
         }

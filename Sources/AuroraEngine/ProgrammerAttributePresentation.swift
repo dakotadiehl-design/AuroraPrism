@@ -65,6 +65,14 @@ public struct ProgrammerAttributePresentation: Equatable, Sendable {
     public var colorW: ProgrammerAttributeState
     /// Color channels the selection supports (stable order) for technical UI.
     public var technicalColorAttributes: [String]
+    /// Beam family attributes supported by the selection (stable order).
+    public var beamAttributes: [String]
+    /// Shutter/strobe family attributes.
+    public var strobeAttributes: [String]
+    /// Generic / raw / remaining controllable attributes not covered above.
+    public var genericAttributes: [String]
+    /// Per-attribute state for beam/strobe/generic (key = attribute).
+    public var extendedStates: [String: ProgrammerAttributeState]
 
     public init(
         orderedFixtureIDs: [UUID] = [],
@@ -75,7 +83,11 @@ public struct ProgrammerAttributePresentation: Equatable, Sendable {
         colorG: ProgrammerAttributeState = .unsupported,
         colorB: ProgrammerAttributeState = .unsupported,
         colorW: ProgrammerAttributeState = .unsupported,
-        technicalColorAttributes: [String] = []
+        technicalColorAttributes: [String] = [],
+        beamAttributes: [String] = [],
+        strobeAttributes: [String] = [],
+        genericAttributes: [String] = [],
+        extendedStates: [String: ProgrammerAttributeState] = [:]
     ) {
         self.orderedFixtureIDs = orderedFixtureIDs
         self.intensity = intensity
@@ -86,12 +98,19 @@ public struct ProgrammerAttributePresentation: Equatable, Sendable {
         self.colorB = colorB
         self.colorW = colorW
         self.technicalColorAttributes = technicalColorAttributes
+        self.beamAttributes = beamAttributes
+        self.strobeAttributes = strobeAttributes
+        self.genericAttributes = genericAttributes
+        self.extendedStates = extendedStates
     }
 
     public static let empty = ProgrammerAttributePresentation()
 
     public var hasIntensity: Bool { intensity.isSupported }
     public var hasPosition: Bool { pan.isSupported || tilt.isSupported }
+    public var hasBeam: Bool { !beamAttributes.isEmpty }
+    public var hasStrobe: Bool { !strobeAttributes.isEmpty }
+    public var hasGeneric: Bool { !genericAttributes.isEmpty }
 
     /// HSV wheel only when selection has RGB mapping the wheel can write.
     public var hasRGBColor: Bool {
@@ -113,11 +132,36 @@ public struct ProgrammerAttributePresentation: Equatable, Sendable {
     public var isRGBMixed: Bool {
         [colorR, colorG, colorB].contains(where: \.isMixed)
     }
+
+    public func state(for attribute: String) -> ProgrammerAttributeState {
+        switch attribute {
+        case "intensity": return intensity
+        case "pan": return pan
+        case "tilt": return tilt
+        case "colorR": return colorR
+        case "colorG": return colorG
+        case "colorB": return colorB
+        case "colorW": return colorW
+        default: return extendedStates[attribute] ?? .unsupported
+        }
+    }
 }
 
 public enum ProgrammerAttributePresentationResolver {
     public static let primaryColorAttributes = ["colorR", "colorG", "colorB", "colorW"]
     public static let knownTechnicalColorExtras = ["colorA", "colorUV", "cyan", "magenta", "yellow"]
+    public static let beamAttributeNames = [
+        "zoom", "focus", "iris", "frost", "prism", "prismRotate", "gobo", "goboRotate",
+        "goboIndex", "beam", "diffusion", "blade1", "blade2", "blade3", "blade4",
+    ]
+    public static let strobeAttributeNames = [
+        "shutter", "strobe", "strobeRate", "strobeDuration", "shutterStrobe",
+    ]
+    private static let coreAttributes: Set<String> = [
+        "intensity", "dimmer", "dim", "pan", "tilt",
+        "colorR", "colorG", "colorB", "colorW",
+        "colorA", "colorUV", "cyan", "magenta", "yellow",
+    ]
 
     public static func resolve(
         orderedFixtureIDs: [UUID],
@@ -142,6 +186,35 @@ public enum ProgrammerAttributePresentationResolver {
             orderedFixtureIDs.contains { caps[$0]?.contains(attr) == true }
         }
 
+        let beam = beamAttributeNames.filter { attr in
+            orderedFixtureIDs.contains { caps[$0]?.contains(attr) == true }
+        }
+        let strobe = strobeAttributeNames.filter { attr in
+            orderedFixtureIDs.contains { caps[$0]?.contains(attr) == true }
+        }
+
+        // Generic: any supported attr not in intensity/position/color/beam/strobe families.
+        let known = coreAttributes
+            .union(beamAttributeNames)
+            .union(strobeAttributeNames)
+            .union(primaryColorAttributes)
+            .union(knownTechnicalColorExtras)
+        var genericSet = Set<String>()
+        for id in orderedFixtureIDs {
+            for attr in caps[id] ?? [] {
+                let base = attr.split(separator: "@").first.map(String.init) ?? attr
+                if known.contains(base) || known.contains(attr) { continue }
+                if attr.isEmpty { continue }
+                genericSet.insert(attr)
+            }
+        }
+        let generic = genericSet.sorted()
+
+        var extended: [String: ProgrammerAttributeState] = [:]
+        for attr in beam + strobe + generic {
+            extended[attr] = resolveAttribute(attr, ordered: orderedFixtureIDs, caps: caps, values: values)
+        }
+
         return ProgrammerAttributePresentation(
             orderedFixtureIDs: orderedFixtureIDs,
             intensity: intensity,
@@ -151,7 +224,11 @@ public enum ProgrammerAttributePresentationResolver {
             colorG: colorG,
             colorB: colorB,
             colorW: colorW,
-            technicalColorAttributes: tech
+            technicalColorAttributes: tech,
+            beamAttributes: beam,
+            strobeAttributes: strobe,
+            genericAttributes: generic,
+            extendedStates: extended
         )
     }
 
@@ -237,7 +314,9 @@ public enum ProgrammerAttributePresentationResolver {
             }
             let attrs: Set<String>
             if let def = project.definition(id: fixture.definitionId) {
-                attrs = Set(def.channels.map(\.attribute))
+                // Include expanded multi-cell attributes so Programmer can target cells.
+                attrs = Set(CompiledShow.compileAttributeWrites(definition: def).map(\.attribute))
+                    .union(def.channels.map(\.attribute))
             } else {
                 attrs = []
             }

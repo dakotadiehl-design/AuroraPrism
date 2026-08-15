@@ -132,11 +132,89 @@ struct PerformWorkspaceShell: View {
 
     /// GO dominant; BACK/STOP supporting. Never gated by health color (A6). CR-15: no no-op modifiers.
     private var transportRow: some View {
-        HStack(spacing: AuroraSpacing.lg) {
-            AuroraTransportButton(kind: .back) { appModel.back() }
-            AuroraTransportButton(kind: .go) { appModel.go() }
-            AuroraTransportButton(kind: .stop) { appModel.stopPlayback() }
+        VStack(spacing: AuroraSpacing.md) {
+            HStack(spacing: AuroraSpacing.lg) {
+                AuroraTransportButton(kind: .back) { appModel.back() }
+                AuroraTransportButton(kind: .go) { appModel.go() }
+                AuroraTransportButton(kind: .stop) { appModel.stopPlayback() }
+            }
+            // Global show control (P0-I) — functional chrome only.
+            HStack(spacing: AuroraSpacing.md) {
+                globalToggle(
+                    title: "B/O",
+                    active: appModel.performance.blackout,
+                    critical: true
+                ) { appModel.toggleBlackout() }
+                globalToggle(
+                    title: "FREEZE",
+                    active: appModel.performance.freeze,
+                    critical: false
+                ) { appModel.toggleFreeze() }
+                globalToggle(
+                    title: "BLIND",
+                    active: appModel.performance.blind,
+                    critical: false
+                ) { appModel.toggleBlind() }
+                Button("PANIC") { appModel.panicReset() }
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                    .controlSize(.small)
+                Button("CLEAR OVR") { appModel.clearOverrides() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Clear temporary overrides (programmer blind/highlight/locate, freeze hold)")
+                globalToggle(
+                    title: "MIDI",
+                    active: appModel.performance.midiPerformanceEnabled,
+                    critical: false
+                ) { appModel.toggleMIDIPerformance() }
+            }
+            HStack(spacing: AuroraSpacing.sm) {
+                Text("Master")
+                    .font(AuroraTypography.metadata)
+                    .foregroundStyle(AuroraColor.textTertiary)
+                Slider(
+                    value: Binding(
+                        get: { appModel.performance.masterIntensity },
+                        set: { appModel.setMasterIntensity($0) }
+                    ),
+                    in: 0...1
+                )
+                .frame(maxWidth: 220)
+                Text("\(Int(appModel.performance.masterIntensity * 100))%")
+                    .font(AuroraTypography.metadata.monospacedDigit())
+                    .foregroundStyle(AuroraColor.textSecondary)
+                    .frame(width: 40, alignment: .trailing)
+            }
+            .padding(.top, AuroraSpacing.sm)
         }
+    }
+
+    private func globalToggle(
+        title: String,
+        active: Bool,
+        critical: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(AuroraTypography.metadata.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    active
+                        ? (critical ? AuroraColor.critical.opacity(0.85) : AuroraColor.warning.opacity(0.85))
+                        : AuroraColor.surfacePanel
+                )
+                .foregroundStyle(active ? Color.white : AuroraColor.textSecondary)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(AuroraColor.separatorStrong, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(active ? .isSelected : [])
     }
 
     /// Secondary song/section navigation — not GO-styled (A5 / CR-14).
@@ -186,7 +264,7 @@ struct PerformWorkspaceShell: View {
         let health = AuroraShellHealthSnapshot.build(
             engineRunning: appModel.performance.engineRunning,
             output: appModel.output.presentationSnapshot(),
-            midiStatus: appModel.midiStatus
+            midi: appModel.midiHealth
         )
         return HStack(spacing: AuroraSpacing.xl) {
             AuroraStatusIndicator(label: "Engine", level: health.engine)

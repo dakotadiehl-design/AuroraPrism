@@ -10,6 +10,8 @@ public final class MIDIInputManager: @unchecked Sendable {
     private var connected: [MIDIEndpointRef: String] = [:]
     private var _sources: [MIDIDeviceInfo] = []
     private var handler: (@Sendable ([MIDIEvent]) -> Void)?
+    /// ST-01: notified after hotplug inventory reconcile (source count may change without MIDI traffic).
+    private var inventoryHandler: (@Sendable (Int) -> Void)?
     /// Keeps source ID strings alive for CoreMIDI refCon pointers.
     private var sourceIDStorage: [String: NSString] = [:]
     /// Per-source stream parsers so running status survives packet boundaries (P2-2).
@@ -33,6 +35,13 @@ public final class MIDIInputManager: @unchecked Sendable {
     public func setHandler(_ handler: @escaping @Sendable ([MIDIEvent]) -> Void) {
         lock.lock()
         self.handler = handler
+        lock.unlock()
+    }
+
+    /// Called after `reconcileSources` with the current connected source count (ST-01 hotplug).
+    public func setInventoryChangeHandler(_ handler: @escaping @Sendable (Int) -> Void) {
+        lock.lock()
+        self.inventoryHandler = handler
         lock.unlock()
     }
 
@@ -158,6 +167,17 @@ public final class MIDIInputManager: @unchecked Sendable {
                 logDiag("MIDI connect failed \(sourceID): \(status)")
             }
         }
+
+        // ST-01: always notify inventory after reconcile so UI updates on hotplug without MIDI notes.
+        notifyInventoryChanged()
+    }
+
+    private func notifyInventoryChanged() {
+        lock.lock()
+        let count = connected.count
+        let handler = inventoryHandler
+        lock.unlock()
+        handler?(count)
     }
 
     public func connectAllSources() throws {

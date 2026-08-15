@@ -39,7 +39,11 @@ final class ProjectController: ObservableObject {
     var isDirty: Bool { session.isDirty }
 
     var panelContext: WorkspacePanelContext {
-        WorkspacePanelContext(session: session, fixtureLibrary: fixtureLibraryBox)
+        WorkspacePanelContext(
+            session: session,
+            fixtureLibrary: fixtureLibraryBox,
+            packageURL: documentURL
+        )
     }
 
     var fixtureLibraryBox: FixtureLibraryBox? {

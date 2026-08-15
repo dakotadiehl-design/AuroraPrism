@@ -8,9 +8,10 @@ public final class RemoteWebServer: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.aurora.remote.web", qos: .userInitiated)
     private let lock = NSLock()
     private var listener: NWListener?
-    private var _isRunning = false
+    private var _listenerState: RemoteListenerState = .stopped
     private var actionHandler: (@Sendable (RemoteShowAction) -> Void)?
     private var snapshotProvider: (@Sendable () -> RemoteSnapshot)?
+    private var stateHandler: (@Sendable (RemoteListenerState) -> Void)?
     private let indexHTML: Data
     /// Max HTTP body accepted.
     public static let maxBodyBytes = 64 * 1024
@@ -36,10 +37,17 @@ public final class RemoteWebServer: @unchecked Sendable {
         }
     }
 
+    /// True only when the NWListener is actually `.ready` (REM-01).
     public var isRunning: Bool {
         lock.lock()
         defer { lock.unlock() }
-        return _isRunning
+        return _listenerState.isReady
+    }
+
+    public var listenerState: RemoteListenerState {
+        lock.lock()
+        defer { lock.unlock() }
+        return _listenerState
     }
 
     public func setActionHandler(_ handler: @escaping @Sendable (RemoteShowAction) -> Void) {
@@ -54,10 +62,20 @@ public final class RemoteWebServer: @unchecked Sendable {
         lock.unlock()
     }
 
+    public func setStateHandler(_ handler: @escaping @Sendable (RemoteListenerState) -> Void) {
+        lock.lock()
+        stateHandler = handler
+        lock.unlock()
+    }
+
     public func start() throws {
         guard sessions.configSnapshot.enabled else { throw RemoteHostError.disabled }
         lock.lock()
-        if _isRunning {
+        if case .ready = _listenerState {
+            lock.unlock()
+            return
+        }
+        if case .starting = _listenerState {
             lock.unlock()
             return
         }
@@ -74,10 +92,29 @@ public final class RemoteWebServer: @unchecked Sendable {
         listener.newConnectionHandler = { [weak self] conn in
             self?.handle(connection: conn)
         }
+        let bindLabel: String
+        if let host = RemoteSessionManager.listenerHost(for: bind) {
+            bindLabel = "\(host):\(port)"
+        } else {
+            bindLabel = "0.0.0.0:\(port)"
+        }
+        listener.stateUpdateHandler = { [weak self] state in
+            guard let self else { return }
+            switch state {
+            case .ready:
+                self.setListenerState(.ready(boundEndpoint: bindLabel))
+            case .failed(let error):
+                self.setListenerState(.failed(error.localizedDescription))
+            case .cancelled:
+                self.setListenerState(.stopped)
+            default:
+                break
+            }
+        }
+        setListenerState(.starting)
         listener.start(queue: queue)
         lock.lock()
         self.listener = listener
-        _isRunning = true
         lock.unlock()
     }
 
@@ -85,9 +122,24 @@ public final class RemoteWebServer: @unchecked Sendable {
         lock.lock()
         listener?.cancel()
         listener = nil
-        _isRunning = false
         lock.unlock()
         sessions.invalidateAllTokens()
+        setListenerState(.stopped)
+    }
+
+    private func setListenerState(_ state: RemoteListenerState) {
+        lock.lock()
+        _listenerState = state
+        let handler = stateHandler
+        lock.unlock()
+        handler?(state)
+    }
+
+    private func currentSnapshotRevision() -> UInt64 {
+        lock.lock()
+        let provider = snapshotProvider
+        lock.unlock()
+        return provider?().snapshotRevision ?? 0
     }
 
     /// Testable request handler (no sockets).
@@ -123,13 +175,16 @@ public final class RemoteWebServer: @unchecked Sendable {
             var clientId: String
             var pin: String?
             var displayName: String?
+            var protocolVersion: Int?
         }
         guard let hello = try? JSONDecoder().decode(HelloBody.self, from: body) else {
             return json(400, ["error": "bad body"])
         }
+        // UI10-04: negotiate protocol version from client when provided.
+        let clientVersion = hello.protocolVersion ?? AuroraRemoteModule.protocolVersion
         switch sessions.handleHello(
             clientId: hello.clientId,
-            protocolVersion: AuroraRemoteModule.protocolVersion,
+            protocolVersion: clientVersion,
             pin: hello.pin,
             displayName: hello.displayName
         ) {
@@ -141,9 +196,10 @@ public final class RemoteWebServer: @unchecked Sendable {
                 "token": token,
                 "sessionId": info.id.uuidString,
                 "role": info.role.rawValue,
+                "protocolVersion": AuroraRemoteModule.protocolVersion,
             ])
         case .reject(let reason):
-            return json(401, ["error": reason])
+            return json(401, ["error": reason, "protocolVersion": AuroraRemoteModule.protocolVersion])
         }
     }
 
@@ -152,6 +208,7 @@ public final class RemoteWebServer: @unchecked Sendable {
             return json(401, ["error": "unauthorized"])
         }
         struct CmdBody: Decodable {
+            var requestId: String?
             var action: ActionBody
         }
         struct ActionBody: Decodable {
@@ -165,18 +222,47 @@ public final class RemoteWebServer: @unchecked Sendable {
         else {
             return json(400, ["error": "bad command"])
         }
+        // UI10-01: require client-supplied requestId for at-most-once GO.
+        guard let requestId = cmd.requestId, !requestId.isEmpty else {
+            return json(400, ["error": "missing requestId", "ok": false])
+        }
+        switch sessions.reserveRequestId(sessionId: sessionId, requestId: requestId) {
+        case .inFlight:
+            return json(200, [
+                "ok": false,
+                "requestId": requestId,
+                "duplicate": true,
+                "reason": "in flight",
+                "snapshotRevision": currentSnapshotRevision(),
+            ])
+        case .completed(let accepted, let reason, let rev):
+            return json(200, [
+                "ok": accepted,
+                "requestId": requestId,
+                "duplicate": true,
+                "reason": reason as Any,
+                "snapshotRevision": rev,
+            ])
+        case .execute:
+            break
+        }
         guard let authorized = sessions.authorize(sessionId: sessionId, action: action) else {
-            return json(403, ["error": "not authorized"])
+            let rev = currentSnapshotRevision()
+            sessions.completeRequestId(sessionId: sessionId, requestId: requestId, accepted: false, reason: "not authorized", snapshotRevision: rev)
+            return json(403, ["error": "not authorized", "requestId": requestId, "ok": false, "snapshotRevision": rev])
         }
         lock.lock()
         let handler = actionHandler
         lock.unlock()
         handler?(authorized)
-        return json(200, ["ok": true])
+        let rev = currentSnapshotRevision()
+        sessions.completeRequestId(sessionId: sessionId, requestId: requestId, accepted: true, reason: nil, snapshotRevision: rev)
+        return json(200, ["ok": true, "requestId": requestId, "duplicate": false, "snapshotRevision": rev])
     }
 
     private func handleSnapshot(headers: [String: String]) -> (Int, String, Data) {
-        guard let sessionId = session(from: headers) else {
+        // REM-02: snapshot polling refreshes session activity.
+        guard let sessionId = session(from: headers, touching: true) else {
             return json(401, ["error": "unauthorized"])
         }
         lock.lock()
@@ -220,9 +306,12 @@ public final class RemoteWebServer: @unchecked Sendable {
         }
     }
 
-    private func session(from headers: [String: String]) -> UUID? {
+    private func session(from headers: [String: String], touching: Bool = false) -> UUID? {
         let token = headers["X-Aurora-Token"] ?? headers["x-aurora-token"]
         guard let token else { return nil }
+        if touching {
+            return sessions.sessionID(forToken: token, touching: true)
+        }
         return sessions.sessionID(forToken: token)
     }
 

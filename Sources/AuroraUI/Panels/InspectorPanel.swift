@@ -145,14 +145,24 @@ public struct InspectorPanel: View {
                     .padding(.top, 8)
 
                 AuroraInspectorSection("Patch") {
-                    labeled("Address", "\(fixture.address)")
-                    if let universe = context.project.universe(id: fixture.universeId) {
-                        labeled("Universe", "\(universe.number) — \(universe.name)")
+                    if fixture.isPatched {
+                        labeled("Address", "\(fixture.address)")
+                        if let universe = context.project.universe(id: fixture.universeId) {
+                            labeled("Universe", "\(universe.number) — \(universe.name)")
+                        }
+                        labeled(
+                            "End",
+                            "\(fixture.endAddress(channelCount: context.project.channelCount(for: fixture)))"
+                        )
+                    } else {
+                        labeled("Address", "Unpatched")
+                        if let universe = context.project.universe(id: fixture.universeId) {
+                            labeled("Preferred U", "\(universe.number) — \(universe.name)")
+                        }
+                        Text("No DMX assignment — identity preserved for repatch.")
+                            .font(AuroraTypography.metadata)
+                            .foregroundStyle(AuroraColor.warning)
                     }
-                    labeled(
-                        "End",
-                        "\(fixture.endAddress(channelCount: context.project.channelCount(for: fixture)))"
-                    )
                 }
 
                 if let definition = context.project.definition(id: fixture.definitionId) {
@@ -181,11 +191,36 @@ public struct InspectorPanel: View {
                         }
                     }
                 }
+
+                // C4.1: Stage layout aim (geometry — not DMX channels)
+                if let place = context.project.stageLayout.fixtures.first(where: { $0.fixtureID == fixture.id }) {
+                    stageAimSection(placement: place, fixtureID: fixture.id)
+                }
             }
             .padding(.bottom, 8)
         }
     }
 
+    /// Physical Stage beam visualization controls (independent of Pan/Tilt DMX).
+    @ViewBuilder
+    private func stageAimSection(placement: StageFixturePlacement, fixtureID: UUID) -> some View {
+        AuroraInspectorSection("Stage Aim") {
+            StageAimControls(
+                placement: placement,
+                onCommit: { mutate in
+                    var layout = context.project.stageLayout
+                    guard let i = layout.fixtures.firstIndex(where: { $0.fixtureID == fixtureID }) else { return }
+                    mutate(&layout.fixtures[i])
+                    do {
+                        try context.session.perform(UpdateStageLayoutCommand(layout: layout))
+                        onProjectChanged()
+                    } catch {
+                        onError(error.localizedDescription)
+                    }
+                }
+            )
+        }
+    }
     private func groupInspector(_ id: UUID) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
@@ -387,6 +422,99 @@ public struct InspectorPanel: View {
         }
         return rows
     }
+}
+
+// MARK: - Stage aim editor (coalesced undo on slider end)
+
+/// Local slider state so continuous drag does not flood the Undo stack.
+private struct StageAimControls: View {
+    let placement: StageFixturePlacement
+    var onCommit: ((inout StageFixturePlacement) -> Void) -> Void
+
+    @State private var directionDeg: Double = 0
+    @State private var spreadDeg: Double = 30
+    @State private var length: Double = 160
+    @State private var beamVisible: Bool = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Physical plot aim — not a DMX channel")
+                .font(AuroraTypography.metadata)
+                .foregroundStyle(AuroraColor.textTertiary)
+
+            HStack {
+                Text("Direction")
+                    .font(AuroraTypography.metadata)
+                    .foregroundStyle(AuroraColor.textSecondary)
+                    .frame(width: 64, alignment: .leading)
+                Slider(value: $directionDeg, in: -180...180) { editing in
+                    if !editing {
+                        onCommit { $0.aimDirection = directionDeg * .pi / 180 }
+                    }
+                }
+                Text("\(Int(directionDeg.rounded()))°")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(AuroraColor.textTertiary)
+                    .frame(width: 36, alignment: .trailing)
+            }
+
+            HStack {
+                Text("Spread")
+                    .font(AuroraTypography.metadata)
+                    .foregroundStyle(AuroraColor.textSecondary)
+                    .frame(width: 64, alignment: .leading)
+                Slider(value: $spreadDeg, in: 2...120) { editing in
+                    if !editing {
+                        onCommit { $0.beamSpread = max(1, spreadDeg) * .pi / 180 }
+                    }
+                }
+                Text("\(Int(spreadDeg.rounded()))°")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(AuroraColor.textTertiary)
+                    .frame(width: 36, alignment: .trailing)
+            }
+
+            HStack {
+                Text("Length")
+                    .font(AuroraTypography.metadata)
+                    .foregroundStyle(AuroraColor.textSecondary)
+                    .frame(width: 64, alignment: .leading)
+                Slider(value: $length, in: 40...400) { editing in
+                    if !editing {
+                        onCommit { $0.beamLength = max(8, length) }
+                    }
+                }
+                Text("\(Int(length))")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(AuroraColor.textTertiary)
+                    .frame(width: 36, alignment: .trailing)
+            }
+
+            Toggle("Show beam", isOn: $beamVisible)
+                .font(AuroraTypography.metadata)
+                .toggleStyle(.checkbox)
+                .onChange(of: beamVisible) { _, v in
+                    onCommit { $0.beamVisible = v }
+                }
+        }
+        .onAppear { syncFromPlacement() }
+        .onChange(of: placement.id) { _, _ in syncFromPlacement() }
+        .onChange(of: placement.aimDirection) { _, _ in syncFromPlacement() }
+        .onChange(of: placement.beamSpread) { _, _ in syncFromPlacement() }
+        .onChange(of: placement.beamLength) { _, _ in syncFromPlacement() }
+        .onChange(of: placement.beamVisible) { _, _ in syncFromPlacement() }
+    }
+
+    private func syncFromPlacement() {
+        var deg = placement.aimDirection * 180 / .pi
+        while deg > 180 { deg -= 360 }
+        while deg < -180 { deg += 360 }
+        directionDeg = deg
+        spreadDeg = placement.beamSpread * 180 / .pi
+        length = placement.beamLength
+        beamVisible = placement.beamVisible
+    }
+
 }
 
 /// UI-facing inspector focus kind (mirrors app WorkspaceController.InspectorFocus).

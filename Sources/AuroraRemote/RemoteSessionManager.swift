@@ -55,7 +55,7 @@ public struct RemoteHostConfig: Equatable, Sendable {
         port: UInt16 = 8742,
         maxCommandsPerSecond: Int = 20,
         maxAuthFailuresPerMinute: Int = 10,
-        bindPolicy: RemoteBindPolicy = .privateLAN,
+        bindPolicy: RemoteBindPolicy = .loopbackOnly,
         sessionIdleTTL: TimeInterval = 120
     ) {
         self.enabled = enabled
@@ -88,6 +88,18 @@ public final class RemoteSessionManager: @unchecked Sendable {
     private var authFailureTimestamps: [TimeInterval] = []
     /// HTTP/web tokens → session id (P1-6).
     private var tokens: [String: UUID] = [:]
+    /// UI-10 A6 / REM-04: per-session requestId → in-flight or completed (atomic reserve + ordered retention).
+    private enum RequestIdRecord: Equatable {
+        case inFlight
+        case completed(accepted: Bool, reason: String?, snapshotRevision: UInt64)
+    }
+    private struct SessionRequestCache {
+        var byId: [String: RequestIdRecord] = [:]
+        /// Insertion order for deterministic eviction of completed IDs.
+        var order: [String] = []
+    }
+    private var recentRequestResults: [UUID: SessionRequestCache] = [:]
+    private let maxRecentRequestIds = 64
 
     public init(config: RemoteHostConfig = RemoteHostConfig()) {
         self.config = config
@@ -211,6 +223,7 @@ public final class RemoteSessionManager: @unchecked Sendable {
         for id in stale {
             clients[id] = nil
             commandTimestamps[id] = nil
+            recentRequestResults[id] = nil
             tokens = tokens.filter { $0.value != id }
         }
         return stale
@@ -240,6 +253,17 @@ public final class RemoteSessionManager: @unchecked Sendable {
         return sid
     }
 
+    /// REM-02: resolve token and optionally refresh session activity.
+    public func sessionID(forToken token: String, touching: Bool) -> UUID? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let sid = tokens[token], clients[sid] != nil else { return nil }
+        if touching {
+            clients[sid]?.lastSeenAt = Date()
+        }
+        return sid
+    }
+
     public func invalidateToken(_ token: String) {
         lock.lock()
         tokens[token] = nil
@@ -256,6 +280,7 @@ public final class RemoteSessionManager: @unchecked Sendable {
         lock.lock()
         clients[sessionId] = nil
         commandTimestamps[sessionId] = nil
+        recentRequestResults[sessionId] = nil
         tokens = tokens.filter { $0.value != sessionId }
         lock.unlock()
     }
@@ -265,6 +290,7 @@ public final class RemoteSessionManager: @unchecked Sendable {
         lock.lock()
         let existed = clients.removeValue(forKey: sessionId) != nil
         commandTimestamps[sessionId] = nil
+        recentRequestResults[sessionId] = nil
         tokens = tokens.filter { $0.value != sessionId }
         lock.unlock()
         return existed
@@ -276,6 +302,7 @@ public final class RemoteSessionManager: @unchecked Sendable {
         clients.removeAll()
         commandTimestamps.removeAll()
         tokens.removeAll()
+        recentRequestResults.removeAll()
         lock.unlock()
         _ = reason
         return ids
@@ -300,7 +327,98 @@ public final class RemoteSessionManager: @unchecked Sendable {
         return action
     }
 
-    /// NWParameters host restriction from bind policy (P2-11).
+    public enum RequestIdReservation: Equatable, Sendable {
+        /// First caller — may execute the action.
+        case execute
+        /// Duplicate while first is still executing.
+        case inFlight
+        /// Prior completed result (at-most-once reply).
+        case completed(accepted: Bool, reason: String?, snapshotRevision: UInt64)
+    }
+
+    /// Atomically reserve a requestId (UI10-02 / REM-04). Only `.execute` may run the handler.
+    public func reserveRequestId(sessionId: UUID, requestId: String) -> RequestIdReservation {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !requestId.isEmpty else {
+            return .completed(accepted: false, reason: "missing requestId", snapshotRevision: 0)
+        }
+        var cache = recentRequestResults[sessionId] ?? SessionRequestCache()
+        if let prior = cache.byId[requestId] {
+            switch prior {
+            case .inFlight:
+                return .inFlight
+            case .completed(let accepted, let reason, let rev):
+                return .completed(accepted: accepted, reason: reason, snapshotRevision: rev)
+            }
+        }
+        cache.byId[requestId] = .inFlight
+        cache.order.append(requestId)
+        trimRequestCacheLocked(&cache)
+        recentRequestResults[sessionId] = cache
+        return .execute
+    }
+
+    /// Complete a previously reserved requestId with its final result (and revision).
+    public func completeRequestId(
+        sessionId: UUID,
+        requestId: String,
+        accepted: Bool,
+        reason: String?,
+        snapshotRevision: UInt64 = 0
+    ) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !requestId.isEmpty else { return }
+        var cache = recentRequestResults[sessionId] ?? SessionRequestCache()
+        cache.byId[requestId] = .completed(accepted: accepted, reason: reason, snapshotRevision: snapshotRevision)
+        if !cache.order.contains(requestId) {
+            cache.order.append(requestId)
+        }
+        trimRequestCacheLocked(&cache)
+        recentRequestResults[sessionId] = cache
+    }
+
+    /// Legacy helpers kept for tests/call sites mid-migration.
+    public func takeRequestIdIfNew(sessionId: UUID, requestId: String) -> (accepted: Bool, reason: String?)? {
+        switch reserveRequestId(sessionId: sessionId, requestId: requestId) {
+        case .execute:
+            return nil
+        case .inFlight:
+            return (false, "in flight")
+        case .completed(let accepted, let reason, _):
+            return (accepted, reason)
+        }
+    }
+
+    public func rememberRequestId(sessionId: UUID, requestId: String, accepted: Bool, reason: String?) {
+        completeRequestId(sessionId: sessionId, requestId: requestId, accepted: accepted, reason: reason, snapshotRevision: 0)
+    }
+
+    /// REM-04: evict oldest *completed* IDs only; never evict in-flight.
+    private func trimRequestCacheLocked(_ cache: inout SessionRequestCache) {
+        while cache.order.count > maxRecentRequestIds {
+            guard let oldest = cache.order.first else { break }
+            if case .inFlight = cache.byId[oldest] {
+                // Cannot drop in-flight; stop if only in-flight remain beyond cap.
+                if cache.order.allSatisfy({
+                    if case .inFlight = cache.byId[$0] { return true }
+                    return false
+                }) {
+                    break
+                }
+                // Move oldest in-flight to end of consideration by rotating once.
+                cache.order.removeFirst()
+                cache.order.append(oldest)
+                continue
+            }
+            cache.order.removeFirst()
+            cache.byId[oldest] = nil
+        }
+    }
+
+    /// NWParameters host restriction from bind policy (P2-11 / REM-07).
+    /// `privateLAN` and `allInterfaces` both bind all interfaces today — UI must not claim private-only.
     public static func listenerHost(for policy: RemoteBindPolicy) -> String? {
         switch policy {
         case .loopbackOnly: return "127.0.0.1"
@@ -315,8 +433,11 @@ public enum RemoteCommandAllowList {
         case .go, .stop, .back, .next,
              .fireCueIndex, .fireCue,
              .songNext, .songPrevious,
-             .setProgrammerAttribute:
+             .masterIntensity, .blackout, .blackoutOff, .toggleBlackout:
             return true
+        case .setProgrammerAttribute:
+            // UI-10 A8: remote Programmer out of scope.
+            return false
         }
     }
 }

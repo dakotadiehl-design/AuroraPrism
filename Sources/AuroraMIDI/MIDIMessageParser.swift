@@ -136,27 +136,35 @@ public final class MIDIStreamParser: @unchecked Sendable {
     private func makeEvent(status: UInt8, data: [UInt8], sourceID: String) -> MIDIEvent? {
         let type = status & 0xF0
         let channel = status & 0x0F
+        let ts = Date().timeIntervalSince1970
         switch type {
         case 0x80:
             guard data.count >= 2 else { return nil }
-            return .noteOff(channel: channel, note: data[0], velocity: data[1], sourceID: sourceID)
+            return .noteOff(channel: channel, note: data[0], velocity: data[1], sourceID: sourceID, timestamp: ts)
         case 0x90:
             guard data.count >= 2 else { return nil }
             let note = data[0]
             let vel = data[1]
             if vel == 0 {
-                return .noteOff(channel: channel, note: note, velocity: 0, sourceID: sourceID)
+                return .noteOff(channel: channel, note: note, velocity: 0, sourceID: sourceID, timestamp: ts)
             }
-            return .noteOn(channel: channel, note: note, velocity: vel, sourceID: sourceID)
+            return .noteOn(channel: channel, note: note, velocity: vel, sourceID: sourceID, timestamp: ts)
+        case 0xA0:
+            guard data.count >= 2 else { return nil }
+            return .polyPressure(channel: channel, note: data[0], pressure: data[1], sourceID: sourceID, timestamp: ts)
         case 0xB0:
             guard data.count >= 2 else { return nil }
-            return .controlChange(channel: channel, controller: data[0], value: data[1], sourceID: sourceID)
+            return .controlChange(channel: channel, controller: data[0], value: data[1], sourceID: sourceID, timestamp: ts)
         case 0xC0:
             guard data.count >= 1 else { return nil }
-            return .programChange(channel: channel, program: data[0], sourceID: sourceID)
-        case 0xA0, 0xE0, 0xD0:
-            // Parsed for stream integrity; no public event type yet.
-            return nil
+            return .programChange(channel: channel, program: data[0], sourceID: sourceID, timestamp: ts)
+        case 0xD0:
+            guard data.count >= 1 else { return nil }
+            return .channelPressure(channel: channel, pressure: data[0], sourceID: sourceID, timestamp: ts)
+        case 0xE0:
+            guard data.count >= 2 else { return nil }
+            let value14 = UInt16(data[0]) | (UInt16(data[1]) << 7)
+            return .pitchBend(channel: channel, value14: value14, sourceID: sourceID, timestamp: ts)
         default:
             return nil
         }

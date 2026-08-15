@@ -58,6 +58,21 @@ public enum ShowActionCatalog {
             acceptsScalar: true,
             needsParameter: true
         ),
+        ShowActionDescriptor(storageKey: "toggleBlackout", displayName: "Toggle Blackout", category: .safety),
+        ShowActionDescriptor(storageKey: "toggleFreeze", displayName: "Toggle Freeze", category: .safety),
+        ShowActionDescriptor(storageKey: "toggleBlind", displayName: "Toggle Blind", category: .safety),
+        ShowActionDescriptor(
+            storageKey: "masterIntensity",
+            displayName: "Master Intensity",
+            category: .safety,
+            acceptsScalar: true
+        ),
+        ShowActionDescriptor(storageKey: "panic", displayName: "Panic / Reset", category: .safety),
+        ShowActionDescriptor(
+            storageKey: "toggleMIDIPerformance",
+            displayName: "Toggle MIDI Performance",
+            category: .safety
+        ),
     ]
 
     public static func descriptor(for storageKey: String) -> ShowActionDescriptor? {

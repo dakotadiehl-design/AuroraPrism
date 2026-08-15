@@ -10,6 +10,8 @@ public struct FixtureBrowserPanel: View {
     public var onInspectFixtures: ([UUID]) -> Void
     /// Explicit group row click for group inspection.
     public var onInspectGroup: (UUID) -> Void
+    /// Reveal on Stage (Wave 5).
+    public var onRevealOnStage: ((UUID) -> Void)?
 
     @State private var query = ""
     @State private var librarySelectedID: UUID?
@@ -19,11 +21,13 @@ public struct FixtureBrowserPanel: View {
     public init(
         context: WorkspacePanelContext,
         onInspectFixtures: @escaping ([UUID]) -> Void = { _ in },
-        onInspectGroup: @escaping (UUID) -> Void = { _ in }
+        onInspectGroup: @escaping (UUID) -> Void = { _ in },
+        onRevealOnStage: ((UUID) -> Void)? = nil
     ) {
         self.context = context
         self.onInspectFixtures = onInspectFixtures
         self.onInspectGroup = onInspectGroup
+        self.onRevealOnStage = onRevealOnStage
     }
 
     private var selectedIDs: Set<UUID> {
@@ -162,6 +166,11 @@ public struct FixtureBrowserPanel: View {
         }
         .buttonStyle(.plain)
         .listRowBackground(selected ? AuroraColor.surfaceSelected : Color.clear)
+        .contextMenu {
+            Button("Reveal on Stage") {
+                onRevealOnStage?(fixture.id)
+            }
+        }
     }
 
     private func groupRow(_ group: AuroraModel.Group) -> some View {

@@ -109,27 +109,36 @@ public final class EffectRunner: @unchecked Sendable {
 
     private static func applyOne(look: ActiveLook, time: TimeInterval, effect: EffectInstance) -> ActiveLook {
         switch effect.kind {
-        case .pulse, .wave:
+        case .pulse, .wave, .beamPulse:
             return applySine(look: look, time: time, effect: effect)
         case .chase:
             return applyChase(look: look, time: time, effect: effect)
         case .rainbow:
             return applyRainbow(look: look, time: time, effect: effect)
+        case .positionCircle:
+            return applyPositionCircle(look: look, time: time, effect: effect)
+        case .colorStep:
+            return applyColorStep(look: look, time: time, effect: effect)
+        case .cellChase:
+            return applyCellChase(look: look, time: time, effect: effect)
         }
     }
 
     private static func phaseForFixture(effect: EffectInstance, index: Int) -> Double {
         let n = effect.fixtureIDs.count
         let span = max(n - 1, 1)
-        return effect.phase + effect.spread * (Double(index) / Double(span))
+        let orderedIndex = effect.direction < 0 ? (n - 1 - index) : index
+        return effect.phase + effect.spread * (Double(orderedIndex) / Double(span))
     }
 
     private static func applySine(look: ActiveLook, time: TimeInterval, effect: EffectInstance) -> ActiveLook {
         var result = look
-        let attr = effect.attribute
+        let attr = effect.kind == .beamPulse
+            ? (effect.attribute.isEmpty || effect.attribute == "intensity" ? "zoom" : effect.attribute)
+            : effect.attribute
         for (index, fixtureID) in effect.fixtureIDs.enumerated() {
             let phase = phaseForFixture(effect: effect, index: index)
-            let angle = 2 * Double.pi * (effect.rateHz * time + phase)
+            let angle = 2 * Double.pi * (effect.rateHz * time * effect.direction + phase)
             let offset = effect.size * sin(angle)
             let base = result.fixtureAttributes[fixtureID]?[attr] ?? 0
             var attrs = result.fixtureAttributes[fixtureID] ?? [:]
@@ -144,7 +153,7 @@ public final class EffectRunner: @unchecked Sendable {
         let n = effect.fixtureIDs.count
         guard n > 0 else { return result }
         let attr = effect.attribute
-        let step = effect.rateHz * time + effect.phase
+        let step = effect.rateHz * time * effect.direction + effect.phase
         let active = Int(floor(step * Double(n)).truncatingRemainder(dividingBy: Double(n)))
         let activeIndex = ((active % n) + n) % n
 
@@ -161,12 +170,64 @@ public final class EffectRunner: @unchecked Sendable {
         let value = max(0.5, effect.size)
         for (index, fixtureID) in effect.fixtureIDs.enumerated() {
             let phase = phaseForFixture(effect: effect, index: index)
-            let hueFrac = fract(effect.rateHz * time + phase)
+            let hueFrac = fract(effect.rateHz * time * effect.direction + phase)
             let rgb = ColorMath.rgb(from: HSVColor(h: hueFrac * 360, s: 1, v: value))
             var attrs = result.fixtureAttributes[fixtureID] ?? [:]
             attrs["colorR"] = rgb.r
             attrs["colorG"] = rgb.g
             attrs["colorB"] = rgb.b
+            result.fixtureAttributes[fixtureID] = attrs
+        }
+        return result
+    }
+
+    private static func applyPositionCircle(look: ActiveLook, time: TimeInterval, effect: EffectInstance) -> ActiveLook {
+        var result = look
+        let radius = effect.size * 0.5
+        for (index, fixtureID) in effect.fixtureIDs.enumerated() {
+            let phase = phaseForFixture(effect: effect, index: index)
+            let angle = 2 * Double.pi * (effect.rateHz * time * effect.direction + phase)
+            var attrs = result.fixtureAttributes[fixtureID] ?? [:]
+            attrs["pan"] = clamp01(0.5 + radius * cos(angle))
+            attrs["tilt"] = clamp01(0.5 + radius * sin(angle))
+            result.fixtureAttributes[fixtureID] = attrs
+        }
+        return result
+    }
+
+    private static func applyColorStep(look: ActiveLook, time: TimeInterval, effect: EffectInstance) -> ActiveLook {
+        var result = look
+        let colors: [(Double, Double, Double)] = [
+            (1, 0, 0), (1, 1, 0), (0, 1, 0), (0, 1, 1), (0, 0, 1), (1, 0, 1),
+        ]
+        let step = Int(floor(effect.rateHz * time * effect.direction + effect.phase * Double(colors.count)))
+        for (index, fixtureID) in effect.fixtureIDs.enumerated() {
+            let ci = ((step + index) % colors.count + colors.count) % colors.count
+            let c = colors[ci]
+            var attrs = result.fixtureAttributes[fixtureID] ?? [:]
+            attrs["colorR"] = c.0 * effect.size
+            attrs["colorG"] = c.1 * effect.size
+            attrs["colorB"] = c.2 * effect.size
+            result.fixtureAttributes[fixtureID] = attrs
+        }
+        return result
+    }
+
+    /// Chases `attribute@cellN` (default colorR) across cells on each fixture.
+    private static func applyCellChase(look: ActiveLook, time: TimeInterval, effect: EffectInstance) -> ActiveLook {
+        var result = look
+        let baseAttr = effect.attribute.contains("@")
+            ? String(effect.attribute.split(separator: "@").first ?? "colorR")
+            : (effect.attribute.isEmpty ? "colorR" : effect.attribute)
+        let cells = max(1, effect.cellCount > 0 ? effect.cellCount : 8)
+        let step = effect.rateHz * time * effect.direction + effect.phase
+        let activeCell = Int(floor(step * Double(cells)).truncatingRemainder(dividingBy: Double(cells)))
+        let active = ((activeCell % cells) + cells) % cells
+        for fixtureID in effect.fixtureIDs {
+            var attrs = result.fixtureAttributes[fixtureID] ?? [:]
+            for c in 0..<cells {
+                attrs["\(baseAttr)@\(c)"] = c == active ? effect.size : 0
+            }
             result.fixtureAttributes[fixtureID] = attrs
         }
         return result

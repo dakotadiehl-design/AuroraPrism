@@ -25,12 +25,19 @@ public struct ProgrammerPanel: View {
     @State private var draftSat: Double = 0.8
     @State private var draftVal: Double = 1
     @State private var draftRGB: [String: Double] = [:]
+    @State private var draftExtended: [String: Double] = [:]
+    @State private var showBeam = true
+    @State private var showStrobe = true
+    @State private var showGeneric = false
 
     public enum AttributeFamily: String, CaseIterable, Sendable {
         case intensity = "Intensity"
         case pan = "Pan"
         case tilt = "Tilt"
         case color = "Color"
+        case beam = "Beam"
+        case strobe = "Strobe"
+        case generic = "Generic"
     }
 
     public init(
@@ -76,7 +83,7 @@ public struct ProgrammerPanel: View {
             if orderedIDs.isEmpty {
                 AuroraEmptyState(
                     title: "No selection",
-                    detail: "Select fixtures in the browser to create a look.",
+                    detail: "Select fixtures on Stage Preview, in the browser, or via Groups.",
                     systemImage: "slider.horizontal.3"
                 )
                 .background(AuroraColor.surfacePanel)
@@ -89,6 +96,33 @@ public struct ProgrammerPanel: View {
                         if pres.hasTechnicalColor,
                            showTechnicalColor || !pres.hasRGBColor {
                             technicalColorSection(pres)
+                        }
+                        if pres.hasBeam {
+                            extendedFamilySection(
+                                title: "BEAM",
+                                attributes: pres.beamAttributes,
+                                expanded: $showBeam,
+                                family: .beam,
+                                pres: pres
+                            )
+                        }
+                        if pres.hasStrobe {
+                            extendedFamilySection(
+                                title: "SHUTTER / STROBE",
+                                attributes: pres.strobeAttributes,
+                                expanded: $showStrobe,
+                                family: .strobe,
+                                pres: pres
+                            )
+                        }
+                        if pres.hasGeneric {
+                            extendedFamilySection(
+                                title: "GENERIC / RAW",
+                                attributes: pres.genericAttributes,
+                                expanded: $showGeneric,
+                                family: .generic,
+                                pres: pres
+                            )
                         }
                         if showFanTools {
                             fanToolStrip
@@ -302,6 +336,72 @@ public struct ProgrammerPanel: View {
         }
     }
 
+    private func extendedFamilySection(
+        title: String,
+        attributes: [String],
+        expanded: Binding<Bool>,
+        family: AttributeFamily,
+        pres: ProgrammerAttributePresentation
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                expanded.wrappedValue.toggle()
+            } label: {
+                HStack {
+                    Text(title)
+                        .font(AuroraTypography.controlLabel)
+                        .foregroundStyle(AuroraColor.textTertiary)
+                    Spacer()
+                    Image(systemName: expanded.wrappedValue ? "chevron.down" : "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(AuroraColor.textTertiary)
+                }
+            }
+            .buttonStyle(.plain)
+            if expanded.wrappedValue {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(attributes, id: \.self) { attr in
+                            let state = pres.state(for: attr)
+                            VStack {
+                                attributeChrome(state, label: shortAttrLabel(attr))
+                                AuroraFader(
+                                    value: Binding(
+                                        get: {
+                                            draftExtended[attr]
+                                                ?? state.displayValue
+                                                ?? 0
+                                        },
+                                        set: { v in
+                                            draftExtended[attr] = v
+                                            applyCommon(attribute: attr, value: v)
+                                            activeFamily = family
+                                        }
+                                    ),
+                                    label: shortAttrLabel(attr),
+                                    showsOwnedChrome: !state.isUntouched && !state.isMixed,
+                                    display: displayValue(for: state, untreated: 0)
+                                )
+                                .frame(width: 48)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func shortAttrLabel(_ attr: String) -> String {
+        if attr.count <= 8 { return attr }
+        if attr.contains("@") {
+            let parts = attr.split(separator: "@")
+            let base = String(parts.first ?? Substring(attr))
+            let cell = parts.count > 1 ? String(parts[1]) : ""
+            return "\(base.prefix(4))@\(cell)"
+        }
+        return String(attr.prefix(8))
+    }
+
     private var fanToolStrip: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("FAN — \(activeFamily.rawValue)  (center + spread)")
@@ -485,6 +585,9 @@ public struct ProgrammerPanel: View {
         case .pan: attribute = "pan"
         case .tilt: attribute = "tilt"
         case .color: attribute = "intensity"
+        case .beam: attribute = "zoom"
+        case .strobe: attribute = "strobe"
+        case .generic: attribute = "intensity"
         }
         let capable = ProgrammerAttributePresentationResolver.capableFixtureIDs(
             attribute: attribute,
@@ -504,6 +607,9 @@ public struct ProgrammerPanel: View {
         case .pan: attribute = "pan"
         case .tilt: attribute = "tilt"
         case .color: attribute = "colorR"
+        case .beam: attribute = pres.beamAttributes.first ?? "zoom"
+        case .strobe: attribute = pres.strobeAttributes.first ?? "strobe"
+        case .generic: attribute = pres.genericAttributes.first ?? "intensity"
         }
         let capable = ProgrammerAttributePresentationResolver.capableFixtureIDs(
             attribute: attribute,
@@ -528,6 +634,18 @@ public struct ProgrammerPanel: View {
             if alignAttribute("pan") { onChanged() }
         case .tilt:
             if alignAttribute("tilt") { onChanged() }
+        case .beam:
+            var any = false
+            for attr in pres.beamAttributes where alignAttribute(attr) { any = true }
+            if any { onChanged() }
+        case .strobe:
+            var any = false
+            for attr in pres.strobeAttributes where alignAttribute(attr) { any = true }
+            if any { onChanged() }
+        case .generic:
+            var any = false
+            for attr in pres.genericAttributes.prefix(8) where alignAttribute(attr) { any = true }
+            if any { onChanged() }
         }
     }
 
@@ -559,6 +677,12 @@ public struct ProgrammerPanel: View {
         case .pan: state = pres.pan
         case .tilt: state = pres.tilt
         case .color: state = pres.intensity
+        case .beam:
+            state = pres.beamAttributes.first.map { pres.state(for: $0) } ?? .unsupported
+        case .strobe:
+            state = pres.strobeAttributes.first.map { pres.state(for: $0) } ?? .unsupported
+        case .generic:
+            state = pres.genericAttributes.first.map { pres.state(for: $0) } ?? .unsupported
         }
         if case .common(let v) = state.value {
             fanCenter = v
@@ -596,6 +720,11 @@ public struct ProgrammerPanel: View {
                 draftRGB[attr] = v
             }
         }
+        for attr in pres.beamAttributes + pres.strobeAttributes + pres.genericAttributes {
+            if case .common(let v) = pres.state(for: attr).value {
+                draftExtended[attr] = v
+            }
+        }
         if case .common(let r) = pres.colorR.value,
            case .common(let g) = pres.colorG.value,
            case .common(let b) = pres.colorB.value {
@@ -607,26 +736,7 @@ public struct ProgrammerPanel: View {
     }
 
     private func attributeState(_ attr: String, in pres: ProgrammerAttributePresentation) -> ProgrammerAttributeState {
-        switch attr {
-        case "intensity": return pres.intensity
-        case "pan": return pres.pan
-        case "tilt": return pres.tilt
-        case "colorR": return pres.colorR
-        case "colorG": return pres.colorG
-        case "colorB": return pres.colorB
-        case "colorW": return pres.colorW
-        default:
-            let caps = ProgrammerAttributePresentationResolver.capabilityMap(
-                orderedFixtureIDs: orderedIDs,
-                project: project
-            )
-            return ProgrammerAttributePresentationResolver.resolveAttribute(
-                attr,
-                ordered: orderedIDs,
-                caps: caps,
-                values: programmer.snapshot().values
-            )
-        }
+        pres.state(for: attr)
     }
 
     private func shortColorLabel(_ attr: String) -> String {

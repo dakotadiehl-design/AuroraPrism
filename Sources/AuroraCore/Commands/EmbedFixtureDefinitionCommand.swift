@@ -13,9 +13,20 @@ public final class EmbedFixtureDefinitionCommand: Command {
         self.name = name
     }
 
+    private var previous: FixtureDefinition?
+    private var didReplace = false
+
     public func perform(context: CommandContext) throws {
-        if context.project.definition(id: definition.id) != nil {
+        if let existing = context.project.definition(id: definition.id) {
+            previous = existing
+            didReplace = true
             didEmbed = false
+            context.updateProject { project in
+                if let idx = project.fixtureDefinitions.firstIndex(where: { $0.id == definition.id }) {
+                    project.fixtureDefinitions[idx] = definition
+                }
+                project.metadata.modifiedAt = Date()
+            }
             return
         }
         context.updateProject { project in
@@ -23,13 +34,25 @@ public final class EmbedFixtureDefinitionCommand: Command {
             project.metadata.modifiedAt = Date()
         }
         didEmbed = true
+        didReplace = false
+        previous = nil
     }
 
     public func undo(context: CommandContext) throws {
-        guard didEmbed else { return }
-        context.updateProject { project in
-            project.fixtureDefinitions.removeAll { $0.id == definition.id }
-            project.metadata.modifiedAt = Date()
+        if didEmbed {
+            context.updateProject { project in
+                project.fixtureDefinitions.removeAll { $0.id == definition.id }
+                project.metadata.modifiedAt = Date()
+            }
+            return
+        }
+        if didReplace, let previous {
+            context.updateProject { project in
+                if let idx = project.fixtureDefinitions.firstIndex(where: { $0.id == definition.id }) {
+                    project.fixtureDefinitions[idx] = previous
+                }
+                project.metadata.modifiedAt = Date()
+            }
         }
     }
 }

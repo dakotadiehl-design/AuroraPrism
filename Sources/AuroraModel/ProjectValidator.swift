@@ -105,14 +105,15 @@ public enum ProjectValidator {
                     message: "Fixture \(fixture.name) missing definition \(fixture.definitionId.uuidString)"
                 ))
             }
-            if !universeIDs.contains(fixture.universeId) {
+            if fixture.isPatched, !universeIDs.contains(fixture.universeId) {
                 issues.append(stableIssue(
                     code: "missing-universe",
                     entity: fixture.id,
                     message: "Fixture \(fixture.name) missing universe \(fixture.universeId.uuidString)"
                 ))
             }
-            if let def = project.definition(id: fixture.definitionId),
+            if fixture.isPatched,
+               let def = project.definition(id: fixture.definitionId),
                let universe = project.universe(id: fixture.universeId) {
                 let end = fixture.endAddress(channelCount: def.channelCount)
                 if end > universe.channelCount {

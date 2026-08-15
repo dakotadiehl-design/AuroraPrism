@@ -28,9 +28,12 @@ final class ControlActionRouter: @unchecked Sendable {
     private let lock = NSLock()
     private weak var engine: LightingEngine?
     private var mappings: [MIDIMapping] = []
+    private var rules: [MIDIRule] = []
     private var project: ShowProject = .empty()
     private var selectedFixtureIDs: Set<UUID> = []
     private var orderedFixtureIDs: [UUID] = []
+    private var songSectionLabel: String?
+    private let safety = MIDISafetyLimiter(maxEventsPerSecond: 250, debounceSeconds: 0)
     /// Multi-observer map (replaces single replaceable callback).
     private var uiObservers: [UUID: @Sendable (ShowAction, String) -> Void] = [:]
 
@@ -66,7 +69,14 @@ final class ControlActionRouter: @unchecked Sendable {
     func updateMappings(_ mappings: [MIDIMapping], project: ShowProject) {
         lock.lock()
         self.mappings = mappings
+        self.rules = project.midiRules
         self.project = project
+        lock.unlock()
+    }
+
+    func updateSongSectionContext(_ label: String?) {
+        lock.lock()
+        songSectionLabel = label
         lock.unlock()
     }
 
@@ -90,18 +100,66 @@ final class ControlActionRouter: @unchecked Sendable {
     func handleMIDIEvents(_ events: [MIDIEvent]) {
         lock.lock()
         let maps = mappings
+        let ruleList = rules
+        let section = songSectionLabel
         let eng = engine
         let observers = Array(uiObservers.values)
         let selection = selectedFixtureIDs
         let ordered = orderedFixtureIDs
         let proj = project
+        let midiEnabled = eng?.globalShowControl.midiPerformanceEnabled ?? true
         lock.unlock()
         guard let eng else { return }
+        if !midiEnabled { return }
+
+        let now = eng.currentResolvedSnapshot().timestamp
+        let orderedSel = ordered.isEmpty ? Array(selection) : ordered
 
         for event in events {
+            guard safety.allow(event: event) else { continue }
             let control = MIDIActionResolver.controlValue(for: event)
-            let actions = MIDIActionResolver.matchAll(event: event, mappings: maps)
+
+            // Advanced MIDI behaviors (drum roles + envelopes).
+            var behaviorFired = false
+            switch event {
+            case .noteOn(let ch, let note, let vel, let src, _):
+                let before = eng.midiBehaviors.liveCount
+                eng.midiBehaviors.noteOn(
+                    note: note,
+                    velocity: vel,
+                    channel: ch,
+                    deviceID: src,
+                    songSection: section,
+                    time: now,
+                    selection: orderedSel
+                )
+                behaviorFired = eng.midiBehaviors.liveCount > before
+                if behaviorFired {
+                    for notify in observers {
+                        notify(.go, "BEHAVIOR note \(note) \(event.summary)")
+                    }
+                }
+            case .noteOff(let ch, let note, _, let src, _):
+                eng.midiBehaviors.noteOff(note: note, channel: ch, deviceID: src, time: now)
+            default:
+                break
+            }
+
+            var actions = MIDIActionResolver.matchAll(event: event, mappings: maps)
+            actions.append(contentsOf: MIDIActionResolver.matchRules(
+                event: event,
+                rules: ruleList,
+                songSection: section
+            ))
+            if actions.isEmpty && !behaviorFired {
+                for notify in observers {
+                    notify(.stop, "UNMATCHED \(event.summary)") // re-use notify path for log only
+                }
+                // Don't apply stop — observers filter by summary.
+                continue
+            }
             for action in actions {
+                // Never run panic-disabling MIDI when disabled (already returned).
                 applyLive(
                     action,
                     engine: eng,
@@ -206,6 +264,32 @@ final class ControlActionRouter: @unchecked Sendable {
             for id in targets {
                 engine.programmer.set(fixtureID: id, attribute: attr, value: scalar)
             }
+        case .blackout:
+            engine.setBlackout(true)
+        case .blackoutOff:
+            engine.setBlackout(false)
+        case .toggleBlackout:
+            engine.toggleBlackout()
+        case .freeze:
+            engine.setFreeze(true)
+        case .freezeOff:
+            engine.setFreeze(false)
+        case .toggleFreeze:
+            engine.toggleFreeze()
+        case .blind:
+            engine.setBlind(true)
+        case .blindOff:
+            engine.setBlind(false)
+        case .toggleBlind:
+            engine.toggleBlind()
+        case .masterIntensity:
+            engine.setMasterIntensity(scalar)
+        case .panic:
+            engine.panic()
+        case .clearOverrides:
+            engine.clearOverrides()
+        case .toggleMIDIPerformance:
+            engine.toggleMIDIPerformance()
         }
     }
 

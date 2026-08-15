@@ -114,7 +114,7 @@ final class AuroraModelTests: XCTestCase {
         XCTAssertEqual(loaded.metadata.name, "Blank")
         XCTAssertTrue(loaded.fixtures.isEmpty)
         XCTAssertTrue(loaded.cueLists.isEmpty)
-        XCTAssertEqual(loaded.schemaVersion, 1)
+        XCTAssertEqual(loaded.schemaVersion, ProjectPackage.currentSchemaVersion)
     }
 
     func testUnsupportedSchemaVersion() throws {

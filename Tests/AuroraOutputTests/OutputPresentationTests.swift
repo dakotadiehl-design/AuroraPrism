@@ -72,4 +72,43 @@ final class OutputPresentationTests: XCTestCase {
         ])
         XCTAssertEqual(snap.aggregate, .disabled)
     }
+
+    /// ST-02: Null-only (disabled) never looks healthy.
+    func testNullOnlyIsDisabledEvenWhenRunningSink() {
+        let null = NullOutputDriver()
+        try? null.start()
+        let snap = OutputPresentationSnapshot.from(health: [null.healthSnapshot()])
+        XCTAssertEqual(snap.aggregate, .disabled)
+        XCTAssertEqual(null.healthSnapshot().state, .disabled)
+    }
+
+    /// ST-02: Null + ready Art-Net → healthy.
+    func testNullPlusReadyNetworkIsHealthy() {
+        let null = NullOutputDriver()
+        try? null.start()
+        let art = OutputHealthSnapshot(
+            driverID: UUID(),
+            name: "Art-Net",
+            outputProtocol: .artNet,
+            state: .ready,
+            target: "255.255.255.255"
+        )
+        let snap = OutputPresentationSnapshot.from(health: [null.healthSnapshot(), art])
+        XCTAssertEqual(snap.aggregate, .healthy)
+    }
+
+    /// ST-02: Null + failed driver → failed.
+    func testNullPlusFailedIsFailed() {
+        let null = NullOutputDriver()
+        try? null.start()
+        let failed = OutputHealthSnapshot(
+            driverID: UUID(),
+            name: "Art-Net",
+            outputProtocol: .artNet,
+            state: .failed,
+            lastError: "bind failed"
+        )
+        let snap = OutputPresentationSnapshot.from(health: [null.healthSnapshot(), failed])
+        XCTAssertEqual(snap.aggregate, .failed)
+    }
 }

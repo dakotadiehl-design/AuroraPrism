@@ -33,7 +33,9 @@ public enum ProjectPackageError: Error, Equatable, Sendable {
 /// ```
 public enum ProjectPackage {
     public static let packageExtension = "aurora"
-    public static let currentSchemaVersion = 1
+    /// v2: stage layout + fixture model extensions (generic params, multi-cell).
+    /// v3: MIDI behaviors, drum profiles, feedback profiles.
+    public static let currentSchemaVersion = 3
 
     private static let projectFileName = "project.json"
     private static let universesFileName = "universes.json"
@@ -45,7 +47,12 @@ public enum ProjectPackage {
     private static let songsFileName = "songs.json"
     private static let mediaAssetsFileName = "media-assets.json"
     private static let midiMappingsFileName = "midi-mappings.json"
+    private static let midiRulesFileName = "midi-rules.json"
+    private static let midiBehaviorsFileName = "midi-behaviors.json"
+    private static let drumProfilesFileName = "drum-profiles.json"
+    private static let midiFeedbackFileName = "midi-feedback.json"
     private static let effectsFileName = "effects.json"
+    private static let stageLayoutFileName = "stage-layout.json"
     private static let cuesDirectoryName = "cues"
 
     // MARK: - JSON coding
@@ -206,6 +213,8 @@ public enum ProjectPackage {
 
         var projectToWrite = project
         projectToWrite.schemaVersion = currentSchemaVersion
+        // C4.5: embed Stage imported images into package media/stage and rewrite absolute mediaRefs.
+        try StageMediaSupport.materializeStageMedia(into: destination, project: &projectToWrite)
         // modifiedAt is stamped by `save` before calling this (P2-21).
 
         let encoder = makeEncoder()
@@ -228,7 +237,12 @@ public enum ProjectPackage {
         try writeJSON(projectToWrite.songs, to: destination.appendingPathComponent(songsFileName), encoder: encoder)
         try writeJSON(projectToWrite.mediaAssets, to: destination.appendingPathComponent(mediaAssetsFileName), encoder: encoder)
         try writeJSON(projectToWrite.midiMappings, to: destination.appendingPathComponent(midiMappingsFileName), encoder: encoder)
+        try writeJSON(projectToWrite.midiRules, to: destination.appendingPathComponent(midiRulesFileName), encoder: encoder)
+        try writeJSON(projectToWrite.midiBehaviors, to: destination.appendingPathComponent(midiBehaviorsFileName), encoder: encoder)
+        try writeJSON(projectToWrite.drumProfiles, to: destination.appendingPathComponent(drumProfilesFileName), encoder: encoder)
+        try writeJSON(projectToWrite.midiFeedbackProfiles, to: destination.appendingPathComponent(midiFeedbackFileName), encoder: encoder)
         try writeJSON(projectToWrite.effects, to: destination.appendingPathComponent(effectsFileName), encoder: encoder)
+        try writeJSON(projectToWrite.stageLayout, to: destination.appendingPathComponent(stageLayoutFileName), encoder: encoder)
 
         let cuesDir = destination.appendingPathComponent(cuesDirectoryName, isDirectory: true)
         for list in projectToWrite.cueLists {
@@ -306,10 +320,29 @@ public enum ProjectPackage {
         let midiMappings: [MIDIMapping] = try readJSONArray(
             url.appendingPathComponent(midiMappingsFileName), decoder: decoder, name: midiMappingsFileName, required: true
         )
+        let midiRules: [MIDIRule] = try readJSONArray(
+            url.appendingPathComponent(midiRulesFileName), decoder: decoder, name: midiRulesFileName, required: false
+        )
+        let midiBehaviors: [MIDIBehaviorDefinition] = try readJSONArray(
+            url.appendingPathComponent(midiBehaviorsFileName), decoder: decoder, name: midiBehaviorsFileName, required: false
+        )
+        let drumProfiles: [DrumDeviceProfile] = try readJSONArray(
+            url.appendingPathComponent(drumProfilesFileName), decoder: decoder, name: drumProfilesFileName, required: false
+        )
+        let midiFeedbackProfiles: [MIDIFeedbackProfile] = try readJSONArray(
+            url.appendingPathComponent(midiFeedbackFileName), decoder: decoder, name: midiFeedbackFileName, required: false
+        )
         // Additive: older packages may omit effects.json.
         let effects: [EffectDefinition] = try readJSONArray(
             url.appendingPathComponent(effectsFileName), decoder: decoder, name: effectsFileName, required: false
         )
+        let stageLayout: StageLayout
+        let stageURL = url.appendingPathComponent(stageLayoutFileName)
+        if FileManager.default.fileExists(atPath: stageURL.path) {
+            stageLayout = try readJSON(from: stageURL, as: StageLayout.self, decoder: decoder, missingName: stageLayoutFileName)
+        } else {
+            stageLayout = .empty
+        }
 
         let cuesDir = url.appendingPathComponent(cuesDirectoryName, isDirectory: true)
         var cueLists: [CueList] = []
@@ -345,8 +378,13 @@ public enum ProjectPackage {
             songs: songs,
             mediaAssets: mediaAssets,
             midiMappings: midiMappings,
+            midiRules: midiRules,
+            midiBehaviors: midiBehaviors,
+            drumProfiles: drumProfiles,
+            midiFeedbackProfiles: midiFeedbackProfiles,
             effects: effects,
-            workspaceLayoutId: root.workspaceLayoutId
+            workspaceLayoutId: root.workspaceLayoutId,
+            stageLayout: stageLayout
         )
         return try SchemaMigration.migrate(loaded)
     }

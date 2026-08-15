@@ -18,6 +18,9 @@ public final class LightingEngine: @unchecked Sendable {
     private var manualLook: ActiveLook?
     private var frameIndex: UInt64 = 0
     private var snapshot = EngineFrameSnapshot.idle
+    private var resolvedSnapshot = ResolvedShowSnapshot.empty
+    /// Semantic look held while freeze is active (matches physical frozenLevels).
+    private var frozenPresentationLook: ActiveLook?
     private var lastSnapshotPublishTime: TimeInterval = 0
     private var startedOutput = false
 
@@ -25,8 +28,14 @@ public final class LightingEngine: @unchecked Sendable {
     public let programmer = Programmer()
     /// Live effects between playback and programmer (PR22).
     public let effects = EffectRunner()
+    /// MIDI behavior envelopes (after effects, before programmer) — P0-J.
+    public let midiBehaviors = MIDIBehaviorRuntime()
     /// Frame timing samples (PR30).
     public let frameMetrics = FrameMetricsRecorder()
+    /// Global Master / Blackout / Freeze / Blind / MIDI enable (P0-I).
+    private var globalControl = GlobalShowControlState.default
+    /// Held DMX frame while freeze is active (physical + preview presentation).
+    private var frozenLevels: [UInt16: [UInt8]]?
 
     public init(
         output: OutputManager,
@@ -36,6 +45,126 @@ public final class LightingEngine: @unchecked Sendable {
         self.output = output
         self.configuration = configuration
         self.clock = clock
+    }
+
+    public var globalShowControl: GlobalShowControlState {
+        lock.lock(); defer { lock.unlock() }
+        return globalControl
+    }
+
+    public func setMasterIntensity(_ value: Double) {
+        lock.lock()
+        globalControl.masterIntensity = min(1, max(0, value))
+        // Master changes while frozen update the held frame scaling path on next unfreeze;
+        // while frozen we keep held presentation (plan: hold presentation).
+        lock.unlock()
+    }
+
+    public func setBlackout(_ on: Bool) {
+        lock.lock()
+        globalControl.blackout = on
+        lock.unlock()
+    }
+
+    public func toggleBlackout() {
+        lock.lock()
+        globalControl.blackout.toggle()
+        lock.unlock()
+    }
+
+    /// Freeze holds physical/preview presentation; playback timeline may continue.
+    /// Unfreeze snaps immediately to current resolved state (approved default).
+    public func setFreeze(_ on: Bool) {
+        lock.lock()
+        if on {
+            if !globalControl.freeze {
+                globalControl.freeze = true
+                // Capture current DMX + semantic presentation so Stage and output stay aligned.
+                if !snapshot.universeLevels.isEmpty {
+                    frozenLevels = snapshot.universeLevels
+                }
+                if frozenPresentationLook == nil {
+                    frozenPresentationLook = resolvedSnapshot.presentationLook
+                }
+            }
+        } else {
+            globalControl.freeze = false
+            frozenLevels = nil
+            frozenPresentationLook = nil
+        }
+        lock.unlock()
+        if !on {
+            // Snap: force a frame so output leaves held state immediately.
+            processFrame(publishSnapshotAlways: true)
+        }
+    }
+
+    public func toggleFreeze() {
+        let next: Bool
+        lock.lock()
+        next = !globalControl.freeze
+        lock.unlock()
+        setFreeze(next)
+    }
+
+    public func setBlind(_ on: Bool) {
+        lock.lock()
+        globalControl.blind = on
+        lock.unlock()
+        programmer.setBlind(on)
+    }
+
+    public func toggleBlind() {
+        lock.lock()
+        globalControl.blind.toggle()
+        let on = globalControl.blind
+        lock.unlock()
+        programmer.setBlind(on)
+    }
+
+    public func setMIDIPerformanceEnabled(_ on: Bool) {
+        lock.lock()
+        globalControl.midiPerformanceEnabled = on
+        lock.unlock()
+    }
+
+    public func toggleMIDIPerformance() {
+        lock.lock()
+        globalControl.midiPerformanceEnabled.toggle()
+        lock.unlock()
+    }
+
+    /// Panic: clear temporary performance state (programmer values, blackout, freeze, blind off).
+    public func panic() {
+        lock.lock()
+        globalControl.blackout = false
+        globalControl.freeze = false
+        globalControl.blind = false
+        globalControl.masterIntensity = 1
+        frozenLevels = nil
+        frozenPresentationLook = nil
+        lock.unlock()
+        programmer.clearAll()
+        programmer.setBlind(false)
+        programmer.setHighlight(false)
+        midiBehaviors.panic()
+        processFrame(publishSnapshotAlways: true)
+    }
+
+    /// Clear temporary overrides without full panic (keeps master; clears programmer/highlight/blackout/freeze/blind).
+    public func clearOverrides() {
+        lock.lock()
+        globalControl.blackout = false
+        globalControl.freeze = false
+        globalControl.blind = false
+        frozenLevels = nil
+        frozenPresentationLook = nil
+        lock.unlock()
+        programmer.clearAll()
+        programmer.setBlind(false)
+        programmer.setHighlight(false)
+        midiBehaviors.clear()
+        processFrame(publishSnapshotAlways: true)
     }
 
     public var isRunning: Bool { scheduler.isRunning }
@@ -76,6 +205,10 @@ public final class LightingEngine: @unchecked Sendable {
 
         reconcileOutputUniverses(for: project)
 
+        midiBehaviors.load(definitions: project.midiBehaviors, drums: project.drumProfiles)
+        midiBehaviors.clear()
+        effects.load(definitions: project.effects)
+
         // Destructive: always reset runtime playback for a full show replacement.
         if let first = project.cueLists.first {
             playback.load(list: first, project: project)
@@ -95,6 +228,7 @@ public final class LightingEngine: @unchecked Sendable {
         self.cachedResolutionIssues = issues
         lock.unlock()
 
+        midiBehaviors.load(definitions: project.midiBehaviors, drums: project.drumProfiles)
         reconcileOutputUniverses(for: project)
         playback.updateProject(project)
     }
@@ -151,6 +285,13 @@ public final class LightingEngine: @unchecked Sendable {
         return snapshot
     }
 
+    /// Authoritative semantic frame for Stage Preview / diagnostics (Pass-1 A5).
+    public func currentResolvedSnapshot() -> ResolvedShowSnapshot {
+        lock.lock()
+        defer { lock.unlock() }
+        return resolvedSnapshot
+    }
+
     public func start() throws {
         guard !isRunning else { return }
         try output.startAll()
@@ -194,18 +335,50 @@ public final class LightingEngine: @unchecked Sendable {
         let running = scheduler.isRunning
         lock.unlock()
 
+        lock.lock()
+        let gctrl = globalControl
+        lock.unlock()
+
         let playbackLook: ActiveLook
         if let manual {
             playbackLook = manual
         } else {
             playbackLook = playback.look(at: time)
         }
-        // Layer order: playback → effects → programmer (§7.3 / PR22).
+        // Layer order: playback → effects → MIDI behaviors → programmer → global (P0-I / P0-J).
         let effectedLook = effects.apply(on: playbackLook, time: time)
-        let look = programmer.apply(onPlayback: effectedLook, compiled: compiled)
+        let midiLook = midiBehaviors.apply(on: effectedLook, time: time)
+        // Blind: also force programmer blind when global blind is on.
+        if gctrl.blind {
+            programmer.setBlind(true)
+        }
+        let programmed = programmer.apply(onPlayback: midiLook, compiled: compiled)
+        let look = GlobalShowControl.applyToLook(programmed, state: gctrl)
         let playbackSnap = playback.snapshot()
 
-        let levels = MergeStub.merge(compiled: compiled, look: look, channelCount: config.channelCount)
+        var levels = MergeStub.merge(compiled: compiled, look: look, channelCount: config.channelCount)
+        var presentationLook = look
+
+        // Freeze: hold presentation (DMX + semantic) while timeline may advance.
+        if gctrl.freeze {
+            lock.lock()
+            if frozenLevels == nil || frozenLevels?.isEmpty == true {
+                frozenLevels = levels
+            }
+            if frozenPresentationLook == nil {
+                frozenPresentationLook = look
+            }
+            if let held = frozenLevels, !held.isEmpty {
+                levels = held
+            }
+            presentationLook = frozenPresentationLook ?? look
+            lock.unlock()
+        } else {
+            lock.lock()
+            frozenLevels = nil
+            frozenPresentationLook = nil
+            lock.unlock()
+        }
 
         for (universeNumber, channels) in levels {
             output.ensureUniverse(universeNumber, channelCount: channels.count)
@@ -238,8 +411,18 @@ public final class LightingEngine: @unchecked Sendable {
                 playback: playbackSnap,
                 resolutionIssues: cachedIssues
             )
+            let resolved = ResolvedShowSnapshot(
+                frameIndex: index,
+                timestamp: time,
+                look: look,
+                presentationLook: presentationLook,
+                playback: playbackSnap,
+                global: gctrl,
+                universeLevels: levels
+            )
             lock.lock()
             snapshot = snap
+            resolvedSnapshot = resolved
             lock.unlock()
         }
 

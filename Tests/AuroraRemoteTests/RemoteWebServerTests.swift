@@ -37,6 +37,7 @@ final class RemoteWebServerTests: XCTestCase {
         XCTAssertNotNil(token)
 
         let cmdBody = try JSONSerialization.data(withJSONObject: [
+            "requestId": "test-go-1",
             "action": ["name": "go"],
         ])
         let cmd = server.handleHTTP(
@@ -47,6 +48,18 @@ final class RemoteWebServerTests: XCTestCase {
         )
         XCTAssertEqual(cmd.status, 200)
         wait(for: [exp], timeout: 1)
+
+        // Missing requestId must be rejected (UI10-01).
+        let missingBody = try JSONSerialization.data(withJSONObject: [
+            "action": ["name": "stop"],
+        ])
+        let missing = server.handleHTTP(
+            method: "POST",
+            path: "/api/command",
+            headers: ["X-Aurora-Token": token!],
+            body: missingBody
+        )
+        XCTAssertEqual(missing.status, 400)
 
         let snap = server.handleHTTP(
             method: "GET",

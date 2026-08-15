@@ -15,9 +15,19 @@ public struct ShowProject: Codable, Equatable, Sendable {
     public var songs: [Song]
     public var mediaAssets: [MediaAssetRef]
     public var midiMappings: [MIDIMapping]
+    /// Advanced MIDI rules (P0-J). Simple mappings remain primary for basic learn.
+    public var midiRules: [MIDIRule]
+    /// Reusable MIDI behaviors with envelopes (P0-J).
+    public var midiBehaviors: [MIDIBehaviorDefinition]
+    /// Electronic drum / device note maps.
+    public var drumProfiles: [DrumDeviceProfile]
+    /// Outbound MIDI feedback profiles.
+    public var midiFeedbackProfiles: [MIDIFeedbackProfile]
     /// Durable effect definitions (P1-4); order field defines apply stack.
     public var effects: [EffectDefinition]
     public var workspaceLayoutId: UUID?
+    /// 2D Stage Designer layout (P0-A). Visual only — does not affect patch.
+    public var stageLayout: StageLayout
 
     public init(
         schemaVersion: Int = ProjectPackage.currentSchemaVersion,
@@ -33,8 +43,13 @@ public struct ShowProject: Codable, Equatable, Sendable {
         songs: [Song] = [],
         mediaAssets: [MediaAssetRef] = [],
         midiMappings: [MIDIMapping] = [],
+        midiRules: [MIDIRule] = [],
+        midiBehaviors: [MIDIBehaviorDefinition] = [],
+        drumProfiles: [DrumDeviceProfile] = [],
+        midiFeedbackProfiles: [MIDIFeedbackProfile] = [],
         effects: [EffectDefinition] = [],
-        workspaceLayoutId: UUID? = nil
+        workspaceLayoutId: UUID? = nil,
+        stageLayout: StageLayout = .empty
     ) {
         self.schemaVersion = schemaVersion
         self.metadata = metadata
@@ -49,8 +64,13 @@ public struct ShowProject: Codable, Equatable, Sendable {
         self.songs = songs
         self.mediaAssets = mediaAssets
         self.midiMappings = midiMappings
+        self.midiRules = midiRules
+        self.midiBehaviors = midiBehaviors
+        self.drumProfiles = drumProfiles
+        self.midiFeedbackProfiles = midiFeedbackProfiles
         self.effects = effects
         self.workspaceLayoutId = workspaceLayoutId
+        self.stageLayout = stageLayout
     }
 
     /// Empty project suitable for offline editing with no drivers attached.
@@ -205,7 +225,7 @@ public extension ShowProject {
         }
 
         var overlaps: [PatchOverlap] = []
-        let byUniverse = Dictionary(grouping: fixtures, by: \.universeId)
+        let byUniverse = Dictionary(grouping: fixtures.filter(\.isPatched), by: \.universeId)
 
         for (universeId, patched) in byUniverse {
             let sorted = patched.sorted { $0.address < $1.address }

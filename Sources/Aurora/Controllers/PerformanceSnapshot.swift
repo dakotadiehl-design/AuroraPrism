@@ -29,6 +29,12 @@ struct PerformanceSnapshot: Equatable, Sendable {
     /// Semantically resolved current / next cue (never invent from index+1 alone).
     var currentCue: PerformanceCueSummary
     var nextCue: PerformanceCueSummary
+    /// Global show control (P0-I).
+    var masterIntensity: Double
+    var blackout: Bool
+    var freeze: Bool
+    var blind: Bool
+    var midiPerformanceEnabled: Bool
 
     static let empty = PerformanceSnapshot(
         showName: "Untitled",
@@ -47,7 +53,12 @@ struct PerformanceSnapshot: Equatable, Sendable {
         activeChannelCount: 0,
         activeUniverseCount: 0,
         currentCue: .empty,
-        nextCue: .empty
+        nextCue: .empty,
+        masterIntensity: 1,
+        blackout: false,
+        freeze: false,
+        blind: false,
+        midiPerformanceEnabled: true
     )
 
     /// Sum of channels with level > 0 across every universe (UI-GATE-4).
@@ -69,7 +80,8 @@ struct PerformanceSnapshot: Equatable, Sendable {
         isDirty: Bool,
         engineSnap: EngineFrameSnapshot,
         song: SongPerformanceSnapshot,
-        outputStatusLine: String
+        outputStatusLine: String,
+        global: GlobalShowControlState = .default
     ) -> PerformanceSnapshot {
         let pb = engineSnap.playback
         let songCtx = SongCueResolveContext(
@@ -108,7 +120,12 @@ struct PerformanceSnapshot: Equatable, Sendable {
             activeChannelCount: totals.channels,
             activeUniverseCount: totals.universes,
             currentCue: current,
-            nextCue: next
+            nextCue: next,
+            masterIntensity: global.masterIntensity,
+            blackout: global.blackout,
+            freeze: global.freeze,
+            blind: global.blind,
+            midiPerformanceEnabled: global.midiPerformanceEnabled
         )
     }
 }

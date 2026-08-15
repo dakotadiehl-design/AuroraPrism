@@ -8,18 +8,24 @@
 
 /* Begin PBXBuildFile section */
 		03563D500252A53FEF44FA8C /* AuroraModel in Frameworks */ = {isa = PBXBuildFile; productRef = 1A8D18F9A83D91A656472DC4 /* AuroraModel */; };
+		0AD304D3E06F5B445261C3B9 /* CheckpointC2ScreenshotExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A665E7AA33A07B1B5479496 /* CheckpointC2ScreenshotExporter.swift */; };
 		11C2FF2F2CFDA206A5992EAF /* AuroraOutput in Frameworks */ = {isa = PBXBuildFile; productRef = FCC9AB3A9B77468013D9EEC8 /* AuroraOutput */; };
 		14387812BB87878E138FE12E /* AuroraSettingsRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C5FF56CF6BF550DBF6865AA /* AuroraSettingsRoot.swift */; };
 		26728EE3820EE534067B7593 /* WorkspaceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 501E4F0EC75962C1B1D363F3 /* WorkspaceController.swift */; };
 		278C16091C9CB4F672B622C9 /* WelcomeEmptyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B4845FF0198D5B22AE7610E /* WelcomeEmptyView.swift */; };
+		27C4414836CB833E4B61B89D /* SplashVisuals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 824A8B81275AE372DADD8AE6 /* SplashVisuals.swift */; };
 		35CCC59630FCF3EA2889402F /* AuroraUI in Frameworks */ = {isa = PBXBuildFile; productRef = 690300BAF9B3151421451ABA /* AuroraUI */; };
 		377A74B13024A8C1D09C6A8A /* AutosaveController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B043DFC14A0073926A91FBC /* AutosaveController.swift */; };
+		3CB4833039706DB343C16D9A /* CheckpointC1ScreenshotExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EAD52ED9A7456D2355F6E75 /* CheckpointC1ScreenshotExporter.swift */; };
 		42BB15392EE0D5023FF5196F /* ShowControlController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 779647B40D9F3A8937B23878 /* ShowControlController.swift */; };
 		4E340006104EBAEBE5FE7F28 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 232F5B08C7CB2103577CD47F /* ContentView.swift */; };
 		51199258785E51A21134CD49 /* AppSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1D6C1A596DA1DE51484AAB /* AppSettingsStore.swift */; };
 		51FF94DE82FE95F235593210 /* SongDirector.swift in Sources */ = {isa = PBXBuildFile; fileRef = D22693B2A3BC9A83A10B148C /* SongDirector.swift */; };
 		5A8CF4DD0690127459E05866 /* AuroraDiagnostics in Frameworks */ = {isa = PBXBuildFile; productRef = 260EBA9488D207E630542D6B /* AuroraDiagnostics */; };
+		5D124C456F3FBF5F9E3ADAC7 /* LaunchSplashController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 864171D7061DED2D20ABAFBE /* LaunchSplashController.swift */; };
 		69C3AAB5F98CD1C4185873F2 /* AuroraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53EBA12BB138545F4DE4F05 /* AuroraApp.swift */; };
+		6C92275AA0E1FBC13C70E858 /* DiagnosticsSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 182910CFFF96FD38C92A41A1 /* DiagnosticsSnapshot.swift */; };
+		70BBD384A540407279608757 /* MIDIHealthSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3500F9F48968C9E1F4BE62EE /* MIDIHealthSnapshot.swift */; };
 		75FB1F2B21E5F1718F2E2FF5 /* BuildWorkspaceHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2DC1348A41F0BB34984FAAD /* BuildWorkspaceHost.swift */; };
 		7EAA6D5F0C9A966B2F13D476 /* AuroraRemote in Frameworks */ = {isa = PBXBuildFile; productRef = C7DD2EDDB087BC813F80A53E /* AuroraRemote */; };
 		83F91197B9CC076A75520A90 /* AuroraBuildToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 358D876DBCA0CD1350698C97 /* AuroraBuildToolbar.swift */; };
@@ -29,10 +35,13 @@
 		932246F78C94AD41B2A8FF16 /* PerformanceSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 560F9B85E2009D890D09ECAC /* PerformanceSnapshot.swift */; };
 		93383F9375C75649A0C9C33B /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6B29DE4F38EC3E91F2835D08 /* AppKit.framework */; };
 		93C0DF2A610123A272711285 /* PanelRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D1A9997F250BD7F47FC7DC0 /* PanelRegistry.swift */; };
+		9F1DDF1D941010FD6EFFC6B8 /* ExternalControlLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3863075AA65EC7128BBCA76D /* ExternalControlLog.swift */; };
 		A23B7B944DDFAD371DC2CA79 /* AuroraFixtureLib in Frameworks */ = {isa = PBXBuildFile; productRef = 9873FBE2D9C160DE4F158882 /* AuroraFixtureLib */; };
 		AB90C02584422D9038335B6D /* KeyboardCommandGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B85BFE9D150E01CF5D13B12 /* KeyboardCommandGate.swift */; };
+		B4624971634401539AA958E0 /* CheckpointC3ScreenshotExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31B5082F832535672E269A21 /* CheckpointC3ScreenshotExporter.swift */; };
 		B6D226D2083E5988CBFA736B /* RemoteController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F35F874BCB8E5A89EEDBFA /* RemoteController.swift */; };
 		BFBC57A45ACB4CB3344029CD /* AuroraMIDI in Frameworks */ = {isa = PBXBuildFile; productRef = D9C78EDE21F0124491ADA60E /* AuroraMIDI */; };
+		C52AA06B1FC821446EA62F43 /* AuroraSplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2CA141AE7C9CF7492306AA6 /* AuroraSplashView.swift */; };
 		CACAB191F002F5D03883E338 /* AuroraAppStatusBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C1BBAFA0D5762961DF0960B /* AuroraAppStatusBar.swift */; };
 		CAE5E15A30778E693BCCE0F8 /* AuroraShellHealth.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD9B4FD0601962278EB8BCAC /* AuroraShellHealth.swift */; };
 		D1D5AFEB411E7EEE10F007F2 /* AuroraCore in Frameworks */ = {isa = PBXBuildFile; productRef = 792A939B17F287A1613EEC7E /* AuroraCore */; };
@@ -44,13 +53,21 @@
 		ED96297A3B9DD6CF78D08877 /* AuroraEngine in Frameworks */ = {isa = PBXBuildFile; productRef = A05AEC2D94229F2DB405698C /* AuroraEngine */; };
 		EF73651AA0062889A57FCBE6 /* ProgrammerPresentationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC1D216D63FCD9574D8F1EAC /* ProgrammerPresentationStore.swift */; };
 		F55B9C7D82C625AF6C86D71B /* AuroraBrandViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E14169A3D7013064FC4C477 /* AuroraBrandViews.swift */; };
+		F6A4316EEEAC66734C5133E1 /* CheckpointBScreenshotExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1C106511CEDF618D6069BF9 /* CheckpointBScreenshotExporter.swift */; };
+		F6E8C5F294481BDA83C5BCA0 /* RemotePINKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = F23527A2AE7B5B35B4F4DDE2 /* RemotePINKeychain.swift */; };
 		F9B0C0AC28D39ECEE50DFCEE /* DiagnosticsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF4960B78112ABB5D34803BD /* DiagnosticsController.swift */; };
 		FB0360278C5ED110F7A9E16D /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C5AAC12E0BA9F6CC52CAF7EC /* Preview Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		182910CFFF96FD38C92A41A1 /* DiagnosticsSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsSnapshot.swift; sourceTree = "<group>"; };
+		1EAD52ED9A7456D2355F6E75 /* CheckpointC1ScreenshotExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckpointC1ScreenshotExporter.swift; sourceTree = "<group>"; };
 		232F5B08C7CB2103577CD47F /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		31B5082F832535672E269A21 /* CheckpointC3ScreenshotExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckpointC3ScreenshotExporter.swift; sourceTree = "<group>"; };
+		3500F9F48968C9E1F4BE62EE /* MIDIHealthSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIHealthSnapshot.swift; sourceTree = "<group>"; };
 		358D876DBCA0CD1350698C97 /* AuroraBuildToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuroraBuildToolbar.swift; sourceTree = "<group>"; };
+		3863075AA65EC7128BBCA76D /* ExternalControlLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExternalControlLog.swift; sourceTree = "<group>"; };
+		3A665E7AA33A07B1B5479496 /* CheckpointC2ScreenshotExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckpointC2ScreenshotExporter.swift; sourceTree = "<group>"; };
 		4065D715F6712A592C2D9D94 /* ControlActionRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlActionRouter.swift; sourceTree = "<group>"; };
 		501E4F0EC75962C1B1D363F3 /* WorkspaceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceController.swift; sourceTree = "<group>"; };
 		53241CA7F228CC07D3E74AD5 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -63,11 +80,15 @@
 		6C1BBAFA0D5762961DF0960B /* AuroraAppStatusBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuroraAppStatusBar.swift; sourceTree = "<group>"; };
 		779647B40D9F3A8937B23878 /* ShowControlController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowControlController.swift; sourceTree = "<group>"; };
 		7B043DFC14A0073926A91FBC /* AutosaveController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutosaveController.swift; sourceTree = "<group>"; };
+		824A8B81275AE372DADD8AE6 /* SplashVisuals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashVisuals.swift; sourceTree = "<group>"; };
+		864171D7061DED2D20ABAFBE /* LaunchSplashController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchSplashController.swift; sourceTree = "<group>"; };
 		95C8D08AF1160636E19E4FDB /* PerformWorkspaceShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformWorkspaceShell.swift; sourceTree = "<group>"; };
 		9B85BFE9D150E01CF5D13B12 /* KeyboardCommandGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardCommandGate.swift; sourceTree = "<group>"; };
 		A078D712EDB91254FB4C65EB /* Aurora.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Aurora.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AB29E496B8FE888F60B7C466 /* OutputController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutputController.swift; sourceTree = "<group>"; };
 		BF4960B78112ABB5D34803BD /* DiagnosticsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsController.swift; sourceTree = "<group>"; };
+		C1C106511CEDF618D6069BF9 /* CheckpointBScreenshotExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckpointBScreenshotExporter.swift; sourceTree = "<group>"; };
+		C2CA141AE7C9CF7492306AA6 /* AuroraSplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuroraSplashView.swift; sourceTree = "<group>"; };
 		C2DC1348A41F0BB34984FAAD /* BuildWorkspaceHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildWorkspaceHost.swift; sourceTree = "<group>"; };
 		C5AAC12E0BA9F6CC52CAF7EC /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		C7F35F874BCB8E5A89EEDBFA /* RemoteController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteController.swift; sourceTree = "<group>"; };
@@ -79,6 +100,7 @@
 		E98879EA9C2C37F9DDA411AE /* ProjectController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectController.swift; sourceTree = "<group>"; };
 		EC1D216D63FCD9574D8F1EAC /* ProgrammerPresentationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgrammerPresentationStore.swift; sourceTree = "<group>"; };
 		ED1D6C1A596DA1DE51484AAB /* AppSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsStore.swift; sourceTree = "<group>"; };
+		F23527A2AE7B5B35B4F4DDE2 /* RemotePINKeychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemotePINKeychain.swift; sourceTree = "<group>"; };
 		F2C7C27BD26E3D7CE9388E87 /* Aurora */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Aurora; path = .; sourceTree = SOURCE_ROOT; };
 		FD8D8F2897F52396A2EF3F06 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -105,6 +127,16 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		25F515A9AF4120B3DE7FD0BF /* Splash */ = {
+			isa = PBXGroup;
+			children = (
+				C2CA141AE7C9CF7492306AA6 /* AuroraSplashView.swift */,
+				864171D7061DED2D20ABAFBE /* LaunchSplashController.swift */,
+				824A8B81275AE372DADD8AE6 /* SplashVisuals.swift */,
+			);
+			path = Splash;
+			sourceTree = "<group>";
+		};
 		40EA5153EEA64DB820193AE6 /* Preview Content */ = {
 			isa = PBXGroup;
 			children = (
@@ -120,6 +152,8 @@
 				B5A9A32B8ED4CBCBB45F8EE3 /* Controllers */,
 				F033D9CC690C037D099AF9A9 /* Settings */,
 				B5D0006B79AB717566AA15B8 /* Shell */,
+				25F515A9AF4120B3DE7FD0BF /* Splash */,
+				4EAD12B25ABD70A0A3293EDB /* Tools */,
 				D89FE72A7FCF544F9FE97138 /* AppModel.swift */,
 				E53EBA12BB138545F4DE4F05 /* AuroraApp.swift */,
 				232F5B08C7CB2103577CD47F /* ContentView.swift */,
@@ -128,6 +162,17 @@
 				D22693B2A3BC9A83A10B148C /* SongDirector.swift */,
 			);
 			path = Aurora;
+			sourceTree = "<group>";
+		};
+		4EAD12B25ABD70A0A3293EDB /* Tools */ = {
+			isa = PBXGroup;
+			children = (
+				C1C106511CEDF618D6069BF9 /* CheckpointBScreenshotExporter.swift */,
+				1EAD52ED9A7456D2355F6E75 /* CheckpointC1ScreenshotExporter.swift */,
+				3A665E7AA33A07B1B5479496 /* CheckpointC2ScreenshotExporter.swift */,
+				31B5082F832535672E269A21 /* CheckpointC3ScreenshotExporter.swift */,
+			);
+			path = Tools;
 			sourceTree = "<group>";
 		};
 		829622D1999AC5BF17B88CCF = {
@@ -181,12 +226,16 @@
 				ED1D6C1A596DA1DE51484AAB /* AppSettingsStore.swift */,
 				7B043DFC14A0073926A91FBC /* AutosaveController.swift */,
 				BF4960B78112ABB5D34803BD /* DiagnosticsController.swift */,
+				182910CFFF96FD38C92A41A1 /* DiagnosticsSnapshot.swift */,
+				3863075AA65EC7128BBCA76D /* ExternalControlLog.swift */,
 				DE69003C8FADB849F552ABE3 /* InputController.swift */,
+				3500F9F48968C9E1F4BE62EE /* MIDIHealthSnapshot.swift */,
 				AB29E496B8FE888F60B7C466 /* OutputController.swift */,
 				560F9B85E2009D890D09ECAC /* PerformanceSnapshot.swift */,
 				EC1D216D63FCD9574D8F1EAC /* ProgrammerPresentationStore.swift */,
 				E98879EA9C2C37F9DDA411AE /* ProjectController.swift */,
 				C7F35F874BCB8E5A89EEDBFA /* RemoteController.swift */,
+				F23527A2AE7B5B35B4F4DDE2 /* RemotePINKeychain.swift */,
 				779647B40D9F3A8937B23878 /* ShowControlController.swift */,
 				501E4F0EC75962C1B1D363F3 /* WorkspaceController.swift */,
 			);
@@ -324,13 +373,22 @@
 				83F91197B9CC076A75520A90 /* AuroraBuildToolbar.swift in Sources */,
 				14387812BB87878E138FE12E /* AuroraSettingsRoot.swift in Sources */,
 				CAE5E15A30778E693BCCE0F8 /* AuroraShellHealth.swift in Sources */,
+				C52AA06B1FC821446EA62F43 /* AuroraSplashView.swift in Sources */,
 				377A74B13024A8C1D09C6A8A /* AutosaveController.swift in Sources */,
 				75FB1F2B21E5F1718F2E2FF5 /* BuildWorkspaceHost.swift in Sources */,
+				F6A4316EEEAC66734C5133E1 /* CheckpointBScreenshotExporter.swift in Sources */,
+				3CB4833039706DB343C16D9A /* CheckpointC1ScreenshotExporter.swift in Sources */,
+				0AD304D3E06F5B445261C3B9 /* CheckpointC2ScreenshotExporter.swift in Sources */,
+				B4624971634401539AA958E0 /* CheckpointC3ScreenshotExporter.swift in Sources */,
 				4E340006104EBAEBE5FE7F28 /* ContentView.swift in Sources */,
 				E9E5822071DD23FA2AF41899 /* ControlActionRouter.swift in Sources */,
 				F9B0C0AC28D39ECEE50DFCEE /* DiagnosticsController.swift in Sources */,
+				6C92275AA0E1FBC13C70E858 /* DiagnosticsSnapshot.swift in Sources */,
+				9F1DDF1D941010FD6EFFC6B8 /* ExternalControlLog.swift in Sources */,
 				8885BEE39D4B78623E20494A /* InputController.swift in Sources */,
 				AB90C02584422D9038335B6D /* KeyboardCommandGate.swift in Sources */,
+				5D124C456F3FBF5F9E3ADAC7 /* LaunchSplashController.swift in Sources */,
+				70BBD384A540407279608757 /* MIDIHealthSnapshot.swift in Sources */,
 				83FF3655CDFEB29DF5D44AEA /* OutputController.swift in Sources */,
 				93C0DF2A610123A272711285 /* PanelRegistry.swift in Sources */,
 				E161C01CFBB6E7CA343C09B7 /* PerformWorkspaceShell.swift in Sources */,
@@ -338,8 +396,10 @@
 				EF73651AA0062889A57FCBE6 /* ProgrammerPresentationStore.swift in Sources */,
 				E4EE3B1C37AEEF62DC2EC373 /* ProjectController.swift in Sources */,
 				B6D226D2083E5988CBFA736B /* RemoteController.swift in Sources */,
+				F6E8C5F294481BDA83C5BCA0 /* RemotePINKeychain.swift in Sources */,
 				42BB15392EE0D5023FF5196F /* ShowControlController.swift in Sources */,
 				51FF94DE82FE95F235593210 /* SongDirector.swift in Sources */,
+				27C4414836CB833E4B61B89D /* SplashVisuals.swift in Sources */,
 				278C16091C9CB4F672B622C9 /* WelcomeEmptyView.swift in Sources */,
 				26728EE3820EE534067B7593 /* WorkspaceController.swift in Sources */,
 			);

@@ -4,12 +4,12 @@
 
 | Field | Value |
 |-------|--------|
-| **Last updated** | 2026-08-05 (**UI-04…07 pre-commit pass: routing UI, Local DMX lifecycle, CR-11 real**) |
+| **Last updated** | 2026-08-13 (**Patch/Stage UX Waves 1–6 skeleton+features; schema v3**) |
 | **Workspace** | `/Users/dakota/code/Aurora` |
 | **Branch** | `main` (local only; no remote assumed) |
-| **Working tree** | Dirty until user commits |
-| **Tests** | Run `swift test` after closeout |
-| **Xcode** | Run Debug after `xcodegen generate` if needed |
+| **Working tree** | Dirty: full Lightkey Pass-1 gap remediation (uncommitted) |
+| **Tests** | **385** passing (`swift test`) |
+| **Xcode** | `xcodegen generate` then Debug |
 
 **Open first after compression:**
 
@@ -43,13 +43,35 @@ UI-04  Palettes + Presets     COMPLETE
 UI-05  Cue Workflow           COMPLETE
 UI-06  Song Mode              COMPLETE
 UI-07  Perform Mode           COMPLETE
-FIXES  Integration CR-01…15 + HW-01 foundation  COMPLETE
-NEXT   Optional ENTTEC hardware smoke; then STOP — no UI-08
+FIXES  Integration CR-01…15 + pre-commit  COMPLETE
+UI-08  Full Settings          COMPLETE  (+ Art-Net/sACN/RTP/OSC rehost; density not applied)
+UI-09  Patch + diagnostics    COMPLETE  (Build Diagnostics tool; row validation; live snapshot)
+UI-10  Web/iPad Remote        COMPLETE  (listener ready truth; session touch; re-auth; Keychain PIN)
+UI-11  Build layouts          COMPLETE  (real divider persistence; Diagnostics lower tool)
+STAB1  FirstPass findings     COMPLETE
+STAB2  SecondPass deep review COMPLETE  (REM/DIAG/LAYOUT/PATCH/SEC/SET)
+PARITY Lightkey pre-smoke     NEAR COMPLETE (Pass-1 remaining items landed; Wave 9 ready)
+NEXT   Operator hardware smoke + formal Wave 9 checklist
 ```
 
-**Do not invent PR work. Do not start UI-08 unprompted.**
+**Parity plan:** amended Lightkey-Parity plan (A1–A6). Matrix: `UIDesignReferences/Lightkey_Parity_Matrix.md`  
+**Gap report:** `FutureReference/Aurora_LightKey_Parity_Pass1_Audit_Gap_Report.md`  
+**Roadmap:** `FutureReference/Aurora_Lightkey_Parity_Pre_Smoke_Test_Roadmap.md`
 
-**Closeout:** `UIDesignReferences/UI_04_07_Integration_Closeout.md`
+### Pass-1 full remediation (summary)
+
+- **Engine:** ResolvedShowSnapshot; freeze semantic hold; Master dimmer semantics; multi-cell compile; MIDI behavior layer; expanded effects.
+- **MIDI P0-J:** Rules; behaviors (AHDR/ADSR envelopes); drum profiles; safety limiter; CoreMIDI feedback out; expressive events; schema v3.
+- **Library P0-E:** `.auroralib` export/import (File menu) + merge command.
+- **Effects P0-G:** positionCircle, colorStep, cellChase, beamPulse; phase/spread/direction UI.
+- **Patch P0-C:** renumber, bulk create, CSV import, CSV clipboard export.
+- **Output P0-L:** Universe Monitor semantic attribution (fixture + parameter).
+- **UI:** Profile editor, Stage tools, Programmer beam/strobe/generic, cue authoring, remote Master/BO, Diagnostics health + external log.
+
+
+**Handoffs:** `UI_08`…`UI_11_Handoff.md`, `UI_08_11_Integration_Summary.md`,
+`Aurora_UI08-UI11_FirstPass_Stabilization_Findings.md`,
+`Aurora_UI08-UI11_SecondPass_Deep_Review_Findings.md`
 
 ---
 

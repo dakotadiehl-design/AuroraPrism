@@ -28,7 +28,9 @@ public struct OutputPresentationSnapshot: Equatable, Sendable {
     )
 
     /// Derive presentation from driver health snapshots.
+    /// Null/disabled-only sinks never count as healthy physical output (ST-02).
     public static func from(health: [OutputHealthSnapshot]) -> OutputPresentationSnapshot {
+        // Only non-disabled drivers contribute to aggregate (Null reports .disabled).
         let active = health.filter { $0.state != .disabled }
         if active.isEmpty {
             return .disabled
@@ -55,7 +57,7 @@ public struct OutputPresentationSnapshot: Equatable, Sendable {
 
         let line: String
         if details.isEmpty {
-            line = "Output: Null only"
+            line = "Output: no physical drivers"
         } else {
             line = details.joined(separator: " · ")
         }

@@ -30,7 +30,7 @@ public final class RemoteProtocolClient: @unchecked Sendable {
     }
 
     public func makeCommand(_ action: RemoteShowAction) throws -> Data {
-        try RemoteCodec.encodeClient(.command(action))
+        try RemoteCodec.encodeClient(.command(requestId: UUID().uuidString, action: action))
     }
 
     public func makePing() throws -> Data {
@@ -57,6 +57,8 @@ public final class RemoteProtocolClient: @unchecked Sendable {
             role = snap.role
             return true
         case .pong:
+            return true
+        case .commandResult:
             return true
         }
     }

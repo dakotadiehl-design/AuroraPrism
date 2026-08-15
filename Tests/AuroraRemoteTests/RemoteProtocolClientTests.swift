@@ -27,7 +27,11 @@ final class RemoteProtocolClientTests: XCTestCase {
         let client = RemoteProtocolClient()
         let data = try client.makeCommand(.fireCueIndex(3))
         let msg = try RemoteCodec.decodeClient(data)
-        XCTAssertEqual(msg, .command(.fireCueIndex(3)))
+        if case .command(_, let action) = msg {
+            XCTAssertEqual(action, .fireCueIndex(3))
+        } else {
+            XCTFail("expected command")
+        }
     }
 
     func testRejectClearsSession() throws {

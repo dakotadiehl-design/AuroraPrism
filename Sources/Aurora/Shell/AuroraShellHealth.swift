@@ -2,7 +2,7 @@ import AuroraOutput
 import AuroraUI
 import Foundation
 
-/// Single semantic health mapping for toolbar, status bar, and Perform (UI-02 C4).
+/// Single semantic health mapping for toolbar, status bar, and Perform (UI-02 C4 / ST-01).
 struct AuroraShellHealthSnapshot: Equatable, Sendable {
     var engine: AuroraHealthLevel
     var output: AuroraHealthLevel
@@ -13,16 +13,14 @@ struct AuroraShellHealthSnapshot: Equatable, Sendable {
     static func build(
         engineRunning: Bool,
         output: OutputPresentationSnapshot,
-        midiStatus: String
+        midi: MIDIHealthSnapshot
     ) -> AuroraShellHealthSnapshot {
-        let midiLower = midiStatus.lowercased()
-        let midi: AuroraHealthLevel
-        if midiLower.contains("error") || midiLower.contains("fail") {
-            midi = .warning
-        } else if midiLower.contains("off") || midiLower.isEmpty {
-            midi = .disabled
-        } else {
-            midi = .healthy
+        let midiLevel: AuroraHealthLevel
+        switch midi.state {
+        case .off: midiLevel = .disabled
+        case .ready: midiLevel = .healthy
+        case .warning: midiLevel = .warning
+        case .failed: midiLevel = .failed
         }
 
         let out: AuroraHealthLevel
@@ -36,8 +34,21 @@ struct AuroraShellHealthSnapshot: Equatable, Sendable {
         return AuroraShellHealthSnapshot(
             engine: engineRunning ? .healthy : .disabled,
             output: out,
-            midi: midi,
+            midi: midiLevel,
             network: nil
+        )
+    }
+
+    /// Back-compat string path — prefer structured `MIDIHealthSnapshot`.
+    static func build(
+        engineRunning: Bool,
+        output: OutputPresentationSnapshot,
+        midiStatus: String
+    ) -> AuroraShellHealthSnapshot {
+        build(
+            engineRunning: engineRunning,
+            output: output,
+            midi: MIDIHealthSnapshot.fromLegacyStatusString(midiStatus)
         )
     }
 }

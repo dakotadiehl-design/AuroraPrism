@@ -5,7 +5,7 @@ final class MIDIMessageParserTests: XCTestCase {
     func testNoteOn() {
         let events = MIDIMessageParser.parse(bytes: [0x90, 60, 100], sourceID: "t")
         XCTAssertEqual(events.count, 1)
-        guard case .noteOn(let ch, let n, let v, let s) = events[0] else {
+        guard case .noteOn(let ch, let n, let v, let s, _) = events[0] else {
             return XCTFail("expected noteOn")
         }
         XCTAssertEqual(ch, 0)
@@ -23,7 +23,7 @@ final class MIDIMessageParserTests: XCTestCase {
 
     func testControlChange() {
         let events = MIDIMessageParser.parse(bytes: [0xB0, 7, 64], sourceID: "t")
-        guard case .controlChange(let ch, let c, let v, _) = events[0] else {
+        guard case .controlChange(let ch, let c, let v, _, _) = events[0] else {
             return XCTFail("expected CC")
         }
         XCTAssertEqual(ch, 0)
@@ -33,7 +33,7 @@ final class MIDIMessageParserTests: XCTestCase {
 
     func testProgramChange() {
         let events = MIDIMessageParser.parse(bytes: [0xC0, 12], sourceID: "t")
-        guard case .programChange(_, let p, _) = events[0] else {
+        guard case .programChange(_, let p, _, _) = events[0] else {
             return XCTFail("expected PC")
         }
         XCTAssertEqual(p, 12)

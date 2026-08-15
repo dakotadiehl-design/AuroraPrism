@@ -38,7 +38,10 @@ public enum PatchValidator {
 
         if !project.canPlace(fixture: fixture, ignoringFixtureID: ignoringFixtureID) {
             // Find a conflicting fixture for a useful error.
-            for other in project.fixtures where other.id != ignoringFixtureID && other.universeId == fixture.universeId {
+            for other in project.fixtures where other.id != ignoringFixtureID
+                && other.isPatched
+                && other.universeId == fixture.universeId
+            {
                 let otherCount = project.channelCount(for: other)
                 let otherEnd = other.endAddress(channelCount: otherCount)
                 if fixture.address <= otherEnd && other.address <= end {

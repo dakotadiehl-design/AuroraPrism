@@ -20,10 +20,11 @@ final class PackageRecoveryTests: XCTestCase {
         XCTAssertEqual(loaded.metadata.name, "Live")
     }
 
-    func testSchemaMigrationIdentity() throws {
+    func testSchemaMigrationV1ToCurrent() throws {
         var p = ShowProject.empty(name: "M")
         p.schemaVersion = 1
         let migrated = try SchemaMigration.migrate(p)
-        XCTAssertEqual(migrated.schemaVersion, 1)
+        XCTAssertEqual(migrated.schemaVersion, ProjectPackage.currentSchemaVersion)
+        XCTAssertEqual(migrated.stageLayout, .empty)
     }
 }

@@ -34,4 +34,24 @@ final class WorkspaceLayoutTests: XCTestCase {
         let loaded = WorkspaceLayoutStore.load(from: defaults)
         XCTAssertEqual(loaded.bottomFraction, 0.4, accuracy: 0.0001)
     }
+
+    /// UI11-04: named presets map to Option A tools (patch left / song lower / programmer center).
+    func testNamedBuildPresetsAlignToOptionA() {
+        let patch = WorkspaceLayout.namedBuildPreset("Patch")
+        XCTAssertEqual(patch.leadingTab, .patch)
+        XCTAssertEqual(patch.centerTab, .programmer)
+        XCTAssertEqual(patch.namedPreset, "Patch")
+
+        let song = WorkspaceLayout.namedBuildPreset("Song")
+        XCTAssertEqual(song.bottomTab, .song)
+        XCTAssertEqual(song.centerTab, .programmer)
+
+        let programming = WorkspaceLayout.namedBuildPreset("Programming")
+        XCTAssertEqual(programming.leadingTab, .fixtureBrowser)
+        XCTAssertEqual(programming.bottomTab, .cueList)
+
+        let diag = WorkspaceLayout.namedBuildPreset("Diagnostics")
+        XCTAssertEqual(diag.bottomTab, .console)
+        XCTAssertEqual(diag.namedPreset, "Diagnostics")
+    }
 }

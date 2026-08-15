@@ -106,8 +106,8 @@ public struct AuroraColorWheel: View {
                     }
             )
 
-            // Active chip + RGB
-            HStack(spacing: 8) {
+            // Active chip + RGB — fixed width so digit count never reflows the wheel above.
+            HStack(spacing: 6) {
                 if isMixed {
                     Text("MIXED")
                         .font(AuroraTypography.timingReadout)
@@ -121,18 +121,23 @@ public struct AuroraColorWheel: View {
                                 .strokeBorder(Color.white.opacity(0.2), lineWidth: 0.5)
                         )
                     let rgb = rgbComponents
-                    Text("R \(rgb.0)")
-                        .font(AuroraTypography.timingReadout)
-                        .foregroundStyle(AuroraColor.textSecondary)
-                    Text("G \(rgb.1)")
-                        .font(AuroraTypography.timingReadout)
-                        .foregroundStyle(AuroraColor.textSecondary)
-                    Text("B \(rgb.2)")
-                        .font(AuroraTypography.timingReadout)
-                        .foregroundStyle(AuroraColor.textSecondary)
+                    rgbChannelLabel("R", rgb.0)
+                    rgbChannelLabel("G", rgb.1)
+                    rgbChannelLabel("B", rgb.2)
                 }
             }
+            .frame(width: size, alignment: .center)
         }
+        // Lock overall control width to the disc so parent centering stays stable.
+        .frame(width: size)
+    }
+
+    private func rgbChannelLabel(_ channel: String, _ value: Int) -> some View {
+        // Always three digits (e.g. "R  12", "R 255") with monospaced figures.
+        Text("\(channel) \(String(format: "%3d", value))")
+            .font(AuroraTypography.timingReadout.monospacedDigit())
+            .foregroundStyle(AuroraColor.textSecondary)
+            .frame(width: 36, alignment: .leading)
     }
 
     private var thumbOffset: CGSize {

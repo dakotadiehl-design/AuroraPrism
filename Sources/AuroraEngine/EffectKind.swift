@@ -1,6 +1,6 @@
 import Foundation
 
-/// Built-in effect generator kinds (PR22).
+/// Built-in effect generator kinds (PR22 + Pass-1 effect families).
 public enum EffectKind: String, Codable, Sendable, Hashable, CaseIterable {
     /// Relative sine LFO on a single attribute.
     case pulse
@@ -10,4 +10,12 @@ public enum EffectKind: String, Codable, Sendable, Hashable, CaseIterable {
     case wave
     /// HSV rainbow written to colorR / colorG / colorB.
     case rainbow
+    /// Position circle on pan/tilt (movement family).
+    case positionCircle
+    /// Color step cycle through primaries (color family).
+    case colorStep
+    /// Multi-cell chase along `attr@cellN` attributes when present.
+    case cellChase
+    /// Beam zoom pulse (beam family).
+    case beamPulse
 }

@@ -10,7 +10,7 @@ final class MIDIStreamParserTests: XCTestCase {
         // Second packet uses running status (no status byte)
         let second = parser.parse(bytes: [61, 80], sourceID: "t")
         XCTAssertEqual(second.count, 1)
-        if case .noteOn(_, let n, let v, _) = second[0] {
+        if case .noteOn(_, let n, let v, _, _) = second[0] {
             XCTAssertEqual(n, 61)
             XCTAssertEqual(v, 80)
         } else {
@@ -25,7 +25,7 @@ final class MIDIStreamParserTests: XCTestCase {
         XCTAssertTrue(first.isEmpty)
         let second = parser.parse(bytes: [0x64], sourceID: "t")
         XCTAssertEqual(second.count, 1)
-        if case .noteOn(_, let note, let vel, _) = second[0] {
+        if case .noteOn(_, let note, let vel, _, _) = second[0] {
             XCTAssertEqual(note, 0x3C)
             XCTAssertEqual(vel, 0x64)
         } else {
@@ -41,7 +41,7 @@ final class MIDIStreamParserTests: XCTestCase {
         XCTAssertTrue(partial.isEmpty)
         let complete = parser.parse(bytes: [80], sourceID: "t")
         XCTAssertEqual(complete.count, 1)
-        if case .noteOn(_, let n, let v, _) = complete[0] {
+        if case .noteOn(_, let n, let v, _, _) = complete[0] {
             XCTAssertEqual(n, 61)
             XCTAssertEqual(v, 80)
         } else {
@@ -55,7 +55,7 @@ final class MIDIStreamParserTests: XCTestCase {
         // Note-on status + note, then clock (0xF8), then velocity
         let events = parser.parse(bytes: [0x90, 60, 0xF8, 100], sourceID: "t")
         XCTAssertEqual(events.count, 1)
-        if case .noteOn(_, let n, let v, _) = events[0] {
+        if case .noteOn(_, let n, let v, _, _) = events[0] {
             XCTAssertEqual(n, 60)
             XCTAssertEqual(v, 100)
         } else {
@@ -70,7 +70,7 @@ final class MIDIStreamParserTests: XCTestCase {
         _ = parser.parse(bytes: [0xF8], sourceID: "t") // clock alone
         let done = parser.parse(bytes: [64], sourceID: "t") // value
         XCTAssertEqual(done.count, 1)
-        if case .controlChange(_, let cc, let val, _) = done[0] {
+        if case .controlChange(_, let cc, let val, _, _) = done[0] {
             XCTAssertEqual(cc, 7)
             XCTAssertEqual(val, 64)
         } else {

@@ -21,6 +21,10 @@ public struct EffectInstance: Equatable, Sendable, Identifiable, Hashable {
     /// Explicit apply order (lower first). Not UUID sort.
     public var order: Int
     public var enabled: Bool
+    /// +1 forward, −1 reverse chase/wave direction.
+    public var direction: Double
+    /// Number of cells for cellChase (0 = auto from attribute pattern).
+    public var cellCount: Int
 
     public init(
         id: UUID = UUID(),
@@ -33,7 +37,9 @@ public struct EffectInstance: Equatable, Sendable, Identifiable, Hashable {
         attribute: String = "intensity",
         fixtureIDs: [UUID] = [],
         order: Int = 0,
-        enabled: Bool = true
+        enabled: Bool = true,
+        direction: Double = 1,
+        cellCount: Int = 0
     ) {
         self.id = id
         self.name = name
@@ -46,6 +52,8 @@ public struct EffectInstance: Equatable, Sendable, Identifiable, Hashable {
         self.fixtureIDs = fixtureIDs
         self.order = order
         self.enabled = enabled
+        self.direction = direction >= 0 ? 1 : -1
+        self.cellCount = max(0, cellCount)
     }
 
     public init(definition: EffectDefinition) {
@@ -60,6 +68,8 @@ public struct EffectInstance: Equatable, Sendable, Identifiable, Hashable {
         self.fixtureIDs = definition.fixtureIDs
         self.order = definition.order
         self.enabled = definition.enabled
+        self.direction = definition.direction >= 0 ? 1 : -1
+        self.cellCount = definition.cellCount
     }
 
     public func asDefinition() -> EffectDefinition {
@@ -74,7 +84,9 @@ public struct EffectInstance: Equatable, Sendable, Identifiable, Hashable {
             attribute: attribute,
             fixtureIDs: fixtureIDs,
             order: order,
-            enabled: enabled
+            enabled: enabled,
+            direction: direction,
+            cellCount: cellCount
         )
     }
 }

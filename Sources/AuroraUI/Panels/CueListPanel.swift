@@ -173,6 +173,15 @@ public struct CueListPanel: View {
             }
             .controlSize(.small)
             .disabled(selectedCue == nil)
+            Button("Duplicate") { duplicateSelectedCue() }
+                .controlSize(.small)
+                .disabled(selectedCue == nil)
+            Button("↑") { moveSelectedCue(by: -1) }
+                .controlSize(.small)
+                .disabled(selectedCue == nil)
+            Button("↓") { moveSelectedCue(by: 1) }
+                .controlSize(.small)
+                .disabled(selectedCue == nil)
             Button("Delete", role: .destructive) {
                 if let cue = selectedCue {
                     cuePendingDelete = cue
@@ -229,19 +238,24 @@ public struct CueListPanel: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(Array(list.cues.enumerated()), id: \.element.id) { index, cue in
-                            AuroraCueRow(
-                                number: cueNumberString(cue),
-                                name: cue.name.isEmpty ? "Cue \(cueNumberString(cue))" : cue.name,
-                                timing: String(format: "%.1fs", cue.fadeIn),
-                                trigger: "Manual",
-                                playbackRole: playbackRole(for: index, cue: cue, list: list),
-                                isSelected: selectedCueID == cue.id,
-                                onSelect: { selectCue(cue, list: list) },
-                                onDoubleClickFire: {
-                                    selectCue(cue, list: list)
-                                    onFire(cue.id)
+                            VStack(spacing: 0) {
+                                AuroraCueRow(
+                                    number: cueNumberString(cue),
+                                    name: cue.name.isEmpty ? "Cue \(cueNumberString(cue))" : cue.name,
+                                    timing: timingSummary(cue),
+                                    trigger: followLabel(cue),
+                                    playbackRole: playbackRole(for: index, cue: cue, list: list),
+                                    isSelected: selectedCueID == cue.id,
+                                    onSelect: { selectCue(cue, list: list) },
+                                    onDoubleClickFire: {
+                                        selectCue(cue, list: list)
+                                        onFire(cue.id)
+                                    }
+                                )
+                                if selectedCueID == cue.id {
+                                    cueTimingEditor(cue, list: list)
                                 }
-                            )
+                            }
                             .contextMenu {
                                 Button("Fire Cue") {
                                     selectCue(cue, list: list)
@@ -251,6 +265,18 @@ public struct CueListPanel: View {
                                 Button("Update from Programmer") {
                                     selectCue(cue, list: list)
                                     updateSelectedCue()
+                                }
+                                Button("Duplicate") {
+                                    selectCue(cue, list: list)
+                                    duplicateSelectedCue()
+                                }
+                                Button("Move Up") {
+                                    selectCue(cue, list: list)
+                                    moveSelectedCue(by: -1)
+                                }
+                                Button("Move Down") {
+                                    selectCue(cue, list: list)
+                                    moveSelectedCue(by: 1)
                                 }
                                 Button("Delete", role: .destructive) {
                                     cuePendingDelete = cue
@@ -392,6 +418,144 @@ public struct CueListPanel: View {
         do {
             try context.session.perform(UpdateCueCommand(listID: list.id, cue: cue))
             statusText = "Updated \(cue.name.isEmpty ? "cue" : cue.name) levels"
+            onProjectChanged()
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    private func duplicateSelectedCue() {
+        guard let list = currentList, let cue = selectedCue else { return }
+        do {
+            let cmd = DuplicateCueCommand(listID: list.id, sourceCueID: cue.id)
+            try context.session.perform(cmd)
+            if let newID = cmd.duplicatedCueID,
+               let updated = refreshedList(list.id),
+               let newCue = updated.cues.first(where: { $0.id == newID }) {
+                selectCue(newCue, list: updated)
+            }
+            statusText = "Duplicated cue"
+            onProjectChanged()
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    private func moveSelectedCue(by delta: Int) {
+        guard let list = currentList,
+              let cue = selectedCue,
+              let from = list.cues.firstIndex(where: { $0.id == cue.id })
+        else { return }
+        let to = from + delta
+        guard list.cues.indices.contains(to) else { return }
+        do {
+            try context.session.perform(ReorderCueCommand(listID: list.id, cueID: cue.id, toIndex: to))
+            statusText = "Reordered cue"
+            onProjectChanged()
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    private func timingSummary(_ cue: Cue) -> String {
+        var parts = [String(format: "In %.1f", cue.fadeIn)]
+        if cue.fadeOut > 0 { parts.append(String(format: "Out %.1f", cue.fadeOut)) }
+        if cue.delay > 0 { parts.append(String(format: "Dly %.1f", cue.delay)) }
+        return parts.joined(separator: " · ")
+    }
+
+    private func followLabel(_ cue: Cue) -> String {
+        switch cue.follow {
+        case .none: return "Manual"
+        case .manual: return "Manual"
+        case .afterTime:
+            if let t = cue.followTime { return String(format: "Follow %.1fs", t) }
+            return "Follow"
+        case .afterGo: return "After GO"
+        }
+    }
+
+    private func cueTimingEditor(_ cue: Cue, list: CueList) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                TextField("Name", text: Binding(
+                    get: { cue.name },
+                    set: { name in commitCue(cue, list: list) { $0.name = name } }
+                ))
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 160)
+                TextField("No.", text: Binding(
+                    get: { NSDecimalNumber(decimal: cue.number).stringValue },
+                    set: { raw in
+                        if let d = Decimal(string: raw) {
+                            commitCue(cue, list: list) { $0.number = d }
+                        }
+                    }
+                ))
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 56)
+            }
+            HStack(spacing: 8) {
+                timingField("Fade In", value: cue.fadeIn) { v in
+                    commitCue(cue, list: list) { $0.fadeIn = v }
+                }
+                timingField("Fade Out", value: cue.fadeOut) { v in
+                    commitCue(cue, list: list) { $0.fadeOut = v }
+                }
+                timingField("Delay", value: cue.delay) { v in
+                    commitCue(cue, list: list) { $0.delay = v }
+                }
+            }
+            HStack(spacing: 8) {
+                Picker("Follow", selection: Binding(
+                    get: { cue.follow },
+                    set: { mode in commitCue(cue, list: list) { $0.follow = mode } }
+                )) {
+                    ForEach(FollowMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .frame(maxWidth: 140)
+                if cue.follow == .afterTime {
+                    timingField("Follow t", value: cue.followTime ?? 0) { v in
+                        commitCue(cue, list: list) { $0.followTime = v }
+                    }
+                }
+                Picker("Track", selection: Binding(
+                    get: { cue.tracking },
+                    set: { mode in commitCue(cue, list: list) { $0.tracking = mode } }
+                )) {
+                    ForEach(TrackingMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .frame(maxWidth: 120)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(AuroraColor.surfaceWell)
+    }
+
+    private func timingField(_ label: String, value: TimeInterval, onCommit: @escaping (TimeInterval) -> Void) -> some View {
+        HStack(spacing: 4) {
+            Text(label)
+                .font(AuroraTypography.metadata)
+                .foregroundStyle(AuroraColor.textTertiary)
+            TextField(label, value: Binding(
+                get: { value },
+                set: { onCommit(max(0, $0)) }
+            ), format: .number)
+            .textFieldStyle(.roundedBorder)
+            .frame(width: 52)
+        }
+    }
+
+    private func commitCue(_ cue: Cue, list: CueList, mutate: (inout Cue) -> Void) {
+        var next = cue
+        mutate(&next)
+        do {
+            try context.session.perform(UpdateCueCommand(listID: list.id, cue: next))
             onProjectChanged()
         } catch {
             statusText = error.localizedDescription

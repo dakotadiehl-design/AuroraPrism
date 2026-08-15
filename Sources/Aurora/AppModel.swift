@@ -32,11 +32,16 @@ final class AppModel: ObservableObject {
     let autosave = AutosaveController()
     /// UI-03: derived Programmer attribute presentation (projection only).
     let programmerPresentation = ProgrammerPresentationStore()
+    /// Unified external-control monitor (P0-K).
+    let externalControl = ExternalControlLog()
+    /// Process-launch splash (once per app process).
+    let launchSplash = LaunchSplashController()
 
     /// In-process plugin registry (PR29 / P3-4 protocol surfaces).
     let pluginHost = PluginHost()
 
     private var cancellables = Set<AnyCancellable>()
+    private var controlEventObserver: ControlEventObserverToken?
 
     // MARK: - Compatibility facades (menus / panels still use these names)
 
@@ -52,6 +57,7 @@ final class AppModel: ObservableObject {
     }
     var engineStatus: String { showControl.engineStatus }
     var midiStatus: String { input.midiStatus }
+    var midiHealth: MIDIHealthSnapshot { input.midiHealth }
     var lastMIDIEvent: String { input.lastMIDIEvent }
     var isMIDILearning: Bool { input.isMIDILearning }
     var songStatus: String {
@@ -82,13 +88,13 @@ final class AppModel: ObservableObject {
 
     init(project: ShowProject = .empty(name: "Untitled Show")) {
         let document = ProjectController(project: project)
-        let output = OutputController()
+        let settings = AppSettingsStore()
+        let output = OutputController(settings: settings)
         let showControl = ShowControlController(output: output.outputManager)
         let input = InputController()
         let remote = RemoteController()
         let diagnostics = DiagnosticsController()
         let workspace = WorkspaceController()
-        let settings = AppSettingsStore()
 
         self.document = document
         self.output = output
@@ -110,11 +116,28 @@ final class AppModel: ObservableObject {
             diagnostics.objectWillChange,
             settings.objectWillChange,
             programmerPresentation.objectWillChange,
+            externalControl.objectWillChange,
+            launchSplash.objectWillChange,
         ] as [ObservableObjectPublisher] {
             publisher
                 .receive(on: RunLoop.main)
-                .sink { [weak self] _ in self?.objectWillChange.send() }
+                .sink { [weak self] (_: Void) in self?.objectWillChange.send() }
                 .store(in: &cancellables)
+        }
+
+        // Structured external-control monitor from unified router (MIDI/UI/remote).
+        controlEventObserver = showControl.controlRouter.addUIObserver { [weak self] action, summary in
+            Task { @MainActor in
+                guard let self else { return }
+                let isUnmatched = summary.hasPrefix("UNMATCHED")
+                self.externalControl.record(
+                    source: "control",
+                    event: summary,
+                    mapping: action.storageKey,
+                    result: isUnmatched ? "no match" : "ok",
+                    isError: isUnmatched
+                )
+            }
         }
 
         document.onLog = { [weak self] msg in self?.diagnostics.log(msg) }
@@ -132,14 +155,32 @@ final class AppModel: ObservableObject {
             self.refreshProgrammerPresentation()
         }
 
+        // —— Launch bootstrap milestones (splash status only; no parallel subsystem) ——
+        launchSplash.note(.loadingFixtureLibrary)
         // Seed log from library load
         if !document.statusMessage.isEmpty {
             diagnostics.log(document.statusMessage)
         }
+        if document.fixtureLibrary == nil,
+           document.statusMessage.localizedCaseInsensitiveContains("failed") {
+            launchSplash.markFailed(document.statusMessage)
+        }
 
+        launchSplash.note(.startingEngine)
         reloadEngine()
         showControl.startEngineIfPossible()
-        output.startLocalDMXIfNeeded()
+
+        launchSplash.note(.startingOutput)
+        // UI-08 A1: only start Local DMX if configured device is present and requested.
+        if settings.localDMX.requestedEnabled {
+            output.setLocalDMXEnabled(true, engineRunning: engine.isRunning) { [weak self] msg in
+                self?.diagnostics.log(msg)
+            }
+        } else {
+            output.startLocalDMXIfNeeded()
+        }
+
+        launchSplash.note(.startingMIDI)
         // UI-GATE-1: multi-observer — MIDI log and show-control both subscribe; neither replaces the other.
         input.startMIDI(
             router: showControl.controlRouter,
@@ -156,6 +197,8 @@ final class AppModel: ObservableObject {
             }
         }
         input.applySavedRTPMIDI { [weak self] msg in self?.diagnostics.log(msg, subsystem: .midi) }
+
+        launchSplash.note(.preparingWorkspace)
         showControl.startStatusPolling(
             outputStatus: { [weak self] in
                 // PRE-UI-1: re-read driver health each poll (not a stale cached string).
@@ -174,7 +217,21 @@ final class AppModel: ObservableObject {
             }
         }
         autosave.start()
+        // REM-04: restore remote from persisted settings after composition is ready.
+        if settings.remoteAccessEnabled {
+            applyRemoteFromSettings(enabled: true)
+        }
+        // DIAG-01: live throttled diagnostics (not only Settings refresh).
+        diagnostics.startLiveUpdates { [weak self] in
+            self?.buildDiagnosticsSnapshot() ?? .empty
+        }
         refreshProgrammerPresentation()
+        if case .failed = launchSplash.bootstrap {
+            // Keep error splash; still allow UI observation.
+        } else {
+            launchSplash.markReady()
+        }
+        launchSplash.beginIfNeeded()
         notifyUI()
     }
 
@@ -240,6 +297,9 @@ final class AppModel: ObservableObject {
         document.newShow()
         showControl.resetSong()
         afterDocumentReplaced()
+        // DOC-01: empty untitled show is a real document workspace, not Welcome.
+        workspace.enterDocumentWorkspace()
+        notifyUI()
     }
 
     /// UI-02A: open deterministic populated demo for visual validation.
@@ -319,6 +379,8 @@ final class AppModel: ObservableObject {
     /// Shared post-replace: reset document-scoped UI + reload engine (UI-02 B2).
     private func afterDocumentReplaced() {
         workspace.didReplaceDocument(project: session.project)
+        // DOC-01: successful New/Open/Demo leaves Welcome for Build.
+        workspace.enterDocumentWorkspace()
         reloadEngine()
         notifyUI()
     }
@@ -423,10 +485,142 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func go() { showControl.go(); output.refreshOutputStatus(); notifyUI() }
+    /// Semantic stage preview from engine's authoritative resolved frame (Pass-1 A5 fix).
+    /// Does **not** re-run playback/effects in AppModel.
+    func stagePreviewSnapshot() -> StagePreviewSnapshot {
+        let resolved = engine.currentResolvedSnapshot()
+        return StagePreviewBuilder.build(
+            project: session.project,
+            look: resolved.presentationLook,
+            frameIndex: resolved.frameIndex,
+            time: resolved.timestamp,
+            global: resolved.global
+        )
+    }
+
+    /// Fixture health rows for Diagnostics (P0-L+).
+    func fixtureHealthRows() -> [DiagnosticsPanel.SnapshotView.Row] {
+        let out = output.presentationSnapshot()
+        let reports = FixtureHealth.report(
+            project: session.project,
+            output: out,
+            artNetEnabled: artNetConfig.enabled,
+            sacnEnabled: sacnConfig.enabled,
+            localDMXEnabled: output.localDMXEnabled
+        )
+        return reports.prefix(40).map { r in
+            let detail: String
+            if r.issues.isEmpty {
+                detail = "OK · " + r.notes.prefix(2).joined(separator: " · ")
+            } else {
+                detail = r.issues.joined(separator: "; ")
+            }
+            return .init(id: r.fixtureID.uuidString, title: r.fixtureName, detail: detail)
+        }
+    }
+
+    func clearOverrides() {
+        showControl.controlRouter.dispatch(.clearOverrides, notifySummary: "Clear Overrides")
+        notifyUI()
+    }
+
+    func toggleMIDIPerformance() {
+        showControl.controlRouter.dispatch(.toggleMIDIPerformance, notifySummary: "MIDI Performance")
+        notifyUI()
+    }
+
+    func go() {
+        showControl.go()
+        input.sendMIDIFeedback(
+            profiles: session.project.midiFeedbackProfiles,
+            masterIntensity: engine.globalShowControl.masterIntensity,
+            blackout: engine.globalShowControl.blackout,
+            goPulse: true
+        )
+        output.refreshOutputStatus()
+        notifyUI()
+    }
     func back() { showControl.back(); notifyUI() }
     func stopPlayback() { showControl.stopPlayback(); notifyUI() }
     func fireCue(id: UUID) { showControl.fireCue(id: id); notifyUI() }
+
+    func exportAuroraLibrary(to url: URL) throws {
+        let contents = AuroraLibraryPackage.Contents.from(project: session.project, name: session.project.metadata.name)
+        try AuroraLibraryPackage.save(contents, to: url)
+        document.statusMessage = "Exported library \(url.lastPathComponent)"
+        notifyUI()
+    }
+
+    func importAuroraLibrary(from url: URL, replaceExisting: Bool = false) throws {
+        let contents = try AuroraLibraryPackage.load(from: url)
+        try session.perform(MergeLibraryCommand(contents: contents, replaceExisting: replaceExisting))
+        engine.updateProject(session.project)
+        document.statusMessage = "Imported library \(contents.manifest.name)"
+        notifyUI()
+    }
+
+    func exportLibraryPanel() {
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.title = "Export Aurora Library"
+        panel.nameFieldStringValue = "\(session.project.metadata.name).auroralib"
+        panel.allowedContentTypes = [UTType(filenameExtension: "auroralib") ?? .folder]
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url, let self else { return }
+            Task { @MainActor in
+                do {
+                    try self.exportAuroraLibrary(to: url)
+                } catch {
+                    self.document.presentError(error, title: "Library Export Failed")
+                }
+            }
+        }
+    }
+
+    func importLibraryPanel() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.title = "Import Aurora Library"
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url, let self else { return }
+            Task { @MainActor in
+                do {
+                    try self.importAuroraLibrary(from: url)
+                } catch {
+                    self.document.presentError(error, title: "Library Import Failed")
+                }
+            }
+        }
+    }
+
+    // MARK: - Global show control (P0-I)
+
+    func setMasterIntensity(_ value: Double) {
+        engine.setMasterIntensity(value)
+        notifyUI()
+    }
+
+    func toggleBlackout() {
+        showControl.controlRouter.dispatch(.toggleBlackout, notifySummary: "Blackout")
+        notifyUI()
+    }
+
+    func toggleFreeze() {
+        showControl.controlRouter.dispatch(.toggleFreeze, notifySummary: "Freeze")
+        notifyUI()
+    }
+
+    func toggleBlind() {
+        showControl.controlRouter.dispatch(.toggleBlind, notifySummary: "Blind")
+        notifyUI()
+    }
+
+    func panicReset() {
+        showControl.controlRouter.dispatch(.panic, notifySummary: "Panic")
+        notifyUI()
+    }
 
     func perform(action: ShowAction, midiValue: UInt8? = nil) {
         showControl.perform(
@@ -564,7 +758,34 @@ final class AppModel: ObservableObject {
 
     // MARK: - Remote
 
-    func setRemoteEnabled(_ enabled: Bool, pin: String? = nil) {
+    /// Authoritative remote enable/config path (REM-01/05). Menu and Settings both use this.
+    func applyRemoteFromSettings(enabled: Bool? = nil) {
+        if let enabled {
+            settings.remoteAccessEnabled = enabled
+            if enabled, settings.remotePIN.isEmpty {
+                settings.remotePIN = RemoteHostConfig.generatePIN()
+            }
+            settings.save()
+        }
+        let on = settings.remoteAccessEnabled
+        let pin = settings.remotePIN.isEmpty ? nil : settings.remotePIN
+        let bind: RemoteBindPolicy = settings.remoteAccessMode == .thisMacOnly ? .loopbackOnly : .allInterfaces
+        setRemoteEnabled(
+            on,
+            pin: pin,
+            port: settings.remotePort,
+            webPort: settings.remoteWebPort,
+            bindPolicy: bind
+        )
+    }
+
+    func setRemoteEnabled(
+        _ enabled: Bool,
+        pin: String? = nil,
+        port: UInt16? = nil,
+        webPort: UInt16? = nil,
+        bindPolicy: RemoteBindPolicy? = nil
+    ) {
         // UI-GATE-2: capture router for live path off MainActor.
         let router = showControl.controlRouter
         let action: @Sendable (RemoteShowAction) -> Void = { [weak self] action in
@@ -585,6 +806,17 @@ final class AppModel: ObservableObject {
             case .setProgrammerAttribute(let attr, let value):
                 let control = MIDIControlValue(normalized: value, isTrigger: false)
                 router.dispatch(.programmerAttribute(attr), control: control)
+            case .masterIntensity(let v):
+                router.dispatch(
+                    .masterIntensity,
+                    control: MIDIControlValue(normalized: min(1, max(0, v)), isTrigger: false)
+                )
+            case .blackout:
+                router.dispatch(.blackout)
+            case .blackoutOff:
+                router.dispatch(.blackoutOff)
+            case .toggleBlackout:
+                router.dispatch(.toggleBlackout)
             case .songNext, .songPrevious:
                 // SongDirector is MainActor; hop only for song navigation.
                 Task { @MainActor in
@@ -600,30 +832,37 @@ final class AppModel: ObservableObject {
         remote.setRemoteEnabled(
             enabled,
             pin: pin,
+            port: port ?? settings.remotePort,
+            webPort: webPort ?? settings.remoteWebPort,
+            bindPolicy: bindPolicy ?? (settings.remoteAccessMode == .thisMacOnly ? .loopbackOnly : .allInterfaces),
             onAction: action,
             makeSnapshot: { [weak self] in
                 guard let self else {
-                    return RemoteSnapshot(
-                        showName: "",
-                        engineRunning: false,
-                        cueIndex: -1,
-                        cueName: nil,
-                        songTitle: nil,
-                        songEntryIndex: -1,
-                        locked: false,
-                        role: .viewer,
-                        activeChannelCount: 0
-                    )
+                    return RemoteSnapshot(showName: "", engineRunning: false)
                 }
                 return self.remote.makeRemoteSnapshot(
                     project: self.session.project,
                     engine: self.engine,
                     song: self.songDirector.snapshot(project: self.session.project),
-                    songStatusFallback: self.songStatus
+                    songStatusFallback: self.songStatus,
+                    outputStatusLine: self.output.outputStatus
                 )
             },
             onLog: { [weak self] msg in self?.diagnostics.log(msg, subsystem: .remote) }
         )
+        // Keep settings truth aligned when menu toggles remote (REM-05).
+        if settings.remoteAccessEnabled != enabled {
+            settings.remoteAccessEnabled = enabled
+            if enabled, let pin, !pin.isEmpty {
+                settings.remotePIN = pin
+            } else if enabled, settings.remotePIN.isEmpty {
+                settings.remotePIN = remote.remoteHost.sessions.configSnapshot.pin
+            }
+            settings.save()
+        } else if enabled, let pin, !pin.isEmpty, settings.remotePIN != pin {
+            settings.remotePIN = pin
+            settings.save()
+        }
         notifyUI()
     }
 
@@ -666,6 +905,17 @@ final class AppModel: ObservableObject {
                     .programmerAttribute(attr),
                     control: MIDIControlValue(normalized: value, isTrigger: false)
                 )
+            case .masterIntensity(let v):
+                router.dispatch(
+                    .masterIntensity,
+                    control: MIDIControlValue(normalized: min(1, max(0, v)), isTrigger: false)
+                )
+            case .blackout:
+                router.dispatch(.blackout)
+            case .blackoutOff:
+                router.dispatch(.blackoutOff)
+            case .toggleBlackout:
+                router.dispatch(.toggleBlackout)
             case .songNext, .songPrevious:
                 Task { @MainActor in self?.performRemoteSong(action) }
                 return
@@ -685,9 +935,170 @@ final class AppModel: ObservableObject {
         guard !didShutdown else { return }
         didShutdown = true
         autosave.stop()
+        // UI11-05: do not lose final layout drag on quit.
+        workspace.flushLayoutPersistence()
+        diagnostics.stopLiveUpdates()
         showControl.stopTimers()
         input.stopAll()
         output.stopAll()
         remote.stopAll()
+    }
+
+    // MARK: - Diagnostics projection (DIAG-01…03)
+
+    func buildDiagnosticsSnapshot() -> DiagnosticsSnapshot {
+        let out = output.presentationSnapshot()
+        let health = output.healthSnapshots()
+        let routes = session.project.universes.map { u in
+            routeDiagnostics(universe: u, health: health)
+        }
+        return DiagnosticsSnapshot(
+            engineRunning: engine.isRunning,
+            frameRateHz: settings.preferredFrameRateHz,
+            outputStatusLine: out.statusLine,
+            localDMXStatus: output.localDMXStatus,
+            localDMXEnabled: output.localDMXEnabled,
+            localDMXRequested: output.localDMXRequestedEnabled,
+            localDMXDeviceAvailable: output.localDMXConfiguredDeviceAvailable,
+            artNetEnabled: artNetConfig.enabled,
+            sacnEnabled: sacnConfig.enabled,
+            midiStatus: midiHealth.statusLine,
+            midiState: midiHealth.state.rawValue,
+            midiSourceCount: midiHealth.connectedSourceCount,
+            remoteStatus: remote.remoteStatus,
+            remoteActuallyRunning: remote.isActuallyRunning,
+            remoteClientCount: remote.remoteHost.sessions.clientsSnapshot.count,
+            validationIssueCount: performance.validationIssueCount,
+            driverHealth: health.map {
+                DiagnosticsSnapshot.DriverHealthRow(
+                    id: $0.driverID.uuidString,
+                    name: $0.name,
+                    state: $0.state.rawValue,
+                    outputProtocol: $0.outputProtocol.rawValue,
+                    lastError: $0.lastError
+                )
+            },
+            universeRoutes: routes,
+            generatedAt: Date()
+        )
+    }
+
+    /// DIAG-03: per-universe health from matching drivers only.
+    private func routeDiagnostics(
+        universe: Universe,
+        health: [OutputHealthSnapshot]
+    ) -> DiagnosticsSnapshot.UniverseRouteRow {
+        let hint = universe.protocolHint
+        switch hint {
+        case .none:
+            return .init(
+                id: universe.id,
+                number: universe.number,
+                name: universe.name,
+                configuredRoute: "none",
+                availability: "no route",
+                runtimeHealth: "disabled"
+            )
+        case .local:
+            return localRouteRow(universe: universe, health: health)
+        case .artNet:
+            return protocolRouteRow(universe: universe, proto: .artNet, health: health, enabled: artNetConfig.enabled)
+        case .sACN:
+            return protocolRouteRow(universe: universe, proto: .sACN, health: health, enabled: sacnConfig.enabled)
+        case .mirror:
+            return mirrorRouteRow(universe: universe, health: health)
+        }
+    }
+
+    private func localRouteRow(universe: Universe, health: [OutputHealthSnapshot]) -> DiagnosticsSnapshot.UniverseRouteRow {
+        let drivers = health.filter { $0.outputProtocol == .local && $0.state != .disabled }
+        let availability: String
+        if !output.localDMXConfiguredDeviceAvailable {
+            availability = output.localDMXRequestedEnabled ? "device unavailable" : "no device"
+        } else if output.localDMXEnabled {
+            availability = "device ready"
+        } else if output.localDMXRequestedEnabled {
+            availability = "requested — not running"
+        } else {
+            availability = "not enabled"
+        }
+        let runtime: String
+        if let d = drivers.first {
+            runtime = d.state.rawValue + (d.lastError.map { " · \($0)" } ?? "")
+        } else if output.localDMXEnabled {
+            runtime = "enabled"
+        } else {
+            runtime = "off"
+        }
+        return .init(
+            id: universe.id,
+            number: universe.number,
+            name: universe.name,
+            configuredRoute: "local",
+            availability: availability,
+            runtimeHealth: runtime
+        )
+    }
+
+    private func protocolRouteRow(
+        universe: Universe,
+        proto: UniverseProtocolHint,
+        health: [OutputHealthSnapshot],
+        enabled: Bool
+    ) -> DiagnosticsSnapshot.UniverseRouteRow {
+        let drivers = health.filter { $0.outputProtocol == proto }
+        let active = drivers.filter { $0.state != .disabled }
+        let availability = enabled ? (active.isEmpty ? "enabled — no driver ready" : "enabled") : "not enabled"
+        let runtime: String
+        if let worst = worstState(active) {
+            let err = active.compactMap(\.lastError).first
+            runtime = worst + (err.map { " · \($0)" } ?? "")
+        } else {
+            runtime = enabled ? "starting/idle" : "off"
+        }
+        return .init(
+            id: universe.id,
+            number: universe.number,
+            name: universe.name,
+            configuredRoute: proto.rawValue,
+            availability: availability,
+            runtimeHealth: runtime
+        )
+    }
+
+    private func mirrorRouteRow(universe: Universe, health: [OutputHealthSnapshot]) -> DiagnosticsSnapshot.UniverseRouteRow {
+        let physical = health.filter { $0.outputProtocol != .none && $0.state != .disabled }
+        let parts = physical.map { "\($0.name):\($0.state.rawValue)" }
+        let availability = physical.isEmpty ? "no physical drivers" : "\(physical.count) driver(s)"
+        let runtime: String
+        if physical.contains(where: { $0.state == .failed || $0.state == .disconnected }) {
+            runtime = "failed · " + parts.joined(separator: ", ")
+        } else if physical.contains(where: { $0.state == .degraded || $0.state == .starting }) {
+            runtime = "degraded · " + parts.joined(separator: ", ")
+        } else if physical.isEmpty {
+            runtime = "disabled"
+        } else {
+            runtime = "ready · " + parts.joined(separator: ", ")
+        }
+        return .init(
+            id: universe.id,
+            number: universe.number,
+            name: universe.name,
+            configuredRoute: "mirror",
+            availability: availability,
+            runtimeHealth: runtime
+        )
+    }
+
+    private func worstState(_ health: [OutputHealthSnapshot]) -> String? {
+        if health.isEmpty { return nil }
+        if health.contains(where: { $0.state == .failed || $0.state == .disconnected }) { return "failed" }
+        if health.contains(where: { $0.state == .degraded || $0.state == .starting }) { return "degraded" }
+        if health.contains(where: { $0.state == .ready }) { return "ready" }
+        return health.first?.state.rawValue
+    }
+
+    func refreshDiagnosticsSnapshot() {
+        diagnostics.refreshNow()
     }
 }

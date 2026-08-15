@@ -18,12 +18,24 @@ final class OutputController: ObservableObject {
     @Published var sacnConfig: SACNConfig
     @Published private(set) var outputStatus: String = "Output: Null"
     @Published private(set) var availableLocalDMXDevices: [LocalDMXDeviceDescriptor] = []
+    /// Currently matched device runtime id (path/id), not a silent substitute.
     @Published var selectedLocalDMXDeviceID: String?
-    @Published var localDMXEnabled: Bool = false
+    /// Actual driver enabled state — never true when device missing (A1).
+    @Published private(set) var localDMXEnabled: Bool = false
     @Published private(set) var localDMXStatus: String = "Local DMX: off"
+    /// Operator requested enable; may be true while actualEnabled is false if device absent.
+    @Published private(set) var localDMXRequestedEnabled: Bool = false
+    /// Whether saved hardware identity is present among enumerated devices.
+    @Published private(set) var localDMXConfiguredDeviceAvailable: Bool = false
 
-    init(localDMXDiscoverer: LocalDMXDeviceDiscovering = MacLocalDMXDeviceEnumerator()) {
+    private var prefs: AppSettingsStore?
+
+    init(
+        localDMXDiscoverer: LocalDMXDeviceDiscovering = MacLocalDMXDeviceEnumerator(),
+        settings: AppSettingsStore? = nil
+    ) {
         self.localDMXDiscoverer = localDMXDiscoverer
+        self.prefs = settings
         let artConfig = ArtNetConfig.load()
         self.artNetConfig = artConfig
         self.artNetDriver = ArtNetOutputDriver(config: artConfig)
@@ -41,6 +53,16 @@ final class OutputController: ObservableObject {
         refreshOutputStatus()
     }
 
+    func attachSettings(_ settings: AppSettingsStore) {
+        prefs = settings
+        localDMXRequestedEnabled = settings.localDMX.requestedEnabled
+        rescanLocalDMXDevices()
+        // Auto-enable only when configured device is present (A1).
+        if settings.localDMX.requestedEnabled, localDMXConfiguredDeviceAvailable {
+            // Caller should pass engineRunning after AppModel ready.
+        }
+    }
+
     func stopAll() {
         artNetDriver.stop()
         sacnDriver.stop()
@@ -50,38 +72,128 @@ final class OutputController: ObservableObject {
 
     // MARK: - Local DMX (ENTTEC USB Pro framing — not Open DMX)
 
+    /// UI-08 A1: match by hardware identity first; never silently select another device.
     func rescanLocalDMXDevices() {
         availableLocalDMXDevices = localDMXDiscoverer.enumerate()
-        if let selectedLocalDMXDeviceID,
-           !availableLocalDMXDevices.contains(where: { $0.id == selectedLocalDMXDeviceID }) {
-            // Keep selection ID for reconnect; status reflects missing.
-            localDMXStatus = "Local DMX: selected device not present"
+        let pref = prefs?.localDMX ?? .empty
+        localDMXRequestedEnabled = pref.requestedEnabled
+
+        if let match = resolveConfiguredDevice(pref: pref, devices: availableLocalDMXDevices) {
+            selectedLocalDMXDeviceID = match.id
+            localDMXConfiguredDeviceAvailable = true
+            if localDMXEnabled {
+                localDMXStatus = "Local DMX: \(match.displayName)"
+            } else if pref.requestedEnabled {
+                localDMXStatus = "Local DMX: device available — enable to start"
+            } else {
+                localDMXStatus = "Local DMX: \(match.displayName) selected"
+            }
+        } else {
+            localDMXConfiguredDeviceAvailable = false
+            // Do not clear preference identity; do not pick a substitute device.
+            selectedLocalDMXDeviceID = nil
+            if pref.hardwareIdentifier != nil || pref.lastEndpointPath != nil {
+                if pref.requestedEnabled {
+                    localDMXStatus = "Local DMX: configured device unavailable"
+                } else {
+                    localDMXStatus = "Local DMX: configured device not present"
+                }
+            } else if availableLocalDMXDevices.isEmpty {
+                localDMXStatus = "Local DMX: no devices"
+            } else {
+                localDMXStatus = "Local DMX: no device selected"
+            }
+            if localDMXEnabled {
+                // Device disappeared under us.
+                disableLocalDMX(persistRequested: pref.requestedEnabled)
+            }
         }
     }
 
+    private func resolveConfiguredDevice(
+        pref: LocalDMXPersistedPreference,
+        devices: [LocalDMXDeviceDescriptor]
+    ) -> LocalDMXDeviceDescriptor? {
+        if let hw = pref.hardwareIdentifier, !hw.isEmpty {
+            if let byHW = devices.first(where: { ($0.hardwareIdentifier ?? $0.id) == hw }) {
+                return byHW
+            }
+            // Hardware identity set but not found — do not fall through to another device.
+            return nil
+        }
+        // Low-confidence path fallback only when no hardware identity was ever saved.
+        if let path = pref.lastEndpointPath, !path.isEmpty {
+            return devices.first(where: { $0.serialPath == path || $0.id == path })
+        }
+        return nil
+    }
+
+    func selectLocalDMXDevice(id: String?, engineRunning: Bool, log: (String) -> Void) {
+        if id == nil || id?.isEmpty == true {
+            selectedLocalDMXDeviceID = nil
+            persistLocalDMXSelection(device: nil, requestedEnabled: false)
+            disableLocalDMX(persistRequested: false)
+            localDMXStatus = "Local DMX: no device selected"
+            log(localDMXStatus)
+            refreshOutputStatus()
+            return
+        }
+        guard let device = availableLocalDMXDevices.first(where: { $0.id == id }) else {
+            localDMXStatus = "Local DMX: selection not in scan list"
+            log(localDMXStatus)
+            return
+        }
+        selectedLocalDMXDeviceID = device.id
+        localDMXConfiguredDeviceAvailable = true
+        persistLocalDMXSelection(device: device, requestedEnabled: localDMXRequestedEnabled)
+        localDMXStatus = "Local DMX: \(device.displayName) selected"
+        if localDMXRequestedEnabled {
+            enableLocalDMX(engineRunning: engineRunning, log: log)
+        }
+        refreshOutputStatus()
+    }
+
     func setLocalDMXEnabled(_ enabled: Bool, engineRunning: Bool, log: (String) -> Void) {
+        localDMXRequestedEnabled = enabled
         if enabled {
             enableLocalDMX(engineRunning: engineRunning, log: log)
         } else {
-            disableLocalDMX()
+            disableLocalDMX(persistRequested: false)
             log("Local DMX disabled")
         }
+        // Persist requested flag + current device identity if any.
+        let device = availableLocalDMXDevices.first(where: { $0.id == selectedLocalDMXDeviceID })
+        persistLocalDMXSelection(device: device, requestedEnabled: enabled)
         refreshOutputStatus()
+    }
+
+    private func persistLocalDMXSelection(device: LocalDMXDeviceDescriptor?, requestedEnabled: Bool) {
+        guard let prefs else { return }
+        var pref = prefs.localDMX
+        pref.requestedEnabled = requestedEnabled
+        if let device {
+            pref.hardwareIdentifier = device.hardwareIdentifier ?? device.id
+            pref.lastEndpointPath = device.serialPath ?? device.id
+        }
+        prefs.updateLocalDMX(pref)
     }
 
     /// HW-02: driver owns transport open/close. Controller does not pre-open.
     private func enableLocalDMX(engineRunning: Bool, log: (String) -> Void) {
         rescanLocalDMXDevices()
-        guard let id = selectedLocalDMXDeviceID,
+        guard localDMXConfiguredDeviceAvailable,
+              let id = selectedLocalDMXDeviceID,
               let device = availableLocalDMXDevices.first(where: { $0.id == id }),
               let path = device.serialPath
         else {
             localDMXEnabled = false
-            localDMXStatus = "Local DMX: no device selected"
+            localDMXStatus = localDMXRequestedEnabled
+                ? "Local DMX: configured device unavailable"
+                : "Local DMX: no device selected"
             log(localDMXStatus)
             return
         }
-        disableLocalDMX()
+        disableLocalDMX(persistRequested: localDMXRequestedEnabled)
         let transport = MacENTTECSerialTransport(path: path)
         let driver = ENTTECUSBDMXProDriver(name: device.displayName, transport: transport)
         outputManager.register(driver)
@@ -90,12 +202,12 @@ final class OutputController: ObservableObject {
                 try driver.start()
                 localDMXStatus = "Local DMX: \(device.displayName) · running"
             } else {
-                // Registered; will start when engine runs.
                 localDMXStatus = "Local DMX: \(device.displayName) · waiting for engine"
             }
             localDMXTransport = transport
             localDMXDriver = driver
             localDMXEnabled = true
+            persistLocalDMXSelection(device: device, requestedEnabled: true)
             log(localDMXStatus)
         } catch {
             outputManager.unregister(id: driver.id)
@@ -109,17 +221,18 @@ final class OutputController: ObservableObject {
         }
     }
 
-    private func disableLocalDMX() {
+    private func disableLocalDMX(persistRequested: Bool = false) {
         if let driver = localDMXDriver {
             driver.stop()
             outputManager.unregister(id: driver.id)
         }
-        // stop() closes transport via driver; ensure handle release.
         localDMXTransport?.close()
         localDMXTransport = nil
         localDMXDriver = nil
         localDMXEnabled = false
-        localDMXStatus = "Local DMX: off"
+        if !persistRequested {
+            localDMXStatus = "Local DMX: off"
+        }
     }
 
     /// Start local driver if enabled and registered but not running (engine just started).

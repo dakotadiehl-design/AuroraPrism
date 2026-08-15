@@ -1,0 +1,858 @@
+{
+  "schemaVersion": 2,
+  "kit": "Aurora Stage Silhouette Kit \u2014 Corrected",
+  "replacesKitVersion": "1.x",
+  "compatibility": {
+    "stableAssetKeysPreserved": true,
+    "dropInArtworkReplacement": true,
+    "minimumAuroraTarget": "C4.2"
+  },
+  "assetRules": {
+    "embeddedTextAllowed": false,
+    "contactSheetIsDocumentationOnly": true,
+    "transparentBackgroundRequired": true,
+    "tightBoundsRequired": true
+  },
+  "assets": [
+    {
+      "key": "stage.performers.vocalist_standing",
+      "displayName": "Vocalist Standing",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/vocalist_standing.svg",
+      "png1x": "png/1x/performers/vocalist_standing.png",
+      "png2x": "png/2x/performers/vocalist_standing@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.vocalist_dynamic",
+      "displayName": "Vocalist Dynamic",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/vocalist_dynamic.svg",
+      "png1x": "png/1x/performers/vocalist_dynamic.png",
+      "png2x": "png/2x/performers/vocalist_dynamic@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.vocalist_mic",
+      "displayName": "Vocalist Mic",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/vocalist_mic.svg",
+      "png1x": "png/1x/performers/vocalist_mic.png",
+      "png2x": "png/2x/performers/vocalist_mic@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.female_vocalist_stand",
+      "displayName": "Female Vocalist Stand",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/female_vocalist_stand.svg",
+      "png1x": "png/1x/performers/female_vocalist_stand.png",
+      "png2x": "png/2x/performers/female_vocalist_stand@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.female_vocalist_dynamic",
+      "displayName": "Female Vocalist Dynamic",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/female_vocalist_dynamic.svg",
+      "png1x": "png/1x/performers/female_vocalist_dynamic.png",
+      "png2x": "png/2x/performers/female_vocalist_dynamic@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.guitarist_neutral",
+      "displayName": "Guitarist Neutral",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/guitarist_neutral.svg",
+      "png1x": "png/1x/performers/guitarist_neutral.png",
+      "png2x": "png/2x/performers/guitarist_neutral@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.guitarist_wide",
+      "displayName": "Guitarist Wide",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/guitarist_wide.svg",
+      "png1x": "png/1x/performers/guitarist_wide.png",
+      "png2x": "png/2x/performers/guitarist_wide@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.acoustic_guitarist",
+      "displayName": "Acoustic Guitarist",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/acoustic_guitarist.svg",
+      "png1x": "png/1x/performers/acoustic_guitarist.png",
+      "png2x": "png/2x/performers/acoustic_guitarist@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.bassist_neutral",
+      "displayName": "Bassist Neutral",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/bassist_neutral.svg",
+      "png1x": "png/1x/performers/bassist_neutral.png",
+      "png2x": "png/2x/performers/bassist_neutral@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.bassist_wide",
+      "displayName": "Bassist Wide",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/bassist_wide.svg",
+      "png1x": "png/1x/performers/bassist_wide.png",
+      "png2x": "png/2x/performers/bassist_wide@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.keyboardist_standing",
+      "displayName": "Keyboardist Standing",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/keyboardist_standing.svg",
+      "png1x": "png/1x/performers/keyboardist_standing.png",
+      "png2x": "png/2x/performers/keyboardist_standing@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.keyboardist_console",
+      "displayName": "Keyboardist Console",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/keyboardist_console.svg",
+      "png1x": "png/1x/performers/keyboardist_console.png",
+      "png2x": "png/2x/performers/keyboardist_console@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.keyboardist_rig",
+      "displayName": "Keyboardist Rig",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/keyboardist_rig.svg",
+      "png1x": "png/1x/performers/keyboardist_rig.png",
+      "png2x": "png/2x/performers/keyboardist_rig@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.drummer_compact",
+      "displayName": "Drummer Compact",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/drummer_compact.svg",
+      "png1x": "png/1x/performers/drummer_compact.png",
+      "png2x": "png/2x/performers/drummer_compact@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.drummer_full",
+      "displayName": "Drummer Full",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/drummer_full.svg",
+      "png1x": "png/1x/performers/drummer_full.png",
+      "png2x": "png/2x/performers/drummer_full@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.drum_kit_detailed",
+      "displayName": "Drum Kit Detailed",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/drum_kit_detailed.svg",
+      "png1x": "png/1x/performers/drum_kit_detailed.png",
+      "png2x": "png/2x/performers/drum_kit_detailed@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.performers.dj_performer",
+      "displayName": "DJ Performer",
+      "category": "performers",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/performers/dj_performer.svg",
+      "png1x": "png/1x/performers/dj_performer.png",
+      "png2x": "png/2x/performers/dj_performer@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.85,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.audience.crowd_wide",
+      "displayName": "Crowd Wide",
+      "category": "audience",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.82,
+      "svg": "svg/audience/crowd_wide.svg",
+      "png1x": "png/1x/audience/crowd_wide.png",
+      "png2x": "png/2x/audience/crowd_wide@2x.png",
+      "intrinsicAspectRatio": 2.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 4.0,
+        "height": 1.5
+      }
+    },
+    {
+      "key": "stage.audience.crowd_medium",
+      "displayName": "Crowd Medium",
+      "category": "audience",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.82,
+      "svg": "svg/audience/crowd_medium.svg",
+      "png1x": "png/1x/audience/crowd_medium.png",
+      "png2x": "png/2x/audience/crowd_medium@2x.png",
+      "intrinsicAspectRatio": 2.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 4.0,
+        "height": 1.5
+      }
+    },
+    {
+      "key": "stage.audience.crowd_front",
+      "displayName": "Crowd Front",
+      "category": "audience",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.82,
+      "svg": "svg/audience/crowd_front.svg",
+      "png1x": "png/1x/audience/crowd_front.png",
+      "png2x": "png/2x/audience/crowd_front@2x.png",
+      "intrinsicAspectRatio": 2.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 4.0,
+        "height": 1.5
+      }
+    },
+    {
+      "key": "stage.audience.hands_up",
+      "displayName": "Hands Up",
+      "category": "audience",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.82,
+      "svg": "svg/audience/hands_up.svg",
+      "png1x": "png/1x/audience/hands_up.png",
+      "png2x": "png/2x/audience/hands_up@2x.png",
+      "intrinsicAspectRatio": 2.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 4.0,
+        "height": 1.5
+      }
+    },
+    {
+      "key": "stage.audience.cheering",
+      "displayName": "Cheering",
+      "category": "audience",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.82,
+      "svg": "svg/audience/cheering.svg",
+      "png1x": "png/1x/audience/cheering.png",
+      "png2x": "png/2x/audience/cheering@2x.png",
+      "intrinsicAspectRatio": 2.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 4.0,
+        "height": 1.5
+      }
+    },
+    {
+      "key": "stage.audience.festival_crowd",
+      "displayName": "Festival Crowd",
+      "category": "audience",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.82,
+      "svg": "svg/audience/festival_crowd.svg",
+      "png1x": "png/1x/audience/festival_crowd.png",
+      "png2x": "png/2x/audience/festival_crowd@2x.png",
+      "intrinsicAspectRatio": 2.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 4.0,
+        "height": 1.5
+      }
+    },
+    {
+      "key": "stage.equipment.mic_stand",
+      "displayName": "Mic Stand",
+      "category": "equipment",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/equipment/mic_stand.svg",
+      "png1x": "png/1x/equipment/mic_stand.png",
+      "png2x": "png/2x/equipment/mic_stand@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.9,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.equipment.mic_stand_boom",
+      "displayName": "Mic Stand Boom",
+      "category": "equipment",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/equipment/mic_stand_boom.svg",
+      "png1x": "png/1x/equipment/mic_stand_boom.png",
+      "png2x": "png/2x/equipment/mic_stand_boom@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.9,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.equipment.music_stand",
+      "displayName": "Music Stand",
+      "category": "equipment",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/equipment/music_stand.svg",
+      "png1x": "png/1x/equipment/music_stand.png",
+      "png2x": "png/2x/equipment/music_stand@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.9,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.equipment.speaker_on_pole",
+      "displayName": "Speaker On Pole",
+      "category": "equipment",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/equipment/speaker_on_pole.svg",
+      "png1x": "png/1x/equipment/speaker_on_pole.png",
+      "png2x": "png/2x/equipment/speaker_on_pole@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.9,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.truss.straight_short",
+      "displayName": "Straight Short",
+      "category": "truss",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/truss/straight_short.svg",
+      "png1x": "png/1x/truss/straight_short.png",
+      "png2x": "png/2x/truss/straight_short@2x.png",
+      "intrinsicAspectRatio": 2.8125,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 2.4,
+        "height": 0.55
+      }
+    },
+    {
+      "key": "stage.truss.straight_long",
+      "displayName": "Straight Long",
+      "category": "truss",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/truss/straight_long.svg",
+      "png1x": "png/1x/truss/straight_long.png",
+      "png2x": "png/2x/truss/straight_long@2x.png",
+      "intrinsicAspectRatio": 4.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 4.0,
+        "height": 0.55
+      }
+    },
+    {
+      "key": "stage.truss.curved_left",
+      "displayName": "Curved Left",
+      "category": "truss",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/truss/curved_left.svg",
+      "png1x": "png/1x/truss/curved_left.png",
+      "png2x": "png/2x/truss/curved_left@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 1.8,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.truss.curved_right",
+      "displayName": "Curved Right",
+      "category": "truss",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/truss/curved_right.svg",
+      "png1x": "png/1x/truss/curved_right.png",
+      "png2x": "png/2x/truss/curved_right@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 1.8,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.truss.circle",
+      "displayName": "Circle",
+      "category": "truss",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/truss/circle.svg",
+      "png1x": "png/1x/truss/circle.png",
+      "png2x": "png/2x/truss/circle@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 1.8,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.special.disco_ball",
+      "displayName": "Disco Ball",
+      "category": "special",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/special/disco_ball.svg",
+      "png1x": "png/1x/special/disco_ball.png",
+      "png2x": "png/2x/special/disco_ball@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 1.2,
+        "height": 1.2
+      }
+    },
+    {
+      "key": "stage.equipment.lighting_stand",
+      "displayName": "Lighting Stand",
+      "category": "equipment",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/equipment/lighting_stand.svg",
+      "png1x": "png/1x/equipment/lighting_stand.png",
+      "png2x": "png/2x/equipment/lighting_stand@2x.png",
+      "intrinsicAspectRatio": 1.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 0.9,
+        "height": 1.8
+      }
+    },
+    {
+      "key": "stage.equipment.riser_platform",
+      "displayName": "Riser / Platform",
+      "category": "equipment",
+      "defaultTint": "#FFFFFF",
+      "defaultOpacity": 0.9,
+      "svg": "svg/equipment/riser_platform.svg",
+      "png1x": "png/1x/equipment/riser_platform.png",
+      "png2x": "png/2x/equipment/riser_platform@2x.png",
+      "intrinsicAspectRatio": 2.0,
+      "visualBounds": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 1.0
+      },
+      "normalizedPaddingFraction": 0.06,
+      "sourceStatus": "corrected-isolated-vector",
+      "containsEmbeddedText": false,
+      "defaultStageSize": {
+        "width": 2.4,
+        "height": 1.2
+      }
+    }
+  ]
+}

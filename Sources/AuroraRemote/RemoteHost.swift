@@ -10,18 +10,26 @@ public final class RemoteHost: @unchecked Sendable {
     private var listener: NWListener?
     private var connections: [UUID: NWConnection] = [:]
     private var sessionByConnection: [ObjectIdentifier: UUID] = [:]
-    private var _isRunning = false
+    private var _listenerState: RemoteListenerState = .stopped
     private var actionHandler: (@Sendable (RemoteShowAction) -> Void)?
     private var snapshotProvider: (@Sendable () -> RemoteSnapshot)?
+    private var stateHandler: (@Sendable (RemoteListenerState) -> Void)?
 
     public init(sessions: RemoteSessionManager = RemoteSessionManager()) {
         self.sessions = sessions
     }
 
+    /// True only when the NWListener is actually `.ready` (REM-01).
     public var isRunning: Bool {
         lock.lock()
         defer { lock.unlock() }
-        return _isRunning
+        return _listenerState.isReady
+    }
+
+    public var listenerState: RemoteListenerState {
+        lock.lock()
+        defer { lock.unlock() }
+        return _listenerState
     }
 
     public func setActionHandler(_ handler: @escaping @Sendable (RemoteShowAction) -> Void) {
@@ -36,13 +44,24 @@ public final class RemoteHost: @unchecked Sendable {
         lock.unlock()
     }
 
+    /// REM-01: notify when listener reaches ready / failed / stopped.
+    public func setStateHandler(_ handler: @escaping @Sendable (RemoteListenerState) -> Void) {
+        lock.lock()
+        stateHandler = handler
+        lock.unlock()
+    }
+
     public func start() throws {
         let config = sessions.configSnapshot
         guard config.enabled else {
             throw RemoteHostError.disabled
         }
         lock.lock()
-        if _isRunning {
+        if case .ready = _listenerState {
+            lock.unlock()
+            return
+        }
+        if case .starting = _listenerState {
             lock.unlock()
             return
         }
@@ -61,17 +80,29 @@ public final class RemoteHost: @unchecked Sendable {
         listener.newConnectionHandler = { [weak self] conn in
             self?.accept(conn)
         }
+        let bindLabel: String
+        if let host = RemoteSessionManager.listenerHost(for: config.bindPolicy) {
+            bindLabel = "\(host):\(config.port)"
+        } else {
+            bindLabel = "0.0.0.0:\(config.port)"
+        }
         listener.stateUpdateHandler = { [weak self] state in
-            if case .failed = state {
-                self?.lock.lock()
-                self?._isRunning = false
-                self?.lock.unlock()
+            guard let self else { return }
+            switch state {
+            case .ready:
+                self.setListenerState(.ready(boundEndpoint: bindLabel))
+            case .failed(let error):
+                self.setListenerState(.failed(error.localizedDescription))
+            case .cancelled:
+                self.setListenerState(.stopped)
+            default:
+                break
             }
         }
+        setListenerState(.starting)
         listener.start(queue: queue)
         lock.lock()
         self.listener = listener
-        _isRunning = true
         lock.unlock()
     }
 
@@ -84,9 +115,24 @@ public final class RemoteHost: @unchecked Sendable {
         }
         connections.removeAll()
         sessionByConnection.removeAll()
-        _isRunning = false
         lock.unlock()
         _ = sessions.kickAll()
+        setListenerState(.stopped)
+    }
+
+    private func setListenerState(_ state: RemoteListenerState) {
+        lock.lock()
+        _listenerState = state
+        let handler = stateHandler
+        lock.unlock()
+        handler?(state)
+    }
+
+    private func currentSnapshotRevision() -> UInt64 {
+        lock.lock()
+        let provider = snapshotProvider
+        lock.unlock()
+        return provider?().snapshotRevision ?? 0
     }
 
     /// Inject a decoded client message for tests (no network).
@@ -108,18 +154,39 @@ public final class RemoteHost: @unchecked Sendable {
             case .reject(let reason):
                 return .reject(reason: reason)
             }
-        case .command(let action):
-            guard let sessionId,
-                  let authorized = sessions.authorize(sessionId: sessionId, action: action)
-            else {
-                return .reject(reason: "not authorized")
+        case .command(let requestId, let action):
+            guard let sessionId else {
+                return .commandResult(requestId: requestId, accepted: false, reason: "no session", snapshotRevision: 0)
+            }
+            guard !requestId.isEmpty else {
+                return .commandResult(requestId: requestId, accepted: false, reason: "missing requestId", snapshotRevision: 0)
+            }
+            sessions.touch(sessionId: sessionId)
+            switch sessions.reserveRequestId(sessionId: sessionId, requestId: requestId) {
+            case .inFlight:
+                return .commandResult(requestId: requestId, accepted: false, reason: "in flight", snapshotRevision: currentSnapshotRevision())
+            case .completed(let accepted, let reason, let rev):
+                return .commandResult(requestId: requestId, accepted: accepted, reason: reason, snapshotRevision: rev)
+            case .execute:
+                break
+            }
+            guard let authorized = sessions.authorize(sessionId: sessionId, action: action) else {
+                let rev = currentSnapshotRevision()
+                sessions.completeRequestId(sessionId: sessionId, requestId: requestId, accepted: false, reason: "not authorized", snapshotRevision: rev)
+                return .commandResult(requestId: requestId, accepted: false, reason: "not authorized", snapshotRevision: rev)
             }
             lock.lock()
             let handler = actionHandler
             lock.unlock()
             handler?(authorized)
-            return nil
+            // REM-05: return meaningful revision after dispatch (sync actions only).
+            let rev = currentSnapshotRevision()
+            sessions.completeRequestId(sessionId: sessionId, requestId: requestId, accepted: true, reason: nil, snapshotRevision: rev)
+            return .commandResult(requestId: requestId, accepted: true, reason: nil, snapshotRevision: rev)
         case .ping:
+            if let sessionId {
+                sessions.touch(sessionId: sessionId)
+            }
             return .pong
         }
     }

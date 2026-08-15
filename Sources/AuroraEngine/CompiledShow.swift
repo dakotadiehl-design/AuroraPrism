@@ -134,6 +134,8 @@ public struct CompiledShow: Sendable, Equatable {
         compiledFixtures.reserveCapacity(project.fixtures.count)
 
         for fixture in project.fixtures {
+            // Unpatched fixtures remain in the show but do not occupy DMX output.
+            guard fixture.isPatched else { continue }
             guard let universe = universeByID[fixture.universeId] else { continue }
             guard let definition = definitionByID[fixture.definitionId] else { continue }
 
@@ -169,9 +171,32 @@ public struct CompiledShow: Sendable, Equatable {
     }
 
     /// Build channel write plans from a fixture definition (pairs coarse/fine by attribute).
+    /// Expands multi-cell blocks into per-cell attributes `attr@cellN` (A1 / Pass-1 multi-cell).
     public static func compileAttributeWrites(definition: FixtureDefinition) -> [CompiledAttributeWrite] {
+        var expanded: [ChannelDef] = definition.channels
+
+        // Expand repeated cell blocks into absolute offsets + per-cell attribute keys.
+        if let block = definition.cellBlock, block.cellCount > 0, !block.channels.isEmpty {
+            let headerMax = definition.channels.map(\.offset).max() ?? 0
+            let base = headerMax // cells start after header channels
+            let perCell = block.channelsPerCell
+            for cellIndex in 0..<Int(block.cellCount) {
+                let cellBase = base + UInt16(cellIndex) * perCell
+                for ch in block.channels {
+                    var copy = ch
+                    // Absolute 1-based offset within fixture footprint.
+                    copy.offset = cellBase + ch.offset
+                    // Per-cell semantic key: colorR@0, intensity@3, …
+                    if !ch.attribute.isEmpty {
+                        copy.attribute = "\(ch.attribute)@\(cellIndex)"
+                    }
+                    expanded.append(copy)
+                }
+            }
+        }
+
         var byAttribute: [String: [ChannelDef]] = [:]
-        for channel in definition.channels {
+        for channel in expanded {
             byAttribute[channel.attribute, default: []].append(channel)
         }
 
@@ -188,7 +213,8 @@ public struct CompiledShow: Sendable, Equatable {
 
         for attribute in sortedKeys {
             guard let group = byAttribute[attribute] else { continue }
-            let invert = invertFlag(for: attribute, definition: definition)
+            let baseAttr = attribute.split(separator: "@").first.map(String.init) ?? attribute
+            let invert = invertFlag(for: baseAttr, definition: definition)
             let coarse = group.first(where: { $0.resolution == .coarse })
             let fine = group.first(where: { $0.resolution == .fine })
 
@@ -205,7 +231,6 @@ public struct CompiledShow: Sendable, Equatable {
                         invert: invert
                     )
                 )
-                // Extra unpaired channels for same attribute as independent 8-bit.
                 for channel in group where channel.id != coarse.id && channel.id != fine.id {
                     writes.append(
                         CompiledAttributeWrite(

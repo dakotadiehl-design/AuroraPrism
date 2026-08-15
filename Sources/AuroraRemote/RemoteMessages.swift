@@ -16,54 +16,104 @@ public enum RemoteShowAction: Equatable, Sendable, Codable {
     case songNext
     case songPrevious
     case setProgrammerAttribute(attribute: String, value: Double)
+    /// Global master intensity 0…1 (P1-D / Pass-1 remote baseline).
+    case masterIntensity(Double)
+    case blackout
+    case blackoutOff
+    case toggleBlackout
 
     public var isMutating: Bool {
         true
     }
 }
 
+/// Semantic CURRENT/NEXT for remote (UI-10 A7) — independent of Mac UI types.
+public struct RemoteCueSummaryDTO: Equatable, Sendable, Codable {
+    public var listID: UUID?
+    public var cueID: UUID?
+    public var numberDisplay: String
+    public var name: String
+    public var sectionLabel: String?
+
+    public init(
+        listID: UUID? = nil,
+        cueID: UUID? = nil,
+        numberDisplay: String = "",
+        name: String = "",
+        sectionLabel: String? = nil
+    ) {
+        self.listID = listID
+        self.cueID = cueID
+        self.numberDisplay = numberDisplay
+        self.name = name
+        self.sectionLabel = sectionLabel
+    }
+
+    public static let empty = RemoteCueSummaryDTO()
+}
+
 public struct RemoteSnapshot: Equatable, Sendable, Codable {
     public var protocolVersion: Int
+    /// Monotonic server revision for resync (UI-10 A7).
+    public var snapshotRevision: UInt64
     public var showName: String
     public var engineRunning: Bool
     public var cueIndex: Int
     public var cueName: String?
+    public var currentCue: RemoteCueSummaryDTO
+    public var nextCue: RemoteCueSummaryDTO
     public var songTitle: String?
     public var songEntryIndex: Int
     public var locked: Bool
     public var role: RemoteRole
     /// Compact first-universe active channel count for monitors.
     public var activeChannelCount: Int
+    public var outputStatusLine: String
+    public var masterIntensity: Double
+    public var blackout: Bool
 
     public init(
         protocolVersion: Int = AuroraRemoteModule.protocolVersion,
+        snapshotRevision: UInt64 = 0,
         showName: String,
         engineRunning: Bool,
         cueIndex: Int = -1,
         cueName: String? = nil,
+        currentCue: RemoteCueSummaryDTO = .empty,
+        nextCue: RemoteCueSummaryDTO = .empty,
         songTitle: String? = nil,
         songEntryIndex: Int = -1,
         locked: Bool = false,
         role: RemoteRole = .viewer,
-        activeChannelCount: Int = 0
+        activeChannelCount: Int = 0,
+        outputStatusLine: String = "",
+        masterIntensity: Double = 1,
+        blackout: Bool = false
     ) {
         self.protocolVersion = protocolVersion
+        self.snapshotRevision = snapshotRevision
         self.showName = showName
         self.engineRunning = engineRunning
         self.cueIndex = cueIndex
         self.cueName = cueName
+        self.currentCue = currentCue
+        self.nextCue = nextCue
         self.songTitle = songTitle
         self.songEntryIndex = songEntryIndex
         self.locked = locked
         self.role = role
         self.activeChannelCount = activeChannelCount
+        self.outputStatusLine = outputStatusLine
+        self.masterIntensity = masterIntensity
+        self.blackout = blackout
     }
 }
 
 /// Wire messages (JSON object with `type` discriminant).
 public enum RemoteClientMessage: Equatable, Sendable {
     case hello(clientId: String, protocolVersion: Int, pin: String?, displayName: String?)
-    case command(RemoteShowAction)
+    /// Mutating command with client requestId for at-most-once (UI-10 A6).
+    case command(requestId: String, action: RemoteShowAction)
     case ping
 }
 
@@ -73,6 +123,8 @@ public enum RemoteServerMessage: Equatable, Sendable {
     case snapshot(RemoteSnapshot)
     case pong
     case kicked(reason: String)
+    /// Ack for mutating command (UI-10 A6).
+    case commandResult(requestId: String, accepted: Bool, reason: String?, snapshotRevision: UInt64)
 }
 
 public enum RemoteCodec {
@@ -87,8 +139,12 @@ public enum RemoteCodec {
                 pin: pin,
                 displayName: displayName
             ))
-        case .command(let action):
-            return try enc.encode(CommandDTO(type: "command", action: encodeAction(action)))
+        case .command(let requestId, let action):
+            return try enc.encode(CommandDTO(
+                type: "command",
+                requestId: requestId,
+                action: encodeAction(action)
+            ))
         case .ping:
             return try enc.encode(TypeOnlyDTO(type: "ping"))
         }
@@ -110,7 +166,11 @@ public enum RemoteCodec {
             )
         case "command":
             let dto = try JSONDecoder().decode(CommandDTO.self, from: data)
-            return .command(try decodeAction(dto.action))
+            // UI10-01: clients must supply requestId — do not invent one for at-most-once.
+            guard let rid = dto.requestId, !rid.isEmpty else {
+                throw RemoteCodecError.unknownType("command missing requestId")
+            }
+            return .command(requestId: rid, action: try decodeAction(dto.action))
         case "ping":
             return .ping
         default:
@@ -136,6 +196,14 @@ public enum RemoteCodec {
             return try enc.encode(TypeOnlyDTO(type: "pong"))
         case .kicked(let reason):
             return try enc.encode(RejectDTO(type: "kicked", reason: reason))
+        case .commandResult(let requestId, let accepted, let reason, let rev):
+            return try enc.encode(CommandResultDTO(
+                type: "commandResult",
+                requestId: requestId,
+                accepted: accepted,
+                reason: reason,
+                snapshotRevision: rev
+            ))
         }
     }
 
@@ -162,6 +230,14 @@ public enum RemoteCodec {
             return .snapshot(dto.snapshot)
         case "pong":
             return .pong
+        case "commandResult":
+            let dto = try JSONDecoder().decode(CommandResultDTO.self, from: data)
+            return .commandResult(
+                requestId: dto.requestId,
+                accepted: dto.accepted,
+                reason: dto.reason,
+                snapshotRevision: dto.snapshotRevision
+            )
         default:
             throw RemoteCodecError.unknownType(type)
         }
@@ -179,6 +255,11 @@ public enum RemoteCodec {
         case .songPrevious: return ActionDTO(name: "songPrevious")
         case .setProgrammerAttribute(let attr, let value):
             return ActionDTO(name: "setProgrammerAttribute", stringValue: attr, doubleValue: value)
+        case .masterIntensity(let v):
+            return ActionDTO(name: "masterIntensity", doubleValue: v)
+        case .blackout: return ActionDTO(name: "blackout")
+        case .blackoutOff: return ActionDTO(name: "blackoutOff")
+        case .toggleBlackout: return ActionDTO(name: "toggleBlackout")
         }
     }
 
@@ -203,6 +284,12 @@ public enum RemoteCodec {
                 throw RemoteCodecError.invalidPayload
             }
             return .setProgrammerAttribute(attribute: attr, value: v)
+        case "masterIntensity":
+            guard let v = dto.doubleValue else { throw RemoteCodecError.invalidPayload }
+            return .masterIntensity(v)
+        case "blackout": return .blackout
+        case "blackoutOff": return .blackoutOff
+        case "toggleBlackout": return .toggleBlackout
         default:
             throw RemoteCodecError.unknownType(dto.name)
         }
@@ -231,7 +318,16 @@ private struct HelloDTO: Codable {
 
 private struct CommandDTO: Codable {
     var type: String
+    var requestId: String?
     var action: ActionDTO
+}
+
+private struct CommandResultDTO: Codable {
+    var type: String
+    var requestId: String
+    var accepted: Bool
+    var reason: String?
+    var snapshotRevision: UInt64
 }
 
 private struct ActionDTO: Codable {

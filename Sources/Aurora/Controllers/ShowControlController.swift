@@ -151,16 +151,22 @@ final class ShowControlController: ObservableObject {
     }
 
     func refreshPresentation(project: ShowProject, isDirty: Bool, outputStatusLine: String) {
+        let previousStatus = engineStatus
         refreshEngineStatus()
         let song = songDirector.snapshot(project: project)
-        performance = PerformanceSnapshot.build(
+        let next = PerformanceSnapshot.build(
             project: project,
             isDirty: isDirty,
             engineSnap: engine.currentSnapshot(),
             song: song,
-            outputStatusLine: outputStatusLine
+            outputStatusLine: outputStatusLine,
+            global: engine.globalShowControl
         )
-        objectWillChange.send()
+        // Skip publish when nothing visible changed (avoids 4 Hz Settings/shell thrash).
+        // frameIndex still advances while engine runs — status bar needs that; Settings
+        // tab chrome is isolated from AppModel observation separately.
+        guard next != performance || engineStatus != previousStatus else { return }
+        performance = next
     }
 
     /// Adds a show-control presentation observer without replacing MIDI log observers (UI-GATE-1).

@@ -9,7 +9,7 @@ struct AuroraAppStatusBar: View {
         let health = AuroraShellHealthSnapshot.build(
             engineRunning: appModel.performance.engineRunning,
             output: appModel.output.presentationSnapshot(),
-            midiStatus: appModel.midiStatus
+            midi: appModel.midiHealth
         )
         let items: [AuroraStatusBarItem] = [
             .init(

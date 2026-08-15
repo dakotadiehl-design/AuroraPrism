@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="256" viewBox="0 0 512 256">
+<g fill="#FFFFFF" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="208" width="496" height="24" stroke="none"/>
+<circle cx="28.0" cy="150" r="13" stroke="none"/>
+<path d="M 13.0 168 Q 28.0 154 43.0 168 L 48.0 212 L 8.0 212 Z" stroke="none"/>
+<path d="M 28.0 180 L 10.0 122" stroke-width="9" fill="none"/>
+<circle cx="73.6" cy="158" r="13" stroke="none"/>
+<path d="M 58.6 176 Q 73.6 162 88.6 176 L 93.6 212 L 53.6 212 Z" stroke="none"/>
+<path d="M 73.6 188 L 91.6 130" stroke-width="9" fill="none"/>
+<circle cx="119.2" cy="166" r="13" stroke="none"/>
+<path d="M 104.2 184 Q 119.2 170 134.2 184 L 139.2 212 L 99.2 212 Z" stroke="none"/>
+<path d="M 119.2 196 L 101.2 138" stroke-width="9" fill="none"/>
+<circle cx="164.8" cy="150" r="13" stroke="none"/>
+<path d="M 149.8 168 Q 164.8 154 179.8 168 L 184.8 212 L 144.8 212 Z" stroke="none"/>
+<path d="M 164.8 180 L 182.8 122" stroke-width="9" fill="none"/>
+<circle cx="210.4" cy="158" r="13" stroke="none"/>
+<path d="M 195.4 176 Q 210.4 162 225.4 176 L 230.4 212 L 190.4 212 Z" stroke="none"/>
+<path d="M 210.4 188 L 192.4 130" stroke-width="9" fill="none"/>
+<circle cx="256.0" cy="166" r="13" stroke="none"/>
+<path d="M 241.0 184 Q 256.0 170 271.0 184 L 276.0 212 L 236.0 212 Z" stroke="none"/>
+<path d="M 256.0 196 L 274.0 138" stroke-width="9" fill="none"/>
+<circle cx="301.6" cy="150" r="13" stroke="none"/>
+<path d="M 286.6 168 Q 301.6 154 316.6 168 L 321.6 212 L 281.6 212 Z" stroke="none"/>
+<path d="M 301.6 180 L 283.6 122" stroke-width="9" fill="none"/>
+<circle cx="347.2" cy="158" r="13" stroke="none"/>
+<path d="M 332.2 176 Q 347.2 162 362.2 176 L 367.2 212 L 327.2 212 Z" stroke="none"/>
+<path d="M 347.2 188 L 365.2 130" stroke-width="9" fill="none"/>
+<circle cx="392.8" cy="166" r="13" stroke="none"/>
+<path d="M 377.8 184 Q 392.8 170 407.8 184 L 412.8 212 L 372.8 212 Z" stroke="none"/>
+<path d="M 392.8 196 L 374.8 138" stroke-width="9" fill="none"/>
+<circle cx="438.4" cy="150" r="13" stroke="none"/>
+<path d="M 423.4 168 Q 438.4 154 453.4 168 L 458.4 212 L 418.4 212 Z" stroke="none"/>
+<path d="M 438.4 180 L 456.4 122" stroke-width="9" fill="none"/>
+<circle cx="484.0" cy="158" r="13" stroke="none"/>
+<path d="M 469.0 176 Q 484.0 162 499.0 176 L 504.0 212 L 464.0 212 Z" stroke="none"/>
+<path d="M 484.0 188 L 466.0 130" stroke-width="9" fill="none"/></g>
+</svg>

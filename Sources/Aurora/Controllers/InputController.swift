@@ -8,11 +8,15 @@ import Foundation
 @MainActor
 final class InputController: ObservableObject {
     private let midi = MIDIInputManager()
+    let midiOut = MIDIOutputManager()
     let midiLearn = MIDILearnSession()
     private let midiLearnFlag = MIDILearnFlag()
     let rtpMIDI = RTPMIDISession()
     private let oscServer = OSCInputServer(port: 9000)
 
+    /// Structured health for toolbar/status (ST-01). Prefer over string parsing.
+    @Published private(set) var midiHealth: MIDIHealthSnapshot = .off
+    /// Legacy display string — derived from `midiHealth` + last event.
     @Published private(set) var midiStatus: String = "MIDI: off"
     @Published private(set) var lastMIDIEvent: String = ""
     @Published private(set) var isMIDILearning: Bool = false
@@ -22,10 +26,14 @@ final class InputController: ObservableObject {
 
     private let maxMIDILog = 100
     private var midiObserverToken: ControlEventObserverToken?
+    private var midiSubsystemRunning = false
 
     func stopAll() {
         midi.stop()
+        midiOut.stop()
         oscServer.stop()
+        midiSubsystemRunning = false
+        publishHealth(sourceCount: 0, failed: false)
     }
 
     /// Installs a **dedicated** MIDI log observer (does not replace other observers).
@@ -40,7 +48,7 @@ final class InputController: ObservableObject {
             Task { @MainActor in
                 self?.appendMIDILog(summary)
                 self?.lastMIDIEvent = summary
-                self?.midiStatus = "MIDI: \(self?.midi.connectedCount ?? 0) src · \(summary)"
+                self?.refreshStatusLine(detail: summary)
                 self?.objectWillChange.send()
             }
         }
@@ -51,15 +59,42 @@ final class InputController: ObservableObject {
                 }
                 return
             }
+            for e in events {
+                self?.midiOut.noteInputFrom(sourceID: e.sourceID)
+            }
             router.handleMIDIEvents(events)
+        }
+        // ST-01: hotplug inventory updates without requiring MIDI traffic.
+        midi.setInventoryChangeHandler { [weak self] count in
+            Task { @MainActor in
+                self?.publishHealth(sourceCount: count, failed: false)
+            }
         }
         do {
             try midi.start()
-            midiStatus = "MIDI: \(midi.connectedCount) sources"
+            try? midiOut.start()
+            midiSubsystemRunning = true
+            publishHealth(sourceCount: midi.connectedCount, failed: false)
         } catch {
-            midiStatus = "MIDI: error"
+            midiSubsystemRunning = false
+            publishHealth(sourceCount: 0, failed: true, errorMessage: error.localizedDescription)
         }
         objectWillChange.send()
+    }
+
+    /// Push master/blackout/GO feedback to configured profiles.
+    func sendMIDIFeedback(
+        profiles: [MIDIFeedbackProfile],
+        masterIntensity: Double,
+        blackout: Bool,
+        goPulse: Bool = false
+    ) {
+        midiOut.applyFeedback(
+            profiles: profiles,
+            masterIntensity: masterIntensity,
+            blackout: blackout,
+            goPulse: goPulse
+        )
     }
 
     func applySavedRTPMIDI(onLog: (String) -> Void) {
@@ -68,6 +103,9 @@ final class InputController: ObservableObject {
         if config.enabled {
             onLog("RTP-MIDI enabled (\(rtpMIDI.localName))")
             try? midi.connectAllSources()
+            if midiSubsystemRunning {
+                publishHealth(sourceCount: midi.connectedCount, failed: false, detail: rtpMIDI.statusLine())
+            }
         }
     }
 
@@ -76,7 +114,9 @@ final class InputController: ObservableObject {
         if enabled {
             try? midi.connectAllSources()
         }
-        midiStatus = "\(midi.connectedCount) src · \(rtpMIDI.statusLine())"
+        if midiSubsystemRunning {
+            publishHealth(sourceCount: midi.connectedCount, failed: false, detail: rtpMIDI.statusLine())
+        }
         onLog(rtpMIDI.statusLine())
         objectWillChange.send()
     }
@@ -156,8 +196,49 @@ final class InputController: ObservableObject {
                 }
             }
         }
-        midiStatus = "MIDI: \(midi.connectedCount) src · \(lastMIDIEvent)"
+        refreshStatusLine(detail: lastMIDIEvent)
         objectWillChange.send()
+    }
+
+    private func publishHealth(sourceCount: Int, failed: Bool, errorMessage: String? = nil, detail: String? = nil) {
+        if failed {
+            midiHealth = .failed(errorMessage ?? "MIDI error")
+        } else if !midiSubsystemRunning {
+            midiHealth = .off
+        } else {
+            midiHealth = .running(sourceCount: sourceCount, detail: detail)
+        }
+        midiStatus = midiHealth.statusLine
+        objectWillChange.send()
+    }
+
+    private func refreshStatusLine(detail: String?) {
+        guard midiSubsystemRunning else {
+            midiStatus = midiHealth.statusLine
+            return
+        }
+        let count = midi.connectedCount
+        if let detail, !detail.isEmpty {
+            midiStatus = "MIDI: \(count) src · \(detail)"
+            // Keep structured state; only the display line includes last event.
+            if count > 0 {
+                midiHealth = MIDIHealthSnapshot(
+                    state: .ready,
+                    connectedSourceCount: count,
+                    lastError: nil,
+                    statusLine: midiStatus
+                )
+            } else {
+                midiHealth = MIDIHealthSnapshot(
+                    state: .off,
+                    connectedSourceCount: 0,
+                    lastError: nil,
+                    statusLine: midiStatus
+                )
+            }
+        } else {
+            publishHealth(sourceCount: count, failed: false)
+        }
     }
 
     private func appendMIDILog(_ message: String) {

@@ -61,7 +61,10 @@ let package = Package(
             // AuroraMIDI: MIDIMappingsPanel uses ShowAction (declared dependency; avoids illicit import).
             // Still no AuroraOutput dependency (DMX stays out of UI).
             name: "AuroraUI",
-            dependencies: ["AuroraCore", "AuroraModel", "AuroraEngine", "AuroraMIDI"]
+            dependencies: ["AuroraCore", "AuroraModel", "AuroraEngine", "AuroraMIDI", "AuroraFixtureLib"],
+            resources: [
+                .copy("Resources/StageAssets"),
+            ]
         ),
         .target(
             name: "AuroraRemote",
@@ -109,7 +112,7 @@ let package = Package(
         ),
         .testTarget(
             name: "AuroraOutputTests",
-            dependencies: ["AuroraOutput"]
+            dependencies: ["AuroraOutput", "AuroraEngine", "AuroraModel"]
         ),
         .testTarget(
             name: "AuroraEngineTests",

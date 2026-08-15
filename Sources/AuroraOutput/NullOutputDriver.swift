@@ -2,10 +2,11 @@ import AuroraModel
 import Foundation
 
 /// Discards all frames (offline / headless).
-public final class NullOutputDriver: OutputDriver, @unchecked Sendable {
+/// ST-02: Never reports as a successful physical/network output path.
+public final class NullOutputDriver: OutputDriver, OutputHealthReporting, @unchecked Sendable {
     public let id: UUID
     public let name: String
-    public let outputProtocol: UniverseProtocolHint = .local
+    public let outputProtocol: UniverseProtocolHint = .none
     private let lock = NSLock()
     private var _isRunning = false
     public var isRunning: Bool {
@@ -32,5 +33,16 @@ public final class NullOutputDriver: OutputDriver, @unchecked Sendable {
 
     public func send(universe: UInt16, dmx: UnsafeBufferPointer<UInt8>) {
         // Intentionally empty.
+    }
+
+    /// Null sink is never “healthy output” for operator chrome (ST-02).
+    public func healthSnapshot() -> OutputHealthSnapshot {
+        OutputHealthSnapshot(
+            driverID: id,
+            name: name,
+            outputProtocol: outputProtocol,
+            state: .disabled,
+            target: "discard"
+        )
     }
 }

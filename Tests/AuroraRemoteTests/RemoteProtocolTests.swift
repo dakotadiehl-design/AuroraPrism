@@ -23,15 +23,37 @@ final class RemoteProtocolTests: XCTestCase {
         XCTAssertEqual(wdec, welcome)
     }
 
-    func testCommandCodecFireAndProgrammer() throws {
-        let cmd = RemoteClientMessage.command(.fireCueIndex(2))
+    func testCommandCodecFireWithRequestId() throws {
+        let rid = "req-1"
+        let cmd = RemoteClientMessage.command(requestId: rid, action: .fireCueIndex(2))
         let round = try RemoteCodec.decodeClient(try RemoteCodec.encodeClient(cmd))
         XCTAssertEqual(round, cmd)
+    }
 
-        let prog = RemoteClientMessage.command(
-            .setProgrammerAttribute(attribute: "intensity", value: 0.75)
+    func testDuplicateRequestIdDoesNotReExecute() {
+        let sessions = RemoteSessionManager(
+            config: RemoteHostConfig(enabled: true, pin: "42", maxClients: 2)
         )
-        XCTAssertEqual(try RemoteCodec.decodeClient(try RemoteCodec.encodeClient(prog)), prog)
+        let hello = sessions.handleHello(
+            clientId: "c1",
+            protocolVersion: 1,
+            pin: "42",
+            displayName: nil
+        )
+        guard case .welcome(let info) = hello else {
+            return XCTFail("welcome")
+        }
+        XCTAssertNil(sessions.takeRequestIdIfNew(sessionId: info.id, requestId: "go-1"))
+        sessions.rememberRequestId(sessionId: info.id, requestId: "go-1", accepted: true, reason: nil)
+        let prior = sessions.takeRequestIdIfNew(sessionId: info.id, requestId: "go-1")
+        XCTAssertEqual(prior?.accepted, true)
+    }
+
+    func testProgrammerAttributeNotAllowed() {
+        XCTAssertFalse(RemoteCommandAllowList.isAllowed(
+            .setProgrammerAttribute(attribute: "intensity", value: 0.5)
+        ))
+        XCTAssertTrue(RemoteCommandAllowList.isAllowed(.go))
     }
 
     func testPINRejectAndProtocolMismatch() {
@@ -108,7 +130,7 @@ final class RemoteProtocolTests: XCTestCase {
             return XCTFail("welcome")
         }
         XCTAssertEqual(role, .operatorRole)
-        _ = host.handle(sessionId: sid, message: .command(.stop))
+        _ = host.handle(sessionId: sid, message: .command(requestId: "stop-1", action: .stop))
         wait(for: [exp], timeout: 1)
     }
 

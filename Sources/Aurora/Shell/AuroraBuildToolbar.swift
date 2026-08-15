@@ -71,7 +71,7 @@ struct AuroraBuildToolbar: View {
         let health = AuroraShellHealthSnapshot.build(
             engineRunning: appModel.performance.engineRunning,
             output: appModel.output.presentationSnapshot(),
-            midiStatus: appModel.midiStatus
+            midi: appModel.midiHealth
         )
         return HStack(spacing: AuroraSpacing.sm) {
             AuroraStatusIndicator(label: "Engine", level: health.engine)
