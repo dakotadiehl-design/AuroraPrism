@@ -18,6 +18,12 @@ public struct AuroraComponentGallery: View {
     @State private var stage: Double = 1.0
     @State private var audience: Double = 0.3
     @State private var fx: Double = 1.0
+    // Option C value-thumb gallery
+    @State private var galleryDimmer: Double = 0.72
+    @State private var galleryCoolWhite: Double = 0.84
+    @State private var galleryAmber: Double = 0.46
+    @State private var galleryUV: Double = 0.31
+    @State private var galleryOwned: Double = 0.55
 
     private let workspaceTabs = ["Patch", "Groups", "Palettes", "Cues", "Sequences", "Effects"]
 
@@ -49,7 +55,7 @@ public struct AuroraComponentGallery: View {
                 Image(systemName: "sparkle")
                     .foregroundStyle(AuroraColor.accentBright)
                     .rotationEffect(.degrees(45))
-                Text("AURORA")
+                Text("PRISM")
                     .font(AuroraTypography.wordmark)
                     .tracking(1.5)
                 Text("UI-01C Visual Identity")
@@ -99,7 +105,7 @@ public struct AuroraComponentGallery: View {
         section("1 · Build Mode — main workspace (north star)") {
             VStack(spacing: 0) {
                 AuroraAppToolbar(
-                    projectTitle: "Summer Night Show.aurora",
+                    projectTitle: "Summer Night Show.prism",
                     healthSummary: "Art-Net · Output OK",
                     mode: $mode
                 )
@@ -410,6 +416,8 @@ public struct AuroraComponentGallery: View {
     private var detailedProgrammer: some View {
         section("2 · Programmer — detailed controls") {
             VStack(alignment: .leading, spacing: 12) {
+                auroraButtonGallery
+                valueThumbFaderGallery
                 HStack(alignment: .top, spacing: 16) {
                     AuroraFader(value: $dimmer, label: "Dimmer", showsOwnedChrome: true)
                     AuroraFader(value: $intensity, label: "Intensity", showsOwnedChrome: true)
@@ -427,6 +435,120 @@ public struct AuroraComponentGallery: View {
                     .foregroundStyle(AuroraColor.textTertiary)
                 AuroraAttributeStateLegend()
             }
+        }
+    }
+
+    /// Option 1 family-wide button board.
+    private var auroraButtonGallery: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("AURORA BUTTONS · OPTION 1")
+                .font(AuroraTypography.controlLabel)
+                .foregroundStyle(AuroraColor.textTertiary)
+
+            HStack(spacing: 8) {
+                AuroraButton("Primary", kind: .primary, action: {})
+                AuroraButton("Secondary", action: {})
+                AuroraButton("Selected", isSelected: true, action: {})
+                AuroraButton("Quiet", kind: .quiet, action: {})
+                AuroraButton("Delete", kind: .destructive, action: {})
+                AuroraButton("Disabled", isEnabled: false, action: {})
+            }
+
+            HStack(spacing: 8) {
+                Button(action: {}) {
+                    Label("Record", systemImage: "record.circle")
+                }
+                .buttonStyle(AuroraButtonStyle(kind: .primary))
+
+                Button(action: {}) {
+                    Image(systemName: "plus")
+                        .accessibilityLabel("Add")
+                }
+                .buttonStyle(AuroraButtonStyle())
+
+                Button("Delete role", role: .destructive, action: {})
+                    .buttonStyle(AuroraButtonStyle())
+            }
+        }
+        .padding(12)
+        .background(AuroraColor.surfacePanel)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// Option C value-thumb fader board (Custom Fader Render Pack).
+    private var valueThumbFaderGallery: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("VALUE-THUMB FADERS · OPTION C")
+                .font(AuroraTypography.controlLabel)
+                .foregroundStyle(AuroraColor.textTertiary)
+            HStack(alignment: .bottom, spacing: 12) {
+                AuroraFader(
+                    value: $galleryDimmer,
+                    label: "Dimmer",
+                    showsOwnedChrome: true,
+                    display: .value(galleryDimmer)
+                )
+                AuroraFader(
+                    value: $galleryCoolWhite,
+                    label: "Cool White",
+                    display: .value(galleryCoolWhite),
+                    accent: Color(red: 0.82, green: 0.90, blue: 0.98)
+                )
+                AuroraFader(
+                    value: $galleryAmber,
+                    label: "Amber",
+                    display: .value(galleryAmber),
+                    accent: Color(red: 1.0, green: 0.62, blue: 0.12)
+                )
+                AuroraFader(
+                    value: $galleryUV,
+                    label: "UV",
+                    display: .value(galleryUV),
+                    accent: Color(red: 0.62, green: 0.35, blue: 1.0)
+                )
+                AuroraFader(
+                    value: $galleryOwned,
+                    label: "Mixed",
+                    display: .mixed
+                )
+                AuroraFader(
+                    value: .constant(0),
+                    label: "N/A",
+                    display: .unavailable
+                )
+                AuroraFader(
+                    value: .constant(0.4),
+                    label: "Off",
+                    isEnabled: false,
+                    display: .value(0.4)
+                )
+            }
+            .padding(12)
+            .background(AuroraColor.surfacePanel)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            // Overflow strip: eight emitters prove scroll, not squeeze.
+            Text("EMITTER OVERFLOW (8)")
+                .font(AuroraTypography.controlLabel)
+                .foregroundStyle(AuroraColor.textTertiary)
+            ScrollView(.horizontal, showsIndicators: true) {
+                HStack(spacing: 10) {
+                    ForEach(0..<8, id: \.self) { i in
+                        AuroraFader(
+                            value: .constant(Double(i + 1) / 9.0),
+                            label: "E\(i + 1)",
+                            display: .value(Double(i + 1) / 9.0),
+                            accent: i % 2 == 0
+                                ? Color(red: 1.0, green: 0.62, blue: 0.12)
+                                : Color(red: 0.62, green: 0.35, blue: 1.0)
+                        )
+                    }
+                }
+                .padding(8)
+            }
+            .frame(maxWidth: 420)
+            .background(AuroraColor.surfacePanel)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
     }
 
@@ -511,14 +633,14 @@ public struct AuroraComponentGallery: View {
                         Image(systemName: "sparkle")
                             .foregroundStyle(AuroraColor.accentBright)
                             .rotationEffect(.degrees(45))
-                        Text("AURORA")
+                        Text("PRISM")
                             .font(AuroraTypography.wordmark)
                         Text("PERFORM MODE — STAGE COCKPIT")
                             .font(AuroraTypography.status)
                             .foregroundStyle(AuroraColor.textTertiary)
                     }
                     Spacer()
-                    Text("Summer Night Show.aurora")
+                    Text("Summer Night Show.prism")
                         .font(AuroraTypography.metadata)
                         .foregroundStyle(AuroraColor.textSecondary)
                     AuroraModeToggle(mode: .constant(.perform))
