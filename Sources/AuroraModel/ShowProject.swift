@@ -11,6 +11,10 @@ public struct ShowProject: Codable, Equatable, Sendable {
     public var groups: [Group]
     public var palettes: [Palette]
     public var presets: [Preset]
+    /// User-organized folders for the Cue Blocks library (schema v5+).
+    public var cueBlockGroups: [CueBlockGroup]
+    /// Fixture-scoped reusable Cue Blocks (schema v5+). Live-referenced from cues.
+    public var cueBlocks: [CueBlock]
     public var cueLists: [CueList]
     public var songs: [Song]
     public var mediaAssets: [MediaAssetRef]
@@ -41,6 +45,8 @@ public struct ShowProject: Codable, Equatable, Sendable {
         groups: [Group] = [],
         palettes: [Palette] = [],
         presets: [Preset] = [],
+        cueBlockGroups: [CueBlockGroup] = [],
+        cueBlocks: [CueBlock] = [],
         cueLists: [CueList] = [],
         songs: [Song] = [],
         mediaAssets: [MediaAssetRef] = [],
@@ -63,6 +69,8 @@ public struct ShowProject: Codable, Equatable, Sendable {
         self.groups = groups
         self.palettes = palettes
         self.presets = presets
+        self.cueBlockGroups = cueBlockGroups
+        self.cueBlocks = cueBlocks
         self.cueLists = cueLists
         self.songs = songs
         self.mediaAssets = mediaAssets

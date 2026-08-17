@@ -17,6 +17,9 @@ public struct FixtureBrowserPanel: View {
     @State private var librarySelectedID: UUID?
     @State private var errorText: String?
     @State private var showLibrary = false
+    @State private var renameFixtureID: UUID?
+    @State private var renameDraft = ""
+    @State private var renameErrorMessage: String?
 
     public init(
         context: WorkspacePanelContext,
@@ -136,6 +139,25 @@ public struct FixtureBrowserPanel: View {
         }
         .background(AuroraColor.surfacePanel)
         .auroraDensity(.compact)
+        .alert("Rename Fixture", isPresented: Binding(
+            get: { renameFixtureID != nil },
+            set: { if !$0 { renameFixtureID = nil } }
+        )) {
+            TextField("Fixture name", text: $renameDraft)
+            Button("Rename") { commitRename() }
+                .disabled(renameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            Button("Cancel", role: .cancel) { renameFixtureID = nil }
+        } message: {
+            Text("Use a descriptive physical name, such as Dance Floor PAR 1.")
+        }
+        .alert("Unable to Rename Fixture", isPresented: Binding(
+            get: { renameErrorMessage != nil },
+            set: { if !$0 { renameErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { renameErrorMessage = nil }
+        } message: {
+            Text(renameErrorMessage ?? "The fixture could not be renamed.")
+        }
     }
 
     private func fixtureRow(_ fixture: PatchedFixture) -> some View {
@@ -167,9 +189,30 @@ public struct FixtureBrowserPanel: View {
         .buttonStyle(.plain)
         .listRowBackground(selected ? AuroraColor.surfaceSelected : Color.clear)
         .contextMenu {
+            Button("Rename Fixture…") { beginRename(fixture) }
             Button("Reveal on Stage") {
                 onRevealOnStage?(fixture.id)
             }
+        }
+    }
+
+    private func beginRename(_ fixture: PatchedFixture) {
+        renameDraft = fixture.name
+        renameFixtureID = fixture.id
+    }
+
+    private func commitRename() {
+        guard let fixtureID = renameFixtureID else { return }
+        do {
+            try context.session.perform(RenameFixtureCommand(
+                fixtureID: fixtureID,
+                newName: renameDraft
+            ))
+            renameFixtureID = nil
+        } catch {
+            renameFixtureID = nil
+            let message = error.localizedDescription
+            DispatchQueue.main.async { renameErrorMessage = message }
         }
     }
 

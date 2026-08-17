@@ -355,7 +355,7 @@ public struct CueListPanel: View {
     private func addEmptyCue() {
         guard let list = currentList else { return }
         let prefs = context.project.preferences
-        let displayNumber = nextDisplayNumber(in: list)
+        let displayNumber = ProgrammerCueBridge.nextDisplayNumber(in: list)
         let cue = Cue(
             number: displayNumber,
             name: "Cue \(NSDecimalNumber(decimal: displayNumber).stringValue)",
@@ -377,19 +377,14 @@ public struct CueListPanel: View {
     private func recordCue() {
         guard let list = currentList else { return }
         let levels = programmer.captureLevels()
-        guard !levels.fixtures.isEmpty else {
+        guard !ProgrammerCueBridge.levelsAreEmpty(levels) else {
             statusText = "Programmer empty — set values before Record"
             return
         }
-        let prefs = context.project.preferences
-        let displayNumber = nextDisplayNumber(in: list)
-        let cue = Cue(
-            number: displayNumber,
-            name: "Cue \(NSDecimalNumber(decimal: displayNumber).stringValue)",
-            fadeIn: prefs.defaultFadeIn,
-            fadeOut: prefs.defaultFadeOut,
-            tracking: prefs.defaultTracking,
-            levels: levels
+        let cue = ProgrammerCueBridge.makeRecordedCue(
+            levels: levels,
+            list: list,
+            preferences: context.project.preferences
         )
         do {
             try context.session.perform(AddCueCommand(listID: list.id, cue: cue))
@@ -405,19 +400,19 @@ public struct CueListPanel: View {
 
     /// Immediate level replace — no modal (A3). Metadata/timing preserved.
     private func updateSelectedCue() {
-        guard let list = currentList, var cue = selectedCue else {
+        guard let list = currentList, let cue = selectedCue else {
             statusText = "Select a cue to Update"
             return
         }
         let levels = programmer.captureLevels()
-        guard !levels.fixtures.isEmpty else {
+        guard !ProgrammerCueBridge.levelsAreEmpty(levels) else {
             statusText = "Programmer empty — nothing to Update"
             return
         }
-        cue.levels = levels
+        let next = ProgrammerCueBridge.cueByApplyingLevels(cue, levels: levels)
         do {
-            try context.session.perform(UpdateCueCommand(listID: list.id, cue: cue))
-            statusText = "Updated \(cue.name.isEmpty ? "cue" : cue.name) levels"
+            try context.session.perform(UpdateCueCommand(listID: list.id, cue: next))
+            statusText = "Updated \(next.name.isEmpty ? "cue" : next.name) levels"
             onProjectChanged()
         } catch {
             statusText = error.localizedDescription
@@ -531,10 +526,188 @@ public struct CueListPanel: View {
                 }
                 .frame(maxWidth: 120)
             }
+            if !cue.cueBlockRefs.isEmpty || !context.project.cueBlocks.isEmpty {
+                cueBlockReferenceEditor(cue, list: list)
+            }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(AuroraColor.surfaceWell)
+    }
+
+    private func cueBlockReferenceEditor(_ cue: Cue, list: CueList) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Cue Blocks")
+                    .font(AuroraTypography.metadata.weight(.semibold))
+                    .foregroundStyle(AuroraColor.textSecondary)
+                Text("later blocks override earlier blocks")
+                    .font(AuroraTypography.metadata)
+                    .foregroundStyle(AuroraColor.textTertiary)
+                Spacer()
+                Menu {
+                    ForEach(context.project.cueBlockGroups) { group in
+                        let blocks = context.project.cueBlocks.filter { $0.cueBlockGroupID == group.id }
+                        if !blocks.isEmpty {
+                            Menu(group.name) {
+                                cueBlockAddButtons(blocks, cue: cue, list: list)
+                            }
+                        }
+                    }
+                    let unfiled = context.project.cueBlocks.filter { $0.cueBlockGroupID == nil }
+                    if !unfiled.isEmpty {
+                        Menu("Unfiled") {
+                            cueBlockAddButtons(unfiled, cue: cue, list: list)
+                        }
+                    }
+                } label: {
+                    Label("Add", systemImage: "plus")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .help("Add a Cue Block to this cue")
+            }
+            ForEach(Array(cue.cueBlockRefs.enumerated()), id: \.element.id) { index, reference in
+                HStack(spacing: 6) {
+                    Toggle("", isOn: Binding(
+                        get: { reference.enabled },
+                        set: { setCueBlockReference(reference, enabled: $0, cue: cue, list: list) }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.checkbox)
+                    if let block = context.project.cueBlock(id: reference.cueBlockID) {
+                        Image(systemName: cueBlockSymbol(block.type))
+                            .foregroundStyle(reference.enabled ? AuroraColor.accentBright : AuroraColor.textTertiary)
+                            .frame(width: 14)
+                        Text(cueBlockPath(block))
+                            .font(AuroraTypography.metadata)
+                            .foregroundStyle(reference.enabled ? AuroraColor.textPrimary : AuroraColor.textTertiary)
+                            .lineLimit(1)
+                    } else {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(AuroraColor.warning)
+                        Text("Missing Cue Block")
+                            .font(AuroraTypography.metadata)
+                            .foregroundStyle(AuroraColor.warning)
+                    }
+                    Spacer(minLength: 4)
+                    Button("↑") { moveCueBlockReference(reference, to: index - 1, cue: cue, list: list) }
+                        .buttonStyle(.plain)
+                        .disabled(index == 0)
+                    Button("↓") { moveCueBlockReference(reference, to: index + 1, cue: cue, list: list) }
+                        .buttonStyle(.plain)
+                        .disabled(index == cue.cueBlockRefs.count - 1)
+                    Button {
+                        removeCueBlockReference(reference, cue: cue, list: list)
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(AuroraColor.textTertiary)
+                    .help("Remove Cue Block from cue")
+                }
+                .frame(height: 22)
+            }
+        }
+        .padding(.top, 2)
+    }
+
+    @ViewBuilder
+    private func cueBlockAddButtons(_ blocks: [CueBlock], cue: Cue, list: CueList) -> some View {
+        ForEach(CueBlockType.allCases, id: \.self) { type in
+            let typed = blocks.filter { $0.type == type }
+            if !typed.isEmpty {
+                Menu(cueBlockTypeName(type)) {
+                    ForEach(typed) { block in
+                        Button(block.name) { addCueBlock(block, cue: cue, list: list) }
+                            .disabled(cue.cueBlockRefs.contains { $0.cueBlockID == block.id })
+                    }
+                }
+            }
+        }
+    }
+
+    private func addCueBlock(_ block: CueBlock, cue: Cue, list: CueList) {
+        do {
+            try context.session.perform(AddCueBlockReferenceCommand(
+                listID: list.id,
+                cueID: cue.id,
+                cueBlockID: block.id
+            ))
+            statusText = "Added \(block.name) to cue"
+            onProjectChanged()
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    private func cueBlockPath(_ block: CueBlock) -> String {
+        let group = block.cueBlockGroupID.flatMap { context.project.cueBlockGroup(id: $0)?.name } ?? "Unfiled"
+        return "\(group) / \(cueBlockTypeName(block.type)) / \(block.name)"
+    }
+
+    private func cueBlockTypeName(_ type: CueBlockType) -> String {
+        switch type {
+        case .intensity: return "Dimmer"
+        case .color: return "Color"
+        case .position: return "Position"
+        case .beam: return "Beam"
+        case .gobo: return "Gobo"
+        case .general: return "General"
+        }
+    }
+
+    private func cueBlockSymbol(_ type: CueBlockType) -> String {
+        switch type {
+        case .intensity: return "sun.max.fill"
+        case .color: return "circle.fill"
+        case .position: return "scope"
+        case .beam: return "light.beacon.max.fill"
+        case .gobo: return "circle.hexagongrid.fill"
+        case .general: return "square.stack.3d.up.fill"
+        }
+    }
+
+    private func setCueBlockReference(_ reference: CueBlockReference, enabled: Bool, cue: Cue, list: CueList) {
+        do {
+            try context.session.perform(SetCueBlockReferenceEnabledCommand(
+                listID: list.id,
+                cueID: cue.id,
+                referenceID: reference.id,
+                enabled: enabled
+            ))
+            onProjectChanged()
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    private func moveCueBlockReference(_ reference: CueBlockReference, to index: Int, cue: Cue, list: CueList) {
+        do {
+            try context.session.perform(MoveCueBlockReferenceCommand(
+                listID: list.id,
+                cueID: cue.id,
+                referenceID: reference.id,
+                toIndex: index
+            ))
+            onProjectChanged()
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    private func removeCueBlockReference(_ reference: CueBlockReference, cue: Cue, list: CueList) {
+        do {
+            try context.session.perform(RemoveCueBlockReferenceCommand(
+                listID: list.id,
+                cueID: cue.id,
+                referenceID: reference.id
+            ))
+            statusText = "Removed Cue Block from cue"
+            onProjectChanged()
+        } catch {
+            statusText = error.localizedDescription
+        }
     }
 
     private func timingField(_ label: String, value: TimeInterval, onCommit: @escaping (TimeInterval) -> Void) -> some View {
@@ -579,11 +752,6 @@ public struct CueListPanel: View {
     }
 
     /// Display number only — does not control playback order (A4).
-    private func nextDisplayNumber(in list: CueList) -> Decimal {
-        let maxNum = list.cues.map(\.number).max() ?? 0
-        return maxNum + 1
-    }
-
     // MARK: - Role / format
 
     /// Playback role only — selection is a separate overlay (CR-09).

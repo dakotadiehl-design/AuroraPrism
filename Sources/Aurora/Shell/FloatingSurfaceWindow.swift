@@ -215,8 +215,15 @@ struct FloatWindowRestorer: View {
     }
 
     private func restore() {
-        for surface in appModel.workspace.floatState.floatingSurfaceIDs {
+        let surfaces = appModel.workspace.floatState.floatingSurfaceIDs
+        for surface in surfaces {
             openWindow(id: "float-surface", value: surface)
+        }
+        guard !surfaces.isEmpty else { return }
+        // SwiftUI WindowGroup creation is asynchronous. Let restored auxiliary windows
+        // materialize, then put the primary Prism workspace above them.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            NotificationCenter.default.post(name: .prismBringMainWindowForward, object: nil)
         }
     }
 

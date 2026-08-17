@@ -1,0 +1,7151 @@
+{
+  "schema": "prism-fixture-converter/0.1",
+  "fixture": {
+    "manufacturer": "Shehds",
+    "model": "LED PAR 18x18W RGBWA+UV",
+    "category": "lightkey-type-15"
+  },
+  "fixtureDefinitions": [
+    {
+      "id": "8453eabb-fe1a-529a-a89e-41504a32cc96",
+      "manufacturer": "Shehds",
+      "model": "LED PAR 18x18W RGBWA+UV",
+      "modeName": "12 Channel",
+      "channelCount": 12,
+      "channels": [
+        {
+          "offset": 0,
+          "name": "Intensity",
+          "attribute": "intensity",
+          "sourceCapability": "LXIntensityCapability",
+          "defaultValue": 0,
+          "highlightValue": 255,
+          "functions": [
+            {
+              "params": {},
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255
+            }
+          ]
+        },
+        {
+          "offset": 1,
+          "name": "Shutter / Strobe",
+          "attribute": "shutterStrobe",
+          "sourceCapability": "LXShutterStrobeCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "mode": 2,
+                "style": 0
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255
+            }
+          ]
+        },
+        {
+          "offset": 2,
+          "name": "Auto Mode",
+          "attribute": "generic",
+          "sourceCapability": "LXCustomCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "customName": "Auto Mode",
+          "functions": [
+            {
+              "params": {
+                "name": "Off"
+              },
+              "sourceDMX": [
+                0,
+                1
+              ],
+              "dmxMin": 0,
+              "dmxMax": 1,
+              "label": "Off"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 1"
+              },
+              "sourceDMX": [
+                2,
+                15
+              ],
+              "dmxMin": 2,
+              "dmxMax": 15,
+              "label": "Auto Mode 1"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 2",
+                "default": false
+              },
+              "sourceDMX": [
+                16,
+                30
+              ],
+              "dmxMin": 16,
+              "dmxMax": 30,
+              "label": "Auto Mode 2"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 3",
+                "default": false
+              },
+              "sourceDMX": [
+                31,
+                45
+              ],
+              "dmxMin": 31,
+              "dmxMax": 45,
+              "label": "Auto Mode 3"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 4",
+                "default": false
+              },
+              "sourceDMX": [
+                46,
+                60
+              ],
+              "dmxMin": 46,
+              "dmxMax": 60,
+              "label": "Auto Mode 4"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 5",
+                "default": false
+              },
+              "sourceDMX": [
+                61,
+                75
+              ],
+              "dmxMin": 61,
+              "dmxMax": 75,
+              "label": "Auto Mode 5"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 6",
+                "default": false
+              },
+              "sourceDMX": [
+                76,
+                90
+              ],
+              "dmxMin": 76,
+              "dmxMax": 90,
+              "label": "Auto Mode 6"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 7",
+                "default": false
+              },
+              "sourceDMX": [
+                91,
+                105
+              ],
+              "dmxMin": 91,
+              "dmxMax": 105,
+              "label": "Auto Mode 7"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 8",
+                "default": false
+              },
+              "sourceDMX": [
+                106,
+                120
+              ],
+              "dmxMin": 106,
+              "dmxMax": 120,
+              "label": "Auto Mode 8"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 9",
+                "default": false
+              },
+              "sourceDMX": [
+                121,
+                135
+              ],
+              "dmxMin": 121,
+              "dmxMax": 135,
+              "label": "Auto Mode 9"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 10",
+                "default": false
+              },
+              "sourceDMX": [
+                136,
+                150
+              ],
+              "dmxMin": 136,
+              "dmxMax": 150,
+              "label": "Auto Mode 10"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 11",
+                "default": false
+              },
+              "sourceDMX": [
+                151,
+                165
+              ],
+              "dmxMin": 151,
+              "dmxMax": 165,
+              "label": "Auto Mode 11"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 12",
+                "default": false
+              },
+              "sourceDMX": [
+                166,
+                180
+              ],
+              "dmxMin": 166,
+              "dmxMax": 180,
+              "label": "Auto Mode 12"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 13",
+                "default": false
+              },
+              "sourceDMX": [
+                181,
+                195
+              ],
+              "dmxMin": 181,
+              "dmxMax": 195,
+              "label": "Auto Mode 13"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 14",
+                "default": false
+              },
+              "sourceDMX": [
+                196,
+                210
+              ],
+              "dmxMin": 196,
+              "dmxMax": 210,
+              "label": "Auto Mode 14"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 15",
+                "default": false
+              },
+              "sourceDMX": [
+                211,
+                225
+              ],
+              "dmxMin": 211,
+              "dmxMax": 225,
+              "label": "Auto Mode 15"
+            },
+            {
+              "params": {
+                "name": "Color Mode",
+                "default": false
+              },
+              "sourceDMX": [
+                226,
+                240
+              ],
+              "dmxMin": 226,
+              "dmxMax": 240,
+              "label": "Color Mode"
+            },
+            {
+              "params": {
+                "name": "Sound Mode"
+              },
+              "sourceDMX": [
+                241,
+                255
+              ],
+              "dmxMin": 241,
+              "dmxMax": 255,
+              "label": "Sound Mode"
+            }
+          ]
+        },
+        {
+          "offset": 3,
+          "name": "Auto Speed",
+          "attribute": "generic",
+          "sourceCapability": "LXCustomCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "customName": "Auto Speed",
+          "functions": [
+            {
+              "params": {
+                "name": "Slow > Fast",
+                "continuous": true
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Slow > Fast"
+            }
+          ]
+        },
+        {
+          "offset": 4,
+          "name": "8/16 Bit",
+          "attribute": "generic",
+          "sourceCapability": "LXCustomCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "customName": "8/16 Bit",
+          "functions": [
+            {
+              "params": {
+                "continuous": true
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255
+            }
+          ]
+        },
+        {
+          "offset": 5,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ]
+        },
+        {
+          "offset": 6,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ]
+        },
+        {
+          "offset": 7,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ]
+        },
+        {
+          "offset": 8,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ]
+        },
+        {
+          "offset": 9,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ]
+        },
+        {
+          "offset": 10,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ]
+        },
+        {
+          "offset": 11,
+          "name": "Back Color",
+          "attribute": "generic",
+          "sourceCapability": "LXCustomCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "customName": "Back Color",
+          "functions": [
+            {
+              "params": {
+                "continuous": true
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255
+            }
+          ]
+        }
+      ],
+      "hasPanTilt": false,
+      "source": {
+        "format": "lightkeyfxt",
+        "filename": "Shehds - LED PAR 18x18W RGBWA+UV.lightkeyfxt",
+        "fixtureUUID": {
+          "_class": "NSUUID",
+          "NS.uuidbytes": {
+            "_bytesHex": "9a2a38996d694e1e8b4e064fef40c6bf"
+          }
+        },
+        "revisionUUID": {
+          "_class": "NSUUID",
+          "NS.uuidbytes": {
+            "_bytesHex": "b3942ac0d9c14b08a219297feb97af42"
+          }
+        },
+        "personalityIndex": 0,
+        "savingAppVersion": "5.3",
+        "requiredAppVersion": "4.4"
+      },
+      "panRangeDegrees": 0.0,
+      "tiltRangeDegrees": 0.0,
+      "panTimeSeconds": 0.0,
+      "tiltTimeSeconds": 0.0,
+      "tiltCenter": 0.0,
+      "beamSpreadDegrees": 25.0,
+      "beamType": 1,
+      "sourceBeamLayout": {
+        "_class": "LXStripBeamLayout",
+        "beamShape": 0,
+        "length": 18
+      }
+    },
+    {
+      "id": "57fc71a5-1f00-59b6-8b8e-74677c05d141",
+      "manufacturer": "Shehds",
+      "model": "LED PAR 18x18W RGBWA+UV",
+      "modeName": "120 Channel",
+      "channelCount": 120,
+      "channels": [
+        {
+          "offset": 0,
+          "name": "Intensity",
+          "attribute": "intensity",
+          "sourceCapability": "LXIntensityCapability",
+          "defaultValue": 0,
+          "highlightValue": 255,
+          "functions": [
+            {
+              "params": {},
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255
+            }
+          ]
+        },
+        {
+          "offset": 1,
+          "name": "Shutter / Strobe",
+          "attribute": "shutterStrobe",
+          "sourceCapability": "LXShutterStrobeCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "mode": 2,
+                "style": 0
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255
+            }
+          ]
+        },
+        {
+          "offset": 2,
+          "name": "Auto Mode",
+          "attribute": "generic",
+          "sourceCapability": "LXCustomCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "customName": "Auto Mode",
+          "functions": [
+            {
+              "params": {
+                "name": "Off"
+              },
+              "sourceDMX": [
+                0,
+                1
+              ],
+              "dmxMin": 0,
+              "dmxMax": 1,
+              "label": "Off"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 1"
+              },
+              "sourceDMX": [
+                2,
+                15
+              ],
+              "dmxMin": 2,
+              "dmxMax": 15,
+              "label": "Auto Mode 1"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 2",
+                "default": false
+              },
+              "sourceDMX": [
+                16,
+                30
+              ],
+              "dmxMin": 16,
+              "dmxMax": 30,
+              "label": "Auto Mode 2"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 3",
+                "default": false
+              },
+              "sourceDMX": [
+                31,
+                45
+              ],
+              "dmxMin": 31,
+              "dmxMax": 45,
+              "label": "Auto Mode 3"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 4",
+                "default": false
+              },
+              "sourceDMX": [
+                46,
+                60
+              ],
+              "dmxMin": 46,
+              "dmxMax": 60,
+              "label": "Auto Mode 4"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 5",
+                "default": false
+              },
+              "sourceDMX": [
+                61,
+                75
+              ],
+              "dmxMin": 61,
+              "dmxMax": 75,
+              "label": "Auto Mode 5"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 6",
+                "default": false
+              },
+              "sourceDMX": [
+                76,
+                90
+              ],
+              "dmxMin": 76,
+              "dmxMax": 90,
+              "label": "Auto Mode 6"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 7",
+                "default": false
+              },
+              "sourceDMX": [
+                91,
+                105
+              ],
+              "dmxMin": 91,
+              "dmxMax": 105,
+              "label": "Auto Mode 7"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 8",
+                "default": false
+              },
+              "sourceDMX": [
+                106,
+                120
+              ],
+              "dmxMin": 106,
+              "dmxMax": 120,
+              "label": "Auto Mode 8"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 9",
+                "default": false
+              },
+              "sourceDMX": [
+                121,
+                135
+              ],
+              "dmxMin": 121,
+              "dmxMax": 135,
+              "label": "Auto Mode 9"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 10",
+                "default": false
+              },
+              "sourceDMX": [
+                136,
+                150
+              ],
+              "dmxMin": 136,
+              "dmxMax": 150,
+              "label": "Auto Mode 10"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 11",
+                "default": false
+              },
+              "sourceDMX": [
+                151,
+                165
+              ],
+              "dmxMin": 151,
+              "dmxMax": 165,
+              "label": "Auto Mode 11"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 12",
+                "default": false
+              },
+              "sourceDMX": [
+                166,
+                180
+              ],
+              "dmxMin": 166,
+              "dmxMax": 180,
+              "label": "Auto Mode 12"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 13",
+                "default": false
+              },
+              "sourceDMX": [
+                181,
+                195
+              ],
+              "dmxMin": 181,
+              "dmxMax": 195,
+              "label": "Auto Mode 13"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 14",
+                "default": false
+              },
+              "sourceDMX": [
+                196,
+                210
+              ],
+              "dmxMin": 196,
+              "dmxMax": 210,
+              "label": "Auto Mode 14"
+            },
+            {
+              "params": {
+                "name": "Auto Mode 15",
+                "default": false
+              },
+              "sourceDMX": [
+                211,
+                225
+              ],
+              "dmxMin": 211,
+              "dmxMax": 225,
+              "label": "Auto Mode 15"
+            },
+            {
+              "params": {
+                "name": "Color Mode",
+                "default": false
+              },
+              "sourceDMX": [
+                226,
+                240
+              ],
+              "dmxMin": 226,
+              "dmxMax": 240,
+              "label": "Color Mode"
+            },
+            {
+              "params": {
+                "name": "Sound Mode"
+              },
+              "sourceDMX": [
+                241,
+                255
+              ],
+              "dmxMin": 241,
+              "dmxMax": 255,
+              "label": "Sound Mode"
+            }
+          ]
+        },
+        {
+          "offset": 3,
+          "name": "Auto Speed",
+          "attribute": "generic",
+          "sourceCapability": "LXCustomCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "customName": "Auto Speed",
+          "functions": [
+            {
+              "params": {
+                "name": {
+                  "_class": "NSMutableString",
+                  "NS.string": "Slow > Fast"
+                },
+                "continuous": true
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "{'_class': 'NSMutableString', 'NS.string': 'Slow > Fast'}"
+            }
+          ]
+        },
+        {
+          "offset": 4,
+          "name": "8/16 Bit",
+          "attribute": "generic",
+          "sourceCapability": "LXCustomCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "customName": "8/16 Bit",
+          "functions": [
+            {
+              "params": {
+                "continuous": true
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255
+            }
+          ]
+        },
+        {
+          "offset": 5,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ]
+        },
+        {
+          "offset": 6,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ]
+        },
+        {
+          "offset": 7,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ]
+        },
+        {
+          "offset": 8,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ]
+        },
+        {
+          "offset": 9,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ]
+        },
+        {
+          "offset": 10,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ]
+        },
+        {
+          "offset": 11,
+          "name": "Back Color",
+          "attribute": "generic",
+          "sourceCapability": "LXCustomCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "customName": "Back Color",
+          "functions": [
+            {
+              "params": {
+                "continuous": true
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255
+            }
+          ]
+        },
+        {
+          "offset": 12,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSIndexSet",
+            "NSLocation": 0,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 13,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSIndexSet",
+            "NSLocation": 0,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 14,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSIndexSet",
+            "NSLocation": 0,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 15,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSIndexSet",
+            "NSLocation": 0,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 16,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSIndexSet",
+            "NSLocation": 0,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 17,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSIndexSet",
+            "NSLocation": 0,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 18,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 1,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 19,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 1,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 20,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 1,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 21,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 1,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 22,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 1,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 23,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 1,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 24,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 2,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 25,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 2,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 26,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 2,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 27,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 2,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 28,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 2,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 29,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 2,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 30,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 3,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 31,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 3,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 32,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 3,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 33,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 3,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 34,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 3,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 35,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 3,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 36,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 4,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 37,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 4,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 38,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 4,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 39,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 4,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 40,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 4,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 41,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 4,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 42,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 5,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 43,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 5,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 44,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 5,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 45,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 5,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 46,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 5,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 47,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 5,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 48,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 6,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 49,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 6,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 50,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 6,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 51,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 6,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 52,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 6,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 53,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 6,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 54,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 7,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 55,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 7,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 56,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 7,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 57,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 7,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 58,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 7,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 59,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 7,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 60,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 8,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 61,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 8,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 62,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 8,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 63,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 8,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 64,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 8,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 65,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 8,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 66,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 9,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 67,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 9,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 68,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 9,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 69,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 9,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 70,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 9,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 71,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 9,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 72,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 10,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 73,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 10,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 74,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 10,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 75,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 10,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 76,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 10,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 77,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 10,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 78,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 11,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 79,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 11,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 80,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 11,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 81,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 11,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 82,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 11,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 83,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 11,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 84,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 12,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 85,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 12,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 86,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 12,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 87,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 12,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 88,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 12,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 89,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 12,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 90,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 13,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 91,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 13,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 92,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 13,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 93,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 13,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 94,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 13,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 95,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 13,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 96,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 14,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 97,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 14,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 98,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 14,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 99,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 14,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 100,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 14,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 101,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 14,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 102,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 15,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 103,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 15,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 104,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 15,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 105,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 15,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 106,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 15,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 107,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 15,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 108,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 16,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 109,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 16,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 110,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 16,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 111,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 16,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 112,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 16,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 113,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 16,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 114,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 17,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 115,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 17,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 116,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 17,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 117,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 17,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 118,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 17,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 119,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 17,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        }
+      ],
+      "hasPanTilt": false,
+      "source": {
+        "format": "lightkeyfxt",
+        "filename": "Shehds - LED PAR 18x18W RGBWA+UV.lightkeyfxt",
+        "fixtureUUID": {
+          "_class": "NSUUID",
+          "NS.uuidbytes": {
+            "_bytesHex": "9a2a38996d694e1e8b4e064fef40c6bf"
+          }
+        },
+        "revisionUUID": {
+          "_class": "NSUUID",
+          "NS.uuidbytes": {
+            "_bytesHex": "b3942ac0d9c14b08a219297feb97af42"
+          }
+        },
+        "personalityIndex": 1,
+        "savingAppVersion": "5.3",
+        "requiredAppVersion": "4.4"
+      },
+      "panRangeDegrees": 0.0,
+      "tiltRangeDegrees": 0.0,
+      "panTimeSeconds": 0.0,
+      "tiltTimeSeconds": 0.0,
+      "tiltCenter": 0.0,
+      "beamSpreadDegrees": 25.0,
+      "beamType": 1,
+      "sourceBeamLayout": {
+        "_class": "LXStripBeamLayout",
+        "beamShape": 0,
+        "length": 18
+      }
+    },
+    {
+      "id": "1420eb92-5876-5cb8-8fc4-af33f6094cea",
+      "manufacturer": "Shehds",
+      "model": "LED PAR 18x18W RGBWA+UV",
+      "modeName": "108 Channel",
+      "channelCount": 108,
+      "channels": [
+        {
+          "offset": 0,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSIndexSet",
+            "NSLocation": 0,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 1,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSIndexSet",
+            "NSLocation": 0,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 2,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSIndexSet",
+            "NSLocation": 0,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 3,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSIndexSet",
+            "NSLocation": 0,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 4,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSIndexSet",
+            "NSLocation": 0,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 5,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSIndexSet",
+            "NSLocation": 0,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 6,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 1,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 7,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 1,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 8,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 1,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 9,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 1,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 10,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 1,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 11,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 1,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 12,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 2,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 13,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 2,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 14,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 2,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 15,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 2,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 16,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 2,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 17,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 2,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 18,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 3,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 19,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 3,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 20,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 3,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 21,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 3,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 22,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 3,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 23,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 3,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 24,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 4,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 25,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 4,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 26,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 4,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 27,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 4,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 28,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 4,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 29,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 4,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 30,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 5,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 31,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 5,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 32,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 5,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 33,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 5,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 34,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 5,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 35,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 5,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 36,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 6,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 37,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 6,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 38,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 6,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 39,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 6,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 40,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 6,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 41,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 6,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 42,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 7,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 43,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 7,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 44,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 7,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 45,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 7,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 46,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 7,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 47,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 7,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 48,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 8,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 49,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 8,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 50,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 8,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 51,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 8,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 52,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 8,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 53,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 8,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 54,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 9,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 55,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 9,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 56,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 9,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 57,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 9,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 58,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 9,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 59,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 9,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 60,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 10,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 61,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 10,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 62,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 10,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 63,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 10,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 64,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 10,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 65,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 10,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 66,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 11,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 67,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 11,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 68,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 11,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 69,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 11,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 70,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 11,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 71,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 11,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 72,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 12,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 73,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 12,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 74,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 12,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 75,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 12,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 76,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 12,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 77,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 12,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 78,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 13,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 79,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 13,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 80,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 13,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 81,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 13,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 82,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 13,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 83,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 13,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 84,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 14,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 85,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 14,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 86,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 14,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 87,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 14,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 88,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 14,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 89,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 14,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 90,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 15,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 91,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 15,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 92,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 15,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 93,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 15,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 94,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 15,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 95,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 15,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 96,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 16,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 97,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 16,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 98,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 16,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 99,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 16,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 100,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 16,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 101,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 16,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 102,
+          "name": "Red",
+          "attribute": "colorR",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Red"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Red"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 17,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 103,
+          "name": "Green",
+          "attribute": "colorG",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Green"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Green"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 17,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 104,
+          "name": "Blue",
+          "attribute": "colorB",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Blue"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Blue"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 17,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 105,
+          "name": "CoolWhite",
+          "attribute": "colorCoolWhite",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "CoolWhite"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "CoolWhite"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 17,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 106,
+          "name": "Amber",
+          "attribute": "colorA",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Amber"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Amber"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 17,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        },
+        {
+          "offset": 107,
+          "name": "Ultraviolet",
+          "attribute": "colorUV",
+          "sourceCapability": "LXColorComponentCapability",
+          "defaultValue": 0,
+          "highlightValue": 0,
+          "functions": [
+            {
+              "params": {
+                "componentName": "Ultraviolet"
+              },
+              "sourceDMX": [
+                0,
+                255
+              ],
+              "dmxMin": 0,
+              "dmxMax": 255,
+              "label": "Ultraviolet"
+            }
+          ],
+          "beamIndexes": {
+            "_class": "NSMutableIndexSet",
+            "NSLocation": 17,
+            "NSRangeCount": 1,
+            "NSLength": 1
+          }
+        }
+      ],
+      "hasPanTilt": false,
+      "source": {
+        "format": "lightkeyfxt",
+        "filename": "Shehds - LED PAR 18x18W RGBWA+UV.lightkeyfxt",
+        "fixtureUUID": {
+          "_class": "NSUUID",
+          "NS.uuidbytes": {
+            "_bytesHex": "9a2a38996d694e1e8b4e064fef40c6bf"
+          }
+        },
+        "revisionUUID": {
+          "_class": "NSUUID",
+          "NS.uuidbytes": {
+            "_bytesHex": "b3942ac0d9c14b08a219297feb97af42"
+          }
+        },
+        "personalityIndex": 2,
+        "savingAppVersion": "5.3",
+        "requiredAppVersion": "4.4"
+      },
+      "panRangeDegrees": 0.0,
+      "tiltRangeDegrees": 0.0,
+      "panTimeSeconds": 0.0,
+      "tiltTimeSeconds": 0.0,
+      "tiltCenter": 0.0,
+      "beamSpreadDegrees": 25.0,
+      "beamType": 1,
+      "sourceBeamLayout": {
+        "_class": "LXStripBeamLayout",
+        "beamShape": 0,
+        "length": 18
+      }
+    }
+  ],
+  "warnings": []
+}

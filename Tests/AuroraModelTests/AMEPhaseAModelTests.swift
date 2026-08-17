@@ -140,13 +140,24 @@ final class AMEPhaseAModelTests: XCTestCase {
         XCTAssertEqual(loaded.songs[0].sections.first?.name, "Main")
     }
 
-    func testSchemaV3MigratesToV4WithMainSection() throws {
+    func testSchemaV3MigratesToCurrentWithMainSection() throws {
         var project = ShowProject.sample()
         project.schemaVersion = 3
         project.songs[0].sections = []
         let migrated = try SchemaMigration.migrate(project)
-        XCTAssertEqual(migrated.schemaVersion, 4)
+        // Full pipeline to current (v5+); v3→v4 still seeds Main section.
+        XCTAssertEqual(migrated.schemaVersion, ProjectPackage.currentSchemaVersion)
         XCTAssertEqual(migrated.songs[0].sections.first?.name, "Main")
+        XCTAssertTrue(migrated.cueBlocks.isEmpty)
+    }
+
+    func testSchemaV4MigratesToV5EmptyCueBlocks() throws {
+        var project = ShowProject.sample()
+        project.schemaVersion = 4
+        project.cueBlocks = []
+        let migrated = try SchemaMigration.migrate(project)
+        XCTAssertEqual(migrated.schemaVersion, 5)
+        XCTAssertTrue(migrated.cueBlocks.isEmpty)
     }
 
     func testTypedSectionLifecycleActionsRoundTrip() throws {

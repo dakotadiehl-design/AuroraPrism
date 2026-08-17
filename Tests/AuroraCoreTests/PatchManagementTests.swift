@@ -136,6 +136,38 @@ final class PatchManagementTests: XCTestCase {
         XCTAssertEqual(session.project.fixtureDefinitions.count, 0)
     }
 
+    func testRemoveUnusedFixtureDefinitionUndo() throws {
+        let definition = dimmerDefinition()
+        let session = DocumentSession(project: ShowProject.empty())
+        try session.perform(EmbedFixtureDefinitionCommand(definition: definition))
+
+        try session.perform(RemoveFixtureDefinitionCommand(definitionID: definition.id))
+        XCTAssertNil(session.project.definition(id: definition.id))
+
+        try session.undo()
+        XCTAssertEqual(session.project.definition(id: definition.id), definition)
+    }
+
+    func testRemoveFixtureDefinitionRejectsModeInUse() throws {
+        let definition = dimmerDefinition()
+        let universe = Universe(number: 1)
+        var project = ShowProject.empty()
+        project.fixtureDefinitions = [definition]
+        project.universes = [universe]
+        project.fixtures = [PatchedFixture(
+            name: "Dimmer 1",
+            definitionId: definition.id,
+            universeId: universe.id,
+            address: 1
+        )]
+        let session = DocumentSession(project: project)
+
+        XCTAssertThrowsError(
+            try session.perform(RemoveFixtureDefinitionCommand(definitionID: definition.id))
+        )
+        XCTAssertNotNil(session.project.definition(id: definition.id))
+    }
+
     /// Stable definition identity: embedding a library personality must keep the same UUID
     /// so fixtures resolve the profile and the library list does not accumulate clones.
     func testEmbedPreservesDefinitionIdentityAcrossRepeatedEnsures() throws {

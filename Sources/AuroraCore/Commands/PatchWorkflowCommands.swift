@@ -1,6 +1,42 @@
 import AuroraModel
 import Foundation
 
+/// Assigns a user-facing name to one patched fixture without changing its identity or patch.
+@MainActor
+public final class RenameFixtureCommand: Command {
+    public let name = "Rename Fixture"
+    private let fixtureID: UUID
+    private let newName: String
+    private var previousName: String?
+
+    public init(fixtureID: UUID, newName: String) {
+        self.fixtureID = fixtureID
+        self.newName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    public func perform(context: CommandContext) throws {
+        guard let index = context.project.fixtures.firstIndex(where: { $0.id == fixtureID }) else {
+            throw CommandError.message("Fixture not found")
+        }
+        try FixtureNameValidator.validate(newName, in: context.project, excluding: [fixtureID])
+        previousName = context.project.fixtures[index].name
+        context.updateProject {
+            $0.fixtures[index].name = newName
+            $0.metadata.modifiedAt = Date()
+        }
+    }
+
+    public func undo(context: CommandContext) throws {
+        guard let previousName,
+              let index = context.project.fixtures.firstIndex(where: { $0.id == fixtureID })
+        else { return }
+        context.updateProject {
+            $0.fixtures[index].name = previousName
+            $0.metadata.modifiedAt = Date()
+        }
+    }
+}
+
 /// Renumber selected fixtures with contiguous display names / optional address pack.
 @MainActor
 public final class RenumberFixturesCommand: Command {
@@ -23,6 +59,14 @@ public final class RenumberFixturesCommand: Command {
     }
 
     public func perform(context: CommandContext) throws {
+        let candidateNames = fixtureIDs.enumerated().map { offset, _ in
+            "\(namePrefix) \(startNumber + offset)"
+        }
+        try FixtureNameValidator.validateBatch(
+            candidateNames,
+            in: context.project,
+            excluding: Set(fixtureIDs)
+        )
         previousNames = [:]
         var n = startNumber
         context.updateProject { project in
@@ -84,6 +128,8 @@ public final class BulkCreateFixturesCommand: Command {
         guard context.project.universe(id: universeID) != nil else {
             throw CommandError.message("Universe not found")
         }
+        let candidateNames = (0..<count).map { "\(namePrefix) \($0 + 1)" }
+        try FixtureNameValidator.validateBatch(candidateNames, in: context.project)
         let footprint = def.calculatedFootprint
         createdIDs = []
         context.updateProject { project in
@@ -132,6 +178,14 @@ public final class ImportPatchCSVCommand: Command {
         let header = lines[0].lowercased()
         let hasHeader = header.contains("universe") || header.contains("address")
         let dataLines = hasHeader ? Array(lines.dropFirst()) : lines
+
+        let candidateNames = dataLines.compactMap { line -> String? in
+            let cols = parseCSVLine(line)
+            guard cols.count >= 3 else { return nil }
+            if cols.count >= 6 && header.contains("manufacturer") { return cols[3] }
+            return cols[2]
+        }.map { $0.isEmpty ? "Import" : $0 }
+        try FixtureNameValidator.validateBatch(candidateNames, in: context.project)
 
         context.updateProject { project in
             for line in dataLines {

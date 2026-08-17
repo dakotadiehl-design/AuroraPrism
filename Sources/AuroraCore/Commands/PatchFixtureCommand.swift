@@ -22,6 +22,7 @@ public final class PatchFixtureCommand: Command {
 
     public func perform(context: CommandContext) throws {
         precondition(fixture.definitionId == definition.id, "fixture.definitionId must match definition.id")
+        try FixtureNameValidator.validate(fixture.name, in: context.project)
 
         if context.project.definition(id: definition.id) == nil {
             context.updateProject { project in

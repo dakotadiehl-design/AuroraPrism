@@ -123,7 +123,7 @@ public struct LegacyWorkspaceView: View {
     }
 
     private var leadingTabs: [WorkspacePanelID] {
-        [.fixtureBrowser, .patch, .groups, .palettes, .song, .effects].filter { layout.isVisible($0) }
+        [.fixtureBrowser, .patch, .groups, .cueBlocks, .palettes, .song, .effects].filter { layout.isVisible($0) }
     }
 
     private var centerTabs: [WorkspacePanelID] {

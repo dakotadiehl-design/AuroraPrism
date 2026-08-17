@@ -57,11 +57,19 @@ public struct PatchWorkspaceView: View {
     @State private var ghostPlan: PatchBatchPlan?
     @State private var hoverAddress: UInt16?
     @State private var dragRepatchID: UUID?
+    @State private var dragRepatchAddress: UInt16?
+    @State private var dragRepatchIsValid = false
     @State private var didApplySeed = false
     @State private var repatchSheetFixtureID: UUID?
     @State private var repatchAddressText: String = ""
     @State private var confirmDeleteIDs: [UUID] = []
     @State private var showDeleteConfirm = false
+    @State private var renameFixtureID: UUID?
+    @State private var renameDraft = ""
+    @State private var renameErrorMessage: String?
+    @State private var pendingRemoveDefinitions: [FixtureDefinition] = []
+    @State private var pendingRemoveIsProfile = false
+    @State private var pendingRemovalIsProjectOnly = false
 
     private let channelsPerRow = DMXUniverseGridLayout.channelsPerRowDefault
 
@@ -109,14 +117,6 @@ public struct PatchWorkspaceView: View {
             let existing = Set(list.map(\.id))
             for d in box.definitions where !existing.contains(d.id) {
                 list.append(d)
-            }
-        }
-        if !searchText.isEmpty {
-            let q = searchText.lowercased()
-            list = list.filter {
-                $0.displayName.lowercased().contains(q)
-                    || $0.manufacturer.lowercased().contains(q)
-                    || $0.model.lowercased().contains(q)
             }
         }
         return list.sorted {
@@ -204,6 +204,25 @@ public struct PatchWorkspaceView: View {
         .sheet(item: $repatchSheetFixtureID) { id in
             repatchSheet(fixtureID: id)
         }
+        .alert("Rename Fixture", isPresented: Binding(
+            get: { renameFixtureID != nil },
+            set: { if !$0 { renameFixtureID = nil } }
+        )) {
+            TextField("Fixture name", text: $renameDraft)
+            Button("Rename") { commitFixtureRename() }
+                .disabled(renameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            Button("Cancel", role: .cancel) { renameFixtureID = nil }
+        } message: {
+            Text("This name is used throughout Patch, Stage, Groups, Programmer, and Cue Blocks.")
+        }
+        .alert("Unable to Rename Fixture", isPresented: Binding(
+            get: { renameErrorMessage != nil },
+            set: { if !$0 { renameErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { renameErrorMessage = nil }
+        } message: {
+            Text(renameErrorMessage ?? "The fixture could not be renamed.")
+        }
         .confirmationDialog(
             deleteConfirmTitle,
             isPresented: $showDeleteConfirm,
@@ -217,6 +236,33 @@ public struct PatchWorkspaceView: View {
             }
         } message: {
             Text(deleteConfirmMessage)
+        }
+        .confirmationDialog(
+            pendingRemovalIsProjectOnly
+                ? (pendingRemoveIsProfile ? "Remove Fixture Profile from Project?" : "Remove Fixture Mode from Project?")
+                : (pendingRemoveIsProfile ? "Remove Imported Fixture Profile?" : "Remove Imported Fixture Mode?"),
+            isPresented: Binding(
+                get: { !pendingRemoveDefinitions.isEmpty },
+                set: { if !$0 { resetPendingDefinitionRemoval() } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(pendingRemoveIsProfile ? "Remove Entire Profile" : "Remove Mode", role: .destructive) {
+                removePendingFixtureDefinitions()
+            }
+            Button("Cancel", role: .cancel) { resetPendingDefinitionRemoval() }
+        } message: {
+            if let definition = pendingRemoveDefinitions.first {
+                if pendingRemovalIsProjectOnly && pendingRemoveIsProfile {
+                    Text("Remove \(definition.manufacturer) \(definition.model) and all unused embedded modes from this project? This does not affect your User Library.")
+                } else if pendingRemovalIsProjectOnly {
+                    Text("Remove \(definition.manufacturer) \(definition.model) — \(definition.modeName) from this project? This does not affect your User Library.")
+                } else if pendingRemoveIsProfile {
+                    Text("Remove \(definition.manufacturer) \(definition.model) and all \(pendingRemoveDefinitions.count) modes from your User Library? Existing projects keep their embedded copies.")
+                } else {
+                    Text("Remove \(definition.manufacturer) \(definition.model) — \(definition.modeName) from your User Library? Existing projects keep their embedded copies.")
+                }
+            }
         }
     }
 
@@ -291,20 +337,6 @@ public struct PatchWorkspaceView: View {
             .pickerStyle(.segmented)
             .frame(maxWidth: 200)
 
-            if !universes.isEmpty {
-                Picker("Universe", selection: Binding(
-                    get: { selectedUniverse?.id ?? universes[0].id },
-                    set: { selectedUniverseID = $0; ghostPlan = nil; statusText = nil }
-                )) {
-                    ForEach(universes) { u in
-                        Text("Universe \(u.number)\(u.name.isEmpty ? "" : " · \(u.name)")")
-                            .tag(u.id)
-                    }
-                }
-                .labelsHidden()
-                .frame(maxWidth: 220)
-            }
-
             Text(routeLabel)
                 .font(AuroraTypography.metadata)
                 .foregroundStyle(AuroraColor.textTertiary)
@@ -363,6 +395,9 @@ public struct PatchWorkspaceView: View {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, minHeight: 420, alignment: .topLeading)
+                .contentShape(Rectangle())
+                .onTapGesture { clearLibrarySelection() }
                 .padding(.bottom, 12)
             }
 
@@ -437,68 +472,229 @@ public struct PatchWorkspaceView: View {
         .help("Unpatched — drag to universe or use Repatch…")
     }
 
-    private var groupedManufacturers: [(String, [FixtureDefinition])] {
-        let grouped = Dictionary(grouping: definitions) {
-            $0.manufacturer.isEmpty ? "Generic" : $0.manufacturer
+    private var groupedManufacturers: [(String, [FixtureProfileFamily])] {
+        let families = Dictionary(grouping: definitions) { definition in
+            normalizedFixtureFamilyKey(definition)
+        }.values.compactMap { modes -> FixtureProfileFamily? in
+            guard let first = modes.first else { return nil }
+            let sortedModes = modes.sorted {
+                let comparison = $0.modeName.localizedStandardCompare($1.modeName)
+                if comparison != .orderedSame { return comparison == .orderedAscending }
+                return $0.id.uuidString < $1.id.uuidString
+            }
+            let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !query.isEmpty && !sortedModes.contains(where: {
+                $0.manufacturer.localizedCaseInsensitiveContains(query)
+                    || $0.model.localizedCaseInsensitiveContains(query)
+                    || $0.modeName.localizedCaseInsensitiveContains(query)
+            }) { return nil }
+            return FixtureProfileFamily(
+                id: normalizedFixtureFamilyKey(first),
+                manufacturer: first.manufacturer.isEmpty ? "Generic" : first.manufacturer,
+                model: first.model,
+                modes: sortedModes
+            )
         }
-        return grouped.keys.sorted().map { ($0, grouped[$0] ?? []) }
+        let grouped = Dictionary(grouping: families, by: \.manufacturer)
+        return grouped.keys.sorted {
+            $0.localizedStandardCompare($1) == .orderedAscending
+        }.map { manufacturer in
+            let orderedFamilies = (grouped[manufacturer] ?? []).sorted {
+                let comparison = $0.model.localizedStandardCompare($1.model)
+                if comparison != .orderedSame { return comparison == .orderedAscending }
+                return $0.id < $1.id
+            }
+            return (manufacturer, orderedFamilies)
+        }
     }
 
-    private func profileCard(_ def: FixtureDefinition) -> some View {
+    private func profileCard(_ family: FixtureProfileFamily) -> some View {
+        let def = family.modes.first(where: { $0.id == selectedDefinitionID }) ?? family.modes[0]
         let selected = selectedDefinitionID == def.id
-        let fp = max(def.channelCount, def.calculatedFootprint)
-        return Button {
-            selectedDefinitionID = def.id
-            namePrefix = shortPrefix(for: def)
-            ghostPlan = nil
-            // Embed once with stable ID so planner/fixtures resolve this personality.
-            _ = try? ensureDefinitionEmbedded(def)
-            if clickToPatchArmed {
-                statusText = "PATCH armed — click a free DMX address"
-            }
-        } label: {
-            HStack(alignment: .center, spacing: 10) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(selected ? AuroraColor.accent.opacity(0.25) : AuroraColor.surfaceWell)
-                        .frame(width: 36, height: 36)
-                    Image(systemName: iconName(for: def))
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(selected ? AuroraColor.accentBright : AuroraColor.textSecondary)
+        return VStack(alignment: .leading, spacing: 7) {
+            Button {
+                if selectedDefinitionID == def.id {
+                    clearLibrarySelection()
+                } else {
+                    selectDefinition(def)
                 }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(def.model)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(AuroraColor.textPrimary)
-                        .lineLimit(1)
-                    Text(def.manufacturer.isEmpty ? "—" : def.manufacturer)
-                        .font(.system(size: 11))
-                        .foregroundStyle(AuroraColor.textTertiary)
-                        .lineLimit(1)
-                    Text("\(def.modeName) · \(fp) ch")
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(AuroraColor.textSecondary)
+            } label: {
+                HStack(alignment: .center, spacing: 10) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(selected ? AuroraColor.accent.opacity(0.25) : AuroraColor.surfaceWell)
+                            .frame(width: 36, height: 36)
+                        Image(systemName: iconName(for: def))
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(selected ? AuroraColor.accentBright : AuroraColor.textSecondary)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(family.model)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(AuroraColor.textPrimary)
+                            .lineLimit(1)
+                        Text(family.manufacturer)
+                            .font(.system(size: 11))
+                            .foregroundStyle(AuroraColor.textTertiary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
             }
-            .padding(8)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(selected ? AuroraColor.surfaceSelected : AuroraColor.surfaceRaised.opacity(0.55))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(
-                        selected ? AuroraColor.accent.opacity(0.85) : AuroraColor.separatorStrong,
-                        lineWidth: selected ? 1.5 : 0.5
-                    )
-            )
+            .buttonStyle(.plain)
+
+            HStack(spacing: 6) {
+                Text("Mode")
+                    .font(AuroraTypography.metadata)
+                    .foregroundStyle(AuroraColor.textTertiary)
+                Picker("Mode", selection: Binding(
+                    get: { def.id },
+                    set: { id in
+                        if let mode = family.modes.first(where: { $0.id == id }) {
+                            selectDefinition(mode)
+                        }
+                    }
+                )) {
+                    ForEach(family.modes) { mode in
+                        let footprint = max(mode.channelCount, mode.calculatedFootprint)
+                        Text("\(mode.modeName) (\(footprint) ch)").tag(mode.id)
+                    }
+                }
+                .labelsHidden()
+                .controlSize(.small)
+                .frame(maxWidth: .infinity)
+            }
         }
-        .buttonStyle(.plain)
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 8).fill(selected ? AuroraColor.surfaceSelected : AuroraColor.surfaceRaised.opacity(0.55)))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(selected ? AuroraColor.accent.opacity(0.85) : AuroraColor.separatorStrong, lineWidth: selected ? 1.5 : 0.5))
+        .contextMenu {
+            if isImportedDefinition(def) {
+                Button("Remove Imported Mode…", role: .destructive) {
+                    pendingRemoveDefinitions = [def]
+                    pendingRemoveIsProfile = false
+                    pendingRemovalIsProjectOnly = false
+                }
+            }
+            let importedModes = family.modes.filter(isImportedDefinition)
+            if !importedModes.isEmpty {
+                Divider()
+                Button(
+                    importedModes.count == family.modes.count
+                        ? "Remove Entire Fixture Profile…"
+                        : "Remove All Imported Modes…",
+                    role: .destructive
+                ) {
+                    pendingRemoveDefinitions = importedModes
+                    pendingRemoveIsProfile = true
+                    pendingRemovalIsProjectOnly = false
+                }
+            }
+            let projectOnlyModes = family.modes.filter(isProjectOnlyDefinition)
+            if isProjectOnlyDefinition(def) {
+                Divider()
+                Button("Remove Mode from Project…", role: .destructive) {
+                    pendingRemoveDefinitions = [def]
+                    pendingRemoveIsProfile = false
+                    pendingRemovalIsProjectOnly = true
+                }
+                .disabled(isDefinitionInUse(def.id))
+            }
+            if !projectOnlyModes.isEmpty {
+                Button("Remove Entire Profile from Project…", role: .destructive) {
+                    pendingRemoveDefinitions = projectOnlyModes
+                    pendingRemoveIsProfile = true
+                    pendingRemovalIsProjectOnly = true
+                }
+                .disabled(projectOnlyModes.contains { isDefinitionInUse($0.id) })
+            }
+            if importedModes.isEmpty && projectOnlyModes.isEmpty {
+                Text("Built-in mode")
+            }
+        }
         .onDrag {
-            selectedDefinitionID = def.id
-            namePrefix = shortPrefix(for: def)
+            selectDefinition(def)
             return NSItemProvider(object: "aurora.def.\(def.id.uuidString)" as NSString)
+        }
+    }
+
+    private func normalizedFixtureFamilyKey(_ definition: FixtureDefinition) -> String {
+        [definition.manufacturer, definition.model]
+            .map {
+                $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+                    .lowercased()
+            }
+            .joined(separator: "\u{1f}")
+    }
+
+    private func selectDefinition(_ definition: FixtureDefinition) {
+        selectedDefinitionID = definition.id
+        namePrefix = shortPrefix(for: definition)
+        ghostPlan = nil
+        _ = try? ensureDefinitionEmbedded(definition)
+        if clickToPatchArmed {
+            statusText = "PATCH armed — click a free DMX address"
+        }
+    }
+
+    private func clearLibrarySelection() {
+        selectedDefinitionID = nil
+        ghostPlan = nil
+        clickToPatchArmed = false
+        statusText = nil
+    }
+
+    private func isImportedDefinition(_ definition: FixtureDefinition) -> Bool {
+        context.fixtureLibrary?.userDefinitionIDs.contains(definition.id) == true
+    }
+
+    private func isProjectOnlyDefinition(_ definition: FixtureDefinition) -> Bool {
+        context.project.fixtureDefinitions.contains(where: { $0.id == definition.id })
+            && context.fixtureLibrary?.builtInDefinitionIDs.contains(definition.id) != true
+            && context.fixtureLibrary?.userDefinitionIDs.contains(definition.id) != true
+    }
+
+    private func isDefinitionInUse(_ definitionID: UUID) -> Bool {
+        context.project.fixtures.contains { $0.definitionId == definitionID }
+    }
+
+    private func resetPendingDefinitionRemoval() {
+        pendingRemoveDefinitions = []
+        pendingRemoveIsProfile = false
+        pendingRemovalIsProjectOnly = false
+    }
+
+    private func removePendingFixtureDefinitions() {
+        let definitionsToRemove = pendingRemoveDefinitions
+        guard let first = definitionsToRemove.first else { return }
+        let removingProfile = pendingRemoveIsProfile
+        let removingFromProject = pendingRemovalIsProjectOnly
+        defer { resetPendingDefinitionRemoval() }
+        do {
+            if removingFromProject {
+                try context.session.beginGroup(named: removingProfile ? "Remove Fixture Profile from Project" : "Remove Fixture Mode from Project")
+                for definition in definitionsToRemove {
+                    try context.session.perform(RemoveFixtureDefinitionCommand(definitionID: definition.id))
+                }
+                try context.session.endGroup()
+            } else {
+                try context.fixtureLibrary?.removeUserDefinitions(Set(definitionsToRemove.map(\.id)))
+            }
+            let removedIDs = Set(definitionsToRemove.map(\.id))
+            if let selectedDefinitionID,
+               removedIDs.contains(selectedDefinitionID),
+               !context.project.fixtureDefinitions.contains(where: { $0.id == selectedDefinitionID }) {
+                self.selectedDefinitionID = definitions.first(where: { !removedIDs.contains($0.id) })?.id
+            }
+            statusText = (removingProfile
+                ? "Removed \(first.model) fixture profile"
+                : "Removed \(first.model) — \(first.modeName)")
+                + (removingFromProject ? " from project" : " from User Library")
+            onChanged()
+        } catch {
+            if removingFromProject { try? context.session.cancelGroup() }
+            statusText = error.localizedDescription
         }
     }
 
@@ -607,10 +803,13 @@ public struct PatchWorkspaceView: View {
     // MARK: - Universe canvas (fills available space)
 
     private var universeCanvas: some View {
-        GeometryReader { geo in
-            let metrics = layoutMetrics(in: geo.size)
-            ScrollView([.vertical]) {
-                ZStack(alignment: .topLeading) {
+        VStack(spacing: 0) {
+            universeTabs
+            Divider().overlay(AuroraColor.separator)
+            GeometryReader { geo in
+                let metrics = layoutMetrics(in: geo.size)
+                ScrollView([.vertical]) {
+                    ZStack(alignment: .topLeading) {
                     // 1. Quiet DMX coordinate system (underlying grid)
                     coordinateBackground(metrics: metrics)
                     coordinateLabels(metrics: metrics)
@@ -623,32 +822,109 @@ public struct PatchWorkspaceView: View {
                         fixtureBlockViews(fx: fx, metrics: metrics)
                     }
 
+                    // The real fixture remains at its committed address until drop. This
+                    // purple ghost previews the proposed repatch destination while dragging.
+                    if let fixtureID = dragRepatchID,
+                       let address = dragRepatchAddress,
+                       let fixture = fixturesInUniverse.first(where: { $0.id == fixtureID }) {
+                        ghostBlockViews(
+                            start: address,
+                            footprint: context.project.channelCount(for: fixture),
+                            label: fixture.name,
+                            valid: dragRepatchIsValid,
+                            metrics: metrics,
+                            tint: AuroraColor.accentBright
+                        )
+                    }
+
                     // 4. Ghost batch (valid green / invalid red)
                     if let plan = ghostPlan {
                         ForEach(Array(ghostStarts(for: plan).enumerated()), id: \.offset) { i, start in
                             ghostBlockViews(
                                 start: start,
                                 footprint: max(plan.footprint, 1),
-                                label: "\(plan.namePrefix) \(i + 1)",
+                                label: "\(plan.namePrefix) \(plan.nameStartNumber + i)",
                                 valid: plan.isValid,
                                 metrics: metrics
                             )
                         }
                     }
+                    }
+                    .frame(
+                        width: metrics.totalWidth,
+                        height: metrics.totalHeight,
+                        alignment: .topLeading
+                    )
+                    .padding(12)
                 }
-                .frame(
-                    width: metrics.totalWidth,
-                    height: metrics.totalHeight,
-                    alignment: .topLeading
-                )
-                .padding(12)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(AuroraColor.surfaceWell)
-            .onDrop(of: [.text], isTargeted: nil) { providers, location in
-                handleDefinitionDrop(providers, at: location, metrics: metrics)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(AuroraColor.surfaceWell)
+                .onDrop(of: [.text], isTargeted: nil) { providers, location in
+                    handleDefinitionDrop(providers, at: location, metrics: metrics)
+                }
             }
         }
+    }
+
+    private var universeTabs: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 2) {
+                ForEach(universes) { universe in
+                    let isSelected = selectedUniverse?.id == universe.id
+                    Button {
+                        selectUniverse(universe.id)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Universe \(universe.number)")
+                                .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
+                            Text(universe.name.isEmpty ? universe.protocolHint.rawValue : universe.name)
+                                .font(.system(size: 9))
+                                .foregroundStyle(isSelected ? Color.white.opacity(0.72) : AuroraColor.textTertiary)
+                                .lineLimit(1)
+                        }
+                        .frame(minWidth: 112, alignment: .leading)
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 7)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(isSelected ? Color.white : AuroraColor.textSecondary)
+                    .background(
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(isSelected ? AuroraColor.accent : Color.clear)
+                    )
+                    .overlay(alignment: .bottom) {
+                        if isSelected {
+                            Rectangle()
+                                .fill(Color.white.opacity(0.75))
+                                .frame(height: 2)
+                                .padding(.horizontal, 8)
+                        }
+                    }
+                    .accessibilityLabel("Universe \(universe.number)")
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                }
+
+                Button(action: addUniverse) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .semibold))
+                        .frame(width: 34, height: 34)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(AuroraColor.textSecondary)
+                .help("Add Universe")
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+        }
+        .background(AuroraColor.surfaceHeader)
+    }
+
+    private func selectUniverse(_ id: UUID) {
+        selectedUniverseID = id
+        ghostPlan = nil
+        hoverAddress = nil
+        statusText = nil
     }
 
     private struct UniverseMetrics {
@@ -673,7 +949,8 @@ public struct PatchWorkspaceView: View {
         return UniverseMetrics(cellW: cellW, cellH: cellH, cols: cols, rows: rows)
     }
 
-    /// Subtle bands + column guides only — addresses are landmarks, not 512 cells.
+    /// Every DMX address is a visible cell. Each tenth address is emphasized as a
+    /// scanning landmark without competing with fixture blocks.
     private func coordinateBackground(metrics: UniverseMetrics) -> some View {
         Canvas { ctx, _ in
             let cols = metrics.cols
@@ -681,7 +958,6 @@ public struct PatchWorkspaceView: View {
             let cw = metrics.cellW
             let ch = metrics.cellH
             let totalW = CGFloat(cols) * cw
-            let totalH = CGFloat(rows) * ch
 
             for row in 0..<rows {
                 let y = CGFloat(row) * ch
@@ -691,41 +967,36 @@ public struct PatchWorkspaceView: View {
                         with: .color(Color.white.opacity(0.025))
                     )
                 }
-                // Soft horizontal row separator
-                var hLine = Path()
-                hLine.move(to: CGPoint(x: 0, y: y))
-                hLine.addLine(to: CGPoint(x: totalW, y: y))
-                ctx.stroke(hLine, with: .color(Color.white.opacity(0.035)), lineWidth: 1)
-            }
-
-            for col in stride(from: 0, through: cols, by: 8) {
-                var path = Path()
-                let x = CGFloat(col) * cw
-                path.move(to: CGPoint(x: x, y: 0))
-                path.addLine(to: CGPoint(x: x, y: totalH))
-                let strong = col == 0 || col == cols || col % 16 == 0
-                ctx.stroke(
-                    path,
-                    with: .color(Color.white.opacity(strong ? 0.07 : 0.035)),
-                    lineWidth: 1
-                )
+                for col in 0..<cols {
+                    let address = row * cols + col + 1
+                    guard address <= channelCount else { continue }
+                    let rect = CGRect(x: CGFloat(col) * cw, y: y, width: cw, height: ch)
+                    let tenth = address % 10 == 0
+                    ctx.stroke(
+                        Path(rect),
+                        with: .color(Color.white.opacity(tenth ? 0.14 : 0.045)),
+                        lineWidth: tenth ? 1.5 : 0.75
+                    )
+                }
             }
         }
         .frame(width: metrics.totalWidth, height: metrics.totalHeight)
         .allowsHitTesting(false)
     }
 
-    /// Row-start address labels only (001, 033, 065…).
+    /// Label all 512 addresses so an operator can patch without estimating a cell.
     private func coordinateLabels(metrics: UniverseMetrics) -> some View {
         ZStack(alignment: .topLeading) {
-            ForEach(0..<metrics.rows, id: \.self) { row in
-                let addr = row * metrics.cols + 1
+            ForEach(1...max(channelCount, 1), id: \.self) { addr in
+                let zeroBased = addr - 1
+                let row = zeroBased / metrics.cols
+                let col = zeroBased % metrics.cols
                 if addr <= channelCount {
                     Text(String(format: "%03d", addr))
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .foregroundStyle(Color.white.opacity(0.30))
+                        .font(.system(size: 8, weight: addr % 10 == 0 ? .semibold : .regular, design: .monospaced))
+                        .foregroundStyle(Color.white.opacity(addr % 10 == 0 ? 0.46 : 0.24))
                         .position(
-                            x: 18,
+                            x: CGFloat(col) * metrics.cellW + metrics.cellW * 0.5,
                             y: CGFloat(row) * metrics.cellH + metrics.cellH * 0.5
                         )
                 }
@@ -741,21 +1012,24 @@ public struct PatchWorkspaceView: View {
             .frame(width: metrics.totalWidth, height: metrics.totalHeight)
             .contentShape(Rectangle())
             .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        guard let addr = address(at: value.location, metrics: metrics) else { return }
-                        // Don't steal hover when over an existing fixture block.
-                        if fixtureAt(addr) != nil, !clickToPatchArmed { return }
-                        hoverAddress = addr
-                        if clickToPatchArmed || selectedDefinition != nil {
-                            updateGhost(at: addr)
-                        }
-                    }
+                SpatialTapGesture()
                     .onEnded { value in
                         guard let addr = address(at: value.location, metrics: metrics) else { return }
                         handleAddressClick(addr)
                     }
             )
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let location):
+                    guard let addr = address(at: location, metrics: metrics) else { return }
+                    hoverAddress = addr
+                    if fixtureAt(addr) == nil, clickToPatchArmed || selectedDefinition != nil {
+                        updateGhost(at: addr)
+                    }
+                case .ended:
+                    hoverAddress = nil
+                }
+            }
     }
 
     private func address(at point: CGPoint, metrics: UniverseMetrics) -> UInt16? {
@@ -844,29 +1118,58 @@ public struct PatchWorkspaceView: View {
                 DragGesture(minimumDistance: 6)
                     .onChanged { value in
                         dragRepatchID = fx.id
-                        let origin = blockOrigin(seg: seg, metrics: metrics)
-                        let abs = CGPoint(
-                            x: origin.x + value.location.x,
-                            y: origin.y + value.location.y
+                        let candidate = repatchAddress(
+                            from: fx.address,
+                            translation: value.translation,
+                            metrics: metrics
                         )
-                        if let addr = address(at: abs, metrics: metrics) {
-                            hoverAddress = addr
-                        }
+                        dragRepatchAddress = candidate
+                        hoverAddress = candidate
+                        var proposed = fx
+                        proposed.address = candidate
+                        dragRepatchIsValid = context.project.canPlace(
+                            fixture: proposed,
+                            ignoringFixtureID: fx.id
+                        )
                     }
                     .onEnded { value in
-                        defer { dragRepatchID = nil }
-                        let colDelta = Int((value.translation.width / metrics.cellW).rounded())
-                        let rowDelta = Int((value.translation.height / metrics.cellH).rounded())
-                        let newAddr = max(
-                            1,
-                            min(channelCount, Int(fx.address) + colDelta + rowDelta * metrics.cols)
+                        let newAddress = repatchAddress(
+                            from: fx.address,
+                            translation: value.translation,
+                            metrics: metrics
                         )
-                        if newAddr != Int(fx.address) {
-                            repatch(fx: fx, to: UInt16(newAddr))
+                        var proposed = fx
+                        proposed.address = newAddress
+                        let canCommit = context.project.canPlace(
+                            fixture: proposed,
+                            ignoringFixtureID: fx.id
+                        )
+                        dragRepatchID = nil
+                        dragRepatchAddress = nil
+                        dragRepatchIsValid = false
+                        hoverAddress = nil
+                        if newAddress != fx.address, canCommit {
+                            repatch(fx: fx, to: newAddress)
+                        } else if newAddress != fx.address {
+                            statusText = "That DMX range is unavailable"
                         }
                     }
             )
         }
+    }
+
+    private func repatchAddress(
+        from originalAddress: UInt16,
+        translation: CGSize,
+        metrics: UniverseMetrics
+    ) -> UInt16 {
+        let colDelta = Int((translation.width / metrics.cellW).rounded())
+        let rowDelta = Int((translation.height / metrics.cellH).rounded())
+        let address = max(
+            1,
+            min(channelCount, Int(originalAddress) + colDelta + rowDelta * metrics.cols)
+        )
+        return UInt16(address)
     }
 
     // MARK: - Context menu + lifecycle
@@ -880,6 +1183,9 @@ public struct PatchWorkspaceView: View {
         )
         if actions.contains(.inspect) {
             Button("Inspect") { inspectFixtures(ids) }
+        }
+        if ids.count == 1, let id = ids.first {
+            Button("Rename Fixture…") { beginFixtureRename(id) }
         }
         if actions.contains(.repatch), let id = ids.first {
             Button("Repatch…") { beginRepatch(id) }
@@ -901,6 +1207,29 @@ public struct PatchWorkspaceView: View {
             return selectedFixtureIDs
         }
         return primaryIDs
+    }
+
+    private func beginFixtureRename(_ fixtureID: UUID) {
+        guard let fixture = context.project.fixtures.first(where: { $0.id == fixtureID }) else { return }
+        renameDraft = fixture.name
+        renameFixtureID = fixtureID
+    }
+
+    private func commitFixtureRename() {
+        guard let fixtureID = renameFixtureID else { return }
+        do {
+            try context.session.perform(RenameFixtureCommand(
+                fixtureID: fixtureID,
+                newName: renameDraft
+            ))
+            statusText = "Renamed fixture"
+            renameFixtureID = nil
+            onChanged()
+        } catch {
+            renameFixtureID = nil
+            let message = error.localizedDescription
+            DispatchQueue.main.async { renameErrorMessage = message }
+        }
     }
 
     private func inspectFixtures(_ ids: [UUID]) {
@@ -1001,16 +1330,6 @@ public struct PatchWorkspaceView: View {
         }
     }
 
-    private func blockOrigin(
-        seg: (row: Int, colStart: Int, colEnd: Int, addressStart: UInt16, addressEnd: UInt16),
-        metrics: UniverseMetrics
-    ) -> CGPoint {
-        CGPoint(
-            x: CGFloat(seg.colStart) * metrics.cellW + 2,
-            y: CGFloat(seg.row) * metrics.cellH + 3
-        )
-    }
-
     private func blockFill(selected: Bool, conflict: Bool) -> Color {
         if conflict { return AuroraColor.critical.opacity(0.42) }
         if selected { return AuroraColor.accent.opacity(0.62) }
@@ -1069,8 +1388,10 @@ public struct PatchWorkspaceView: View {
         footprint: UInt16,
         label: String,
         valid: Bool,
-        metrics: UniverseMetrics
+        metrics: UniverseMetrics,
+        tint: Color? = nil
     ) -> some View {
+        let validColor = tint ?? Color.green
         let segs = DMXUniverseGridLayout.segments(
             start: start,
             footprint: footprint,
@@ -1083,16 +1404,16 @@ public struct PatchWorkspaceView: View {
             let h = metrics.cellH - 6
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill((valid ? Color.green : Color.red).opacity(valid ? 0.20 : 0.32))
+                    .fill((valid ? validColor : Color.red).opacity(valid ? 0.24 : 0.32))
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .strokeBorder(
-                        valid ? Color.green.opacity(0.95) : Color.red.opacity(0.98),
+                        valid ? validColor.opacity(0.98) : Color.red.opacity(0.98),
                         style: StrokeStyle(lineWidth: 2.25, dash: [5, 3])
                     )
                 if idx == 0 {
                     Text(label)
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(valid ? Color.green.opacity(0.95) : Color.white)
+                        .foregroundStyle(valid ? validColor.opacity(0.98) : Color.white)
                         .shadow(color: valid ? .clear : Color.red.opacity(0.8), radius: 2)
                         .padding(.horizontal, 8)
                 }
@@ -1119,18 +1440,10 @@ public struct PatchWorkspaceView: View {
             onChanged()
             return
         }
-        // Free address: preview ghost; Option-click or second-click commits when valid
+        // A selected profile plus a free address is an explicit patch operation.
+        // Hover supplies the preview; one click commits it.
         if selectedDefinition != nil {
-            if let existing = ghostPlan,
-               existing.isValid,
-               existing.startAddress == addr {
-                commitPlan(at: addr)
-                return
-            }
-            updateGhost(at: addr)
-            if NSEvent.modifierFlags.contains(.option) {
-                commitPlan(at: addr)
-            }
+            commitPlan(at: addr)
         }
     }
 
@@ -1212,8 +1525,11 @@ public struct PatchWorkspaceView: View {
             }
             let cmd = BatchPatchCommand(plan: plan)
             try context.session.perform(cmd)
-            context.session.selectFixtures(Set(cmd.createdFixtureIDs), extending: false)
             statusText = "Patched \(plan.starts.count) fixture(s) at \(plan.startAddress)"
+            // Library selection is intentionally one-shot: a fresh selection is
+            // required before another fixture can be patched.
+            selectedDefinitionID = nil
+            context.session.clearSelection()
             clickToPatchArmed = false
             ghostPlan = nil
             onChanged()
@@ -1351,4 +1667,11 @@ public struct PatchWorkspaceView: View {
         statusText = csv ? "CSV copied" : "Patch report copied"
         #endif
     }
+}
+
+private struct FixtureProfileFamily: Identifiable {
+    let id: String
+    let manufacturer: String
+    let model: String
+    let modes: [FixtureDefinition]
 }

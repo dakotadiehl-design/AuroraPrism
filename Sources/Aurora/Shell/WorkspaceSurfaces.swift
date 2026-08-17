@@ -151,6 +151,15 @@ struct CreativeShelfWorkspaceSurface: View {
     @ViewBuilder
     private var shelfBody: some View {
         switch appModel.workspace.lowerTool {
+        case .cueBlocks:
+            ScrollView {
+                CueBlocksPanel(
+                    context: appModel.panelContext,
+                    programmer: appModel.engine.programmer,
+                    onProgrammerChanged: { appModel.noteProgrammerUIChanged() },
+                    onProjectChanged: { appModel.notifyUI() }
+                )
+            }
         case .palettes:
             PalettesPanel(
                 context: appModel.panelContext,

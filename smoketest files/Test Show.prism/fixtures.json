@@ -1,0 +1,46 @@
+[
+  {
+    "address" : 1,
+    "definitionId" : "59CF7544-44E5-5D35-A51D-83D23048F574",
+    "groupIds" : [
+
+    ],
+    "id" : "81C92AAA-33D8-427D-B63C-A22143ABE17E",
+    "name" : "Shehds Par 1",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 13,
+    "definitionId" : "59CF7544-44E5-5D35-A51D-83D23048F574",
+    "groupIds" : [
+
+    ],
+    "id" : "67361486-9B61-4272-B291-CDFBA8CB9AC1",
+    "name" : "Shehds Par 2",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 25,
+    "definitionId" : "62BAE228-93A0-5A3F-A2E5-1E8C11FC3BC8",
+    "groupIds" : [
+
+    ],
+    "id" : "8A84EC4F-BED6-445C-A60D-B08A9392949E",
+    "name" : "Stage Left 4 Bar",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 52,
+    "definitionId" : "62BAE228-93A0-5A3F-A2E5-1E8C11FC3BC8",
+    "groupIds" : [
+
+    ],
+    "id" : "5F79F0CF-E964-4C81-9059-99474BA5297F",
+    "name" : "Stage Right 4Bar",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  }
+]

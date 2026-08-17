@@ -1,0 +1,73 @@
+[
+  {
+    "cueBlockGroupID" : "93FC41D8-BD70-4CA8-9210-109A178BA374",
+    "id" : "BCFFABB0-1BE1-4E33-BA0F-A1C4288D764B",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "colorB" : 0,
+            "colorG" : 0,
+            "colorHue" : 0,
+            "colorR" : 1,
+            "colorSat" : 1,
+            "colorWB" : 0
+          },
+          "fixtureId" : "81C92AAA-33D8-427D-B63C-A22143ABE17E",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Red",
+    "notes" : "",
+    "type" : "color"
+  },
+  {
+    "cueBlockGroupID" : "93FC41D8-BD70-4CA8-9210-109A178BA374",
+    "id" : "A86682D6-5365-4F89-A1BA-1D7A84AA8FDB",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "intensity" : 1
+          },
+          "fixtureId" : "81C92AAA-33D8-427D-B63C-A22143ABE17E",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "100%",
+    "notes" : "",
+    "type" : "intensity"
+  },
+  {
+    "cueBlockGroupID" : "93FC41D8-BD70-4CA8-9210-109A178BA374",
+    "id" : "E6EED2D9-0CB9-45A6-8E5A-E966FC642DEB",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "colorB" : 1,
+            "colorG" : 0.3333333333333335,
+            "colorHue" : 220,
+            "colorR" : 0,
+            "colorSat" : 1,
+            "colorVal" : 1,
+            "colorWB" : 0
+          },
+          "fixtureId" : "81C92AAA-33D8-427D-B63C-A22143ABE17E",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Blue",
+    "notes" : "",
+    "type" : "color"
+  }
+]

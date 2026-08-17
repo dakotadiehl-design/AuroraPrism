@@ -8,6 +8,7 @@ public enum WorkspacePanelID: String, Codable, CaseIterable, Sendable, Identifia
     case programmer
     case livePlayback
     case groups
+    case cueBlocks
     case palettes
     case midi
     case universeMonitor
@@ -26,6 +27,7 @@ public enum WorkspacePanelID: String, Codable, CaseIterable, Sendable, Identifia
         case .programmer: return "Programmer"
         case .livePlayback: return "Live"
         case .groups: return "Groups"
+        case .cueBlocks: return "Cue Blocks"
         case .palettes: return "Palettes"
         case .midi: return "MIDI"
         case .universeMonitor: return "Universe Monitor"
@@ -44,7 +46,8 @@ public enum WorkspacePanelID: String, Codable, CaseIterable, Sendable, Identifia
         case .programmer: return "Programmer."
         case .livePlayback: return "Live ops."
         case .groups: return "Fixture groups."
-        case .palettes: return "Palettes & presets."
+        case .cueBlocks: return "Fixture-scoped reusable Cue Blocks."
+        case .palettes: return "Palettes & looks."
         case .midi: return "MIDI mappings & learn."
         case .universeMonitor: return "Universe monitor."
         case .inspector: return "Inspector."

@@ -80,6 +80,10 @@ public struct ProgrammerPanel: View {
         return map
     }
 
+    private var hasLiveProgrammerValues: Bool {
+        !ProgrammerCueBridge.levelsAreEmpty(programmer.captureLevels())
+    }
+
     private var livePresentation: ProgrammerAttributePresentation {
         if presentation.selectionCount == orderedIDs.count, !orderedIDs.isEmpty {
             return presentation
@@ -119,6 +123,16 @@ public struct ProgrammerPanel: View {
                             }
                         }
                         .padding(AuroraSpacing.md)
+                    }
+
+                    if hasLiveProgrammerValues {
+                        Text("Live look — not stored in the show until Record / Update cue (or when Save prompts).")
+                            .font(AuroraTypography.metadata)
+                            .foregroundStyle(AuroraColor.warning)
+                            .padding(.horizontal, AuroraSpacing.md)
+                            .padding(.vertical, 6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(AuroraColor.warningMuted)
                     }
                 }
                 .background(AuroraColor.surfacePanel)

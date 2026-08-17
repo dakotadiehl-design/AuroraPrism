@@ -54,6 +54,16 @@ public enum SchemaMigration {
                 SongSectionMigrationHelper.ensureDefaultMainSection(&next.songs[i])
             }
             return next
+        case 4:
+            // v4 → v5: Cue Blocks collection defaults empty; cues without cueBlockRefs already decode [].
+            // Do NOT convert palettes or presets into Cue Blocks.
+            var next = project
+            if next.cueBlocks.isEmpty == false {
+                // Preserve any blocks already present (e.g. in-memory upgrades).
+            } else {
+                next.cueBlocks = []
+            }
+            return next
         default:
             throw SchemaMigrationError.unsupportedVersion(found: version, supportedMaximum: currentVersion)
         }

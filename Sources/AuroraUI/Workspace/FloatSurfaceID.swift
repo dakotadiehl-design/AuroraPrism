@@ -62,6 +62,37 @@ public enum PanelPresentationKind: String, Codable, Sendable, Hashable {
     case hidden
 }
 
+/// Controls whether floating workspace surfaces are restored across application launches.
+/// This is an application preference, never part of a show document.
+public enum WorkspaceScreenMode: String, Codable, CaseIterable, Sendable, Identifiable {
+    case single
+    case multi
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .single: return "Single Screen"
+        case .multi: return "Multi Screen"
+        }
+    }
+}
+
+public enum WorkspaceScreenModeStore {
+    private static let key = "prism.workspace.screen-mode"
+
+    public static func load(from defaults: UserDefaults = .standard) -> WorkspaceScreenMode {
+        guard let raw = defaults.string(forKey: key),
+              let mode = WorkspaceScreenMode(rawValue: raw)
+        else { return .single }
+        return mode
+    }
+
+    public static func save(_ mode: WorkspaceScreenMode, to defaults: UserDefaults = .standard) {
+        defaults.set(mode.rawValue, forKey: key)
+    }
+}
+
 /// Per-surface float presentation (C5B).
 public struct FloatSurfaceRecord: Codable, Equatable, Sendable, Hashable {
     public var kind: PanelPresentationKind
@@ -181,6 +212,12 @@ public struct WorkspaceFloatState: Codable, Equatable, Sendable {
         var r = record(for: id)
         r.kind = .hidden
         setRecord(r, for: id)
+    }
+
+    public mutating func dockAll() {
+        for id in FloatSurfaceID.allCases where record(for: id).kind == .floating {
+            dock(id)
+        }
     }
 
     /// Legacy API: treat each rect as a screen visible frame (ids synthetic).

@@ -149,6 +149,16 @@ final class FloatingSurfaceWindowCoordinator {
         win.close()
     }
 
+    /// Close every registered auxiliary surface during application termination.
+    /// Registrations are removed first so close notifications cannot redock them.
+    func closeAllWindows() {
+        let registered = windows
+        for (surface, window) in registered {
+            unregister(surface: surface, window: window)
+            window.close()
+        }
+    }
+
     func focusWindow(for surface: FloatSurfaceID) {
         guard let win = windows[surface] else { return }
         win.makeKeyAndOrderFront(nil)

@@ -76,7 +76,7 @@ final class ProjectPackageRequiredFilesTests: XCTestCase {
         XCTAssertTrue(loaded.universes.isEmpty)
     }
 
-    /// Post-C6: current-schema missing Stage/MIDI/effects files are package damage.
+    /// Post-C6 / v5: current-schema missing Stage/MIDI/effects/AME/cue-blocks files are package damage.
     func testMissingCurrentSchemaExtensionFilesFailLoad() throws {
         for fileName in [
             "stage-layout.json",
@@ -86,6 +86,7 @@ final class ProjectPackageRequiredFilesTests: XCTestCase {
             "midi-feedback.json",
             "effects.json",
             "ame.json",
+            "cue-blocks.json",
         ] {
             let packageURL = tempRoot.appendingPathComponent("Cur-\(fileName).aurora", isDirectory: true)
             try ProjectPackage.save(ShowProject.empty(name: "Cur"), to: packageURL)
@@ -128,9 +129,11 @@ final class ProjectPackageRequiredFilesTests: XCTestCase {
         try? FileManager.default.removeItem(at: packageURL.appendingPathComponent("drum-profiles.json"))
         try? FileManager.default.removeItem(at: packageURL.appendingPathComponent("midi-feedback.json"))
         try? FileManager.default.removeItem(at: packageURL.appendingPathComponent("ame.json"))
+        try? FileManager.default.removeItem(at: packageURL.appendingPathComponent("cue-blocks.json"))
 
         let loaded = try ProjectPackage.load(from: packageURL)
         XCTAssertEqual(loaded.schemaVersion, ProjectPackage.currentSchemaVersion) // migrated up
         XCTAssertTrue(loaded.stageLayout.objects.isEmpty)
+        XCTAssertTrue(loaded.cueBlocks.isEmpty)
     }
 }

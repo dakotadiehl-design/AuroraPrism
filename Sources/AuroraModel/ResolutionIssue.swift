@@ -28,7 +28,7 @@ public extension ShowProject {
         paletteReferenceCount(paletteID) > 0
     }
 
-    /// Number of cue fixture-slots + preset fixture-slots that reference this palette.
+    /// Number of cue fixture-slots + preset fixture-slots + Cue Block slots that reference this palette.
     func paletteReferenceCount(_ paletteID: UUID) -> Int {
         var count = 0
         for list in cueLists {
@@ -43,10 +43,15 @@ public extension ShowProject {
                 if fx.paletteRefs.values.contains(paletteID) { count += 1 }
             }
         }
+        for block in cueBlocks {
+            for fx in block.levels.fixtures {
+                if fx.paletteRefs.values.contains(paletteID) { count += 1 }
+            }
+        }
         return count
     }
 
-    /// Human-readable sites for delete confirmations (cues only; presets summarized separately).
+    /// Human-readable sites for delete confirmations (cues, presets, Cue Blocks).
     func paletteReferenceCueSummaries(_ paletteID: UUID) -> [String] {
         var lines: [String] = []
         for list in cueLists {
@@ -63,6 +68,12 @@ public extension ShowProject {
         }
         for preset in presetHits {
             lines.append("Preset: \(preset.name)")
+        }
+        for block in cueBlocks {
+            let hit = block.levels.fixtures.contains { $0.paletteRefs.values.contains(paletteID) }
+            if hit {
+                lines.append("Cue Block: \(block.name)")
+            }
         }
         return lines
     }

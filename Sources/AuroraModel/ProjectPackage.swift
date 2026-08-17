@@ -70,7 +70,8 @@ public enum ProjectPackage {
     /// v2: stage layout + fixture model extensions (generic params, multi-cell).
     /// v3: MIDI behaviors, drum profiles, feedback profiles.
     /// v4: AME document + song sections / musical settings.
-    public static let currentSchemaVersion = 4
+    /// v5: Cue Blocks, Cue Block Groups, and optional `cueBlockRefs` on cues.
+    public static let currentSchemaVersion = 5
 
     private static let projectFileName = "project.json"
     private static let universesFileName = "universes.json"
@@ -79,6 +80,8 @@ public enum ProjectPackage {
     private static let groupsFileName = "groups.json"
     private static let palettesFileName = "palettes.json"
     private static let presetsFileName = "presets.json"
+    private static let cueBlockGroupsFileName = "cue-block-groups.json"
+    private static let cueBlocksFileName = "cue-blocks.json"
     private static let songsFileName = "songs.json"
     private static let mediaAssetsFileName = "media-assets.json"
     private static let midiMappingsFileName = "midi-mappings.json"
@@ -285,6 +288,8 @@ public enum ProjectPackage {
         try writeJSON(projectToWrite.groups, to: destination.appendingPathComponent(groupsFileName), encoder: encoder)
         try writeJSON(projectToWrite.palettes, to: destination.appendingPathComponent(palettesFileName), encoder: encoder)
         try writeJSON(projectToWrite.presets, to: destination.appendingPathComponent(presetsFileName), encoder: encoder)
+        try writeJSON(projectToWrite.cueBlockGroups, to: destination.appendingPathComponent(cueBlockGroupsFileName), encoder: encoder)
+        try writeJSON(projectToWrite.cueBlocks, to: destination.appendingPathComponent(cueBlocksFileName), encoder: encoder)
         try writeJSON(projectToWrite.songs, to: destination.appendingPathComponent(songsFileName), encoder: encoder)
         try writeJSON(projectToWrite.mediaAssets, to: destination.appendingPathComponent(mediaAssetsFileName), encoder: encoder)
         try writeJSON(projectToWrite.midiMappings, to: destination.appendingPathComponent(midiMappingsFileName), encoder: encoder)
@@ -362,6 +367,14 @@ public enum ProjectPackage {
         )
         let presets: [Preset] = try readJSONArray(
             url.appendingPathComponent(presetsFileName), decoder: decoder, name: presetsFileName, required: true
+        )
+        // v5+: cue-blocks.json required. Older packages default to [].
+        let requireCueBlocks = root.schemaVersion >= 5
+        let cueBlockGroups: [CueBlockGroup] = try readJSONArray(
+            url.appendingPathComponent(cueBlockGroupsFileName), decoder: decoder, name: cueBlockGroupsFileName, required: requireCueBlocks
+        )
+        let cueBlocks: [CueBlock] = try readJSONArray(
+            url.appendingPathComponent(cueBlocksFileName), decoder: decoder, name: cueBlocksFileName, required: requireCueBlocks
         )
         let songs: [Song] = try readJSONArray(
             url.appendingPathComponent(songsFileName), decoder: decoder, name: songsFileName, required: true
@@ -444,6 +457,8 @@ public enum ProjectPackage {
             groups: groups,
             palettes: palettes,
             presets: presets,
+            cueBlockGroups: cueBlockGroups,
+            cueBlocks: cueBlocks,
             cueLists: cueLists,
             songs: songs,
             mediaAssets: mediaAssets,
@@ -548,6 +563,8 @@ public enum ProjectPackage {
             effectsFileName,
             stageLayoutFileName,
             ameFileName,
+            cueBlockGroupsFileName,
+            cueBlocksFileName,
         ]
     }
 }

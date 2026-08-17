@@ -17,6 +17,7 @@ final class ProjectController: ObservableObject {
     let saveCoordinator = ProjectSaveCoordinator()
 
     private(set) var fixtureLibrary: FixtureLibrary?
+    private(set) var userFixtureDefinitions: [FixtureDefinition] = []
     private var eventToken: EventSubscriptionToken?
 
     /// Called after document mutations (engine/input should refresh).
@@ -48,12 +49,30 @@ final class ProjectController: ObservableObject {
 
     var fixtureLibraryBox: FixtureLibraryBox? {
         guard let fixtureLibrary else { return nil }
+        let builtIn = fixtureLibrary.definitions
+        let builtInIDs = Set(builtIn.map(\.id))
+        let user = userFixtureDefinitions.filter { !builtInIDs.contains($0.id) }
+        let all = builtIn + user
         return FixtureLibraryBox(
-            definitions: fixtureLibrary.definitions,
-            search: { fixtureLibrary.search($0) },
+            definitions: all,
+            builtInDefinitionIDs: builtInIDs,
+            userDefinitionIDs: Set(user.map(\.id)),
+            search: { query in
+                let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !q.isEmpty else { return all }
+                return all.filter {
+                    $0.manufacturer.localizedCaseInsensitiveContains(q)
+                        || $0.model.localizedCaseInsensitiveContains(q)
+                        || $0.modeName.localizedCaseInsensitiveContains(q)
+                }
+            },
             // Keep library definition UUID so project fixtures resolve the same personality
             // and the patch library list does not accumulate look-alike clones.
-            makeEmbeddableCopy: { fixtureLibrary.makeEmbeddableCopy($0, newID: $0.id) }
+            makeEmbeddableCopy: { fixtureLibrary.makeEmbeddableCopy($0, newID: $0.id) },
+            removeUserDefinitions: { [weak self] ids in
+                try UserFixtureLibraryStore.remove(ids: ids)
+                try self?.reloadUserFixtureLibrary()
+            }
         )
     }
 
@@ -67,7 +86,34 @@ final class ProjectController: ObservableObject {
             fixtureLibrary = nil
             statusMessage = "Fixture library failed: \(error.localizedDescription)"
             onLog?("Fixture library error: \(error.localizedDescription)")
+            return
         }
+        do {
+            try reloadUserFixtureLibrary()
+        } catch {
+            userFixtureDefinitions = []
+            statusMessage = "User Fixture Library failed: \(error.localizedDescription)"
+            onLog?(statusMessage)
+        }
+    }
+
+    func reloadUserFixtureLibrary() throws {
+        userFixtureDefinitions = try UserFixtureLibraryStore.load()
+        objectWillChange.send()
+    }
+
+    var userFixtureLibraryDirectory: URL { UserFixtureLibraryStore.configuredDirectory }
+
+    func setUserFixtureLibraryDirectory(_ url: URL?) throws {
+        try UserFixtureLibraryStore.setDirectory(url)
+        try reloadUserFixtureLibrary()
+        statusMessage = "Fixture Library: \(userFixtureLibraryDirectory.path)"
+    }
+
+    func removeUserFixtureDefinitions(_ ids: Set<UUID>) throws {
+        try UserFixtureLibraryStore.remove(ids: ids)
+        try reloadUserFixtureLibrary()
+        statusMessage = "Removed \(ids.count) mode(s) from User Fixture Library"
     }
 
     func wireEvents() {
@@ -282,13 +328,42 @@ final class ProjectController: ObservableObject {
 
     func importFixtureDefinitions(from url: URL) throws -> Int {
         let defs = try FixtureImporter.importDefinitions(from: url)
+        return try importFixtureDefinitions(defs, sourceName: url.lastPathComponent)
+    }
+
+    /// Validates and embeds a fixture import as one undoable, rollback-safe operation.
+    func importFixtureDefinitions(_ defs: [FixtureDefinition], sourceName: String) throws -> Int {
+        guard !defs.isEmpty else { return 0 }
+        let existing = (fixtureLibrary?.definitions ?? []) + userFixtureDefinitions
+        var identities = Set(existing.map(Self.fixtureModeIdentity))
+        var ids = Set((existing + session.project.fixtureDefinitions).map(\.id))
+        var duplicates: [String] = []
         for def in defs {
-            try session.perform(EmbedFixtureDefinitionCommand(definition: def))
+            let identity = Self.fixtureModeIdentity(def)
+            if identities.contains(identity) || ids.contains(def.id) {
+                duplicates.append("\(def.manufacturer) \(def.model) — \(def.modeName)")
+            } else {
+                identities.insert(identity)
+                ids.insert(def.id)
+            }
         }
-        statusMessage = "Imported \(defs.count) definition(s) from \(url.lastPathComponent)"
+        guard duplicates.isEmpty else {
+            throw CommandError.message(
+                "Already in the Fixture Library: " + duplicates.joined(separator: ", ")
+            )
+        }
+        try UserFixtureLibraryStore.add(defs)
+        try reloadUserFixtureLibrary()
+        statusMessage = "Imported \(defs.count) mode(s) into User Library from \(sourceName)"
         onLog?(statusMessage)
         objectWillChange.send()
         return defs.count
+    }
+
+    private static func fixtureModeIdentity(_ definition: FixtureDefinition) -> String {
+        [definition.manufacturer, definition.model, definition.modeName]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current) }
+            .joined(separator: "\u{1f}")
     }
 
     func presentError(_ error: Error, title: String) {

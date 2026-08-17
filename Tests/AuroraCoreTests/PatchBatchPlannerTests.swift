@@ -36,6 +36,23 @@ final class PatchBatchPlannerTests: XCTestCase {
         XCTAssertEqual(plan.footprint, 3)
     }
 
+    func testBatchPlanAdvancesNameSuffixPastExistingFixture() {
+        var (project, universeID, definitionID, _) = projectWithDef()
+        project.fixtures = [
+            PatchedFixture(name: "Wash 1", definitionId: definitionID, universeId: universeID, address: 100),
+        ]
+        let plan = PatchBatchPlanner.plan(
+            project: project,
+            definitionID: definitionID,
+            universeID: universeID,
+            startAddress: 1,
+            quantity: 2,
+            namePrefix: "Wash"
+        )
+        XCTAssertTrue(plan.isValid)
+        XCTAssertEqual(plan.nameStartNumber, 2)
+    }
+
     func testBatchPlanOverlapRejected() {
         var (p, uni, def, _) = projectWithDef()
         p.fixtures = [

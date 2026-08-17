@@ -31,6 +31,8 @@ public final class BatchPatchCommand: Command {
         guard fresh.isValid else {
             throw CommandError.message(fresh.rejectionReason ?? "Patch no longer valid")
         }
+        let candidateNames = fresh.starts.indices.map { "\(fresh.namePrefix) \(fresh.nameStartNumber + $0)" }
+        try FixtureNameValidator.validateBatch(candidateNames, in: context.project)
         createdIDs = []
         context.updateProject { project in
             for (i, start) in fresh.starts.enumerated() {
@@ -38,7 +40,7 @@ public final class BatchPatchCommand: Command {
                 createdIDs.append(id)
                 project.fixtures.append(PatchedFixture(
                     id: id,
-                    name: "\(fresh.namePrefix) \(i + 1)",
+                    name: "\(fresh.namePrefix) \(fresh.nameStartNumber + i)",
                     definitionId: fresh.definitionID,
                     universeId: fresh.universeID,
                     address: start

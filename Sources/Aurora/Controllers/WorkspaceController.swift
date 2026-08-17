@@ -71,6 +71,7 @@ enum BuildLeftTool: String, CaseIterable, Identifiable, Sendable {
 
 /// Lower region tools (UI-02E Option A + Diagnostics).
 enum BuildLowerTool: String, CaseIterable, Identifiable, Sendable {
+    case cueBlocks = "Cue Blocks"
     case palettes = "Palettes"
     case cues = "Cues"
     case song = "Song"
@@ -79,6 +80,7 @@ enum BuildLowerTool: String, CaseIterable, Identifiable, Sendable {
 
     var layoutPanelID: WorkspacePanelID {
         switch self {
+        case .cueBlocks: return .cueBlocks
         case .palettes: return .palettes
         case .cues: return .cueList
         case .song: return .song
@@ -88,6 +90,7 @@ enum BuildLowerTool: String, CaseIterable, Identifiable, Sendable {
 
     static func fromLayoutTab(_ id: WorkspacePanelID) -> BuildLowerTool {
         switch id {
+        case .cueBlocks: return .cueBlocks
         case .palettes: return .palettes
         case .song: return .song
         case .console, .universeMonitor: return .diagnostics
@@ -102,6 +105,7 @@ final class WorkspaceController: ObservableObject {
     @Published var layout: WorkspaceLayout
     /// C5: docked / floating / hidden presentation for detachable surfaces.
     @Published var floatState: WorkspaceFloatState
+    @Published private(set) var screenMode: WorkspaceScreenMode
     @Published var mode: WorkspaceMode = .build
     /// Explicit Welcome vs empty document (DOC-01). Not inferred from fixture/cue counts.
     @Published var showsWelcomeScreen: Bool = true
@@ -240,6 +244,7 @@ final class WorkspaceController: ObservableObject {
     private func ensureLowerVisible(_ visible: Bool) {
         if visible {
             if !layout.isVisible(.cueList)
+                && !layout.isVisible(.cueBlocks)
                 && !layout.isVisible(.palettes)
                 && !layout.isVisible(.song)
                 && !layout.isVisible(.console)
@@ -266,13 +271,28 @@ final class WorkspaceController: ObservableObject {
     ) {
         self.layout = layout
         // Load on MainActor inside init (default args are nonisolated).
-        self.floatState = floatState ?? WorkspaceFloatStore.load()
+        let screenMode = WorkspaceScreenModeStore.load()
+        var resolvedFloatState = floatState ?? WorkspaceFloatStore.load()
+        // Explicit state is used by previews/tests and should remain deterministic.
+        // Launch-loaded state obeys the user's screen-mode preference.
+        if floatState == nil, screenMode == .single {
+            resolvedFloatState.dockAll()
+        }
+        self.floatState = resolvedFloatState
+        self.screenMode = screenMode
         // Align tools from persisted layout (UI-11).
         self.leftTool = BuildLeftTool.fromLayoutTab(layout.leadingTab)
         self.lowerTool = BuildLowerTool.fromLayoutTab(layout.bottomTab)
     }
 
     // MARK: - C5 float / undock
+
+    func setScreenMode(_ mode: WorkspaceScreenMode) {
+        guard screenMode != mode else { return }
+        screenMode = mode
+        WorkspaceScreenModeStore.save(mode)
+        objectWillChange.send()
+    }
 
     func isFloating(_ surface: FloatSurfaceID) -> Bool {
         floatState.isFloating(surface)

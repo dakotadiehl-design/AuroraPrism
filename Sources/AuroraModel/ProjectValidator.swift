@@ -21,6 +21,7 @@ public enum ProjectValidator {
         let universeIDs = Set(project.universes.map(\.id))
         let definitionIDs = Set(project.fixtureDefinitions.map(\.id))
         let groupIDs = Set(project.groups.map(\.id))
+        let cueBlockGroupIDs = Set(project.cueBlockGroups.map(\.id))
         let paletteIDs = Set(project.palettes.map(\.id))
         let cueListIDs = Set(project.cueLists.map(\.id))
         var cueIDs = Set<UUID>()
@@ -35,6 +36,8 @@ public enum ProjectValidator {
         issues.append(contentsOf: duplicateIDIssues(project.palettes.map(\.id), label: "palette"))
         issues.append(contentsOf: duplicateIDIssues(project.fixtureDefinitions.map(\.id), label: "fixture-definition"))
         issues.append(contentsOf: duplicateIDIssues(project.presets.map(\.id), label: "preset"))
+        issues.append(contentsOf: duplicateIDIssues(project.cueBlocks.map(\.id), label: "cue-block"))
+        issues.append(contentsOf: duplicateIDIssues(project.cueBlockGroups.map(\.id), label: "cue-block-group"))
         issues.append(contentsOf: duplicateIDIssues(project.cueLists.map(\.id), label: "cue-list"))
         issues.append(contentsOf: duplicateIDIssues(project.songs.map(\.id), label: "song"))
         issues.append(contentsOf: duplicateIDIssues(project.midiMappings.map(\.id), label: "midi-mapping"))
@@ -172,9 +175,119 @@ public enum ProjectValidator {
             }
         }
 
+        let cueBlockIDs = Set(project.cueBlocks.map(\.id))
+
+        for group in project.cueBlockGroups {
+            if let sourceID = group.sourceFixtureGroupID, !groupIDs.contains(sourceID) {
+                issues.append(stableIssue(
+                    code: "missing-cue-block-group-source",
+                    entity: group.id,
+                    message: "Cue Block Group \(group.name) source fixture group \(sourceID.uuidString) is missing"
+                ))
+            }
+        }
+
+        // Cue Blocks
+        for block in project.cueBlocks {
+            if block.levels.fixtures.isEmpty {
+                issues.append(stableIssue(
+                    code: "empty-cue-block",
+                    entity: block.id,
+                    message: "Cue Block \(block.name) has no fixture levels"
+                ))
+            }
+            if let gid = block.sourceGroupID, !groupIDs.contains(gid) {
+                issues.append(stableIssue(
+                    code: "missing-cue-block-source-group",
+                    entity: block.id,
+                    message: "Cue Block \(block.name) source group \(gid.uuidString) is missing"
+                ))
+            }
+            if let folderID = block.cueBlockGroupID, !cueBlockGroupIDs.contains(folderID) {
+                issues.append(stableIssue(
+                    code: "missing-cue-block-group",
+                    entity: block.id,
+                    message: "Cue Block \(block.name) references missing Cue Block Group \(folderID.uuidString)"
+                ))
+            }
+            for fx in block.levels.fixtures {
+                if !fixtureIDs.contains(fx.fixtureId) {
+                    issues.append(stableIssue(
+                        code: "missing-cue-block-fixture",
+                        entity: block.id,
+                        message: "Cue Block \(block.name) references missing fixture \(fx.fixtureId.uuidString)"
+                    ))
+                }
+                for (attr, pid) in fx.paletteRefs where !paletteIDs.contains(pid) {
+                    issues.append(stableIssue(
+                        code: "missing-cue-block-palette",
+                        entity: pid,
+                        message: "Cue Block \(block.name) missing palette \(pid.uuidString)",
+                        paletteID: pid,
+                        attribute: attr
+                    ))
+                }
+                for (attr, _) in fx.attributes {
+                    if block.type != .general,
+                       !CueBlockAttributeFamily.isAllowed(attr, for: block.type) {
+                        issues.append(stableIssue(
+                            code: "cue-block-type-attribute-mismatch",
+                            entity: block.id,
+                            message: "Cue Block \(block.name) type \(block.type.rawValue) contains attribute \(attr)",
+                            attribute: attr
+                        ))
+                    }
+                }
+                for (slot, pid) in fx.paletteRefs {
+                    if let palette = project.palettes.first(where: { $0.id == pid }),
+                       block.type != .general,
+                       let slotType = CueBlockType(rawValue: slot),
+                       slotType != block.type,
+                       palette.type != .general {
+                        issues.append(stableIssue(
+                            code: "cue-block-type-attribute-mismatch",
+                            entity: block.id,
+                            message: "Cue Block \(block.name) palette ref slot \(slot) incompatible with block type",
+                            paletteID: pid,
+                            attribute: slot
+                        ))
+                    }
+                }
+            }
+        }
+
         // Cues
         for list in project.cueLists {
             for cue in list.cues {
+                var seenBlockIDs = Set<UUID>()
+                var seenRefIDs = Set<UUID>()
+                for ref in cue.cueBlockRefs {
+                    if !seenRefIDs.insert(ref.id).inserted {
+                        issues.append(stableIssue(
+                            code: "duplicate-cue-block-ref-id",
+                            entity: ref.id,
+                            message: "Cue \(cue.name) has duplicate Cue Block reference id",
+                            cueID: cue.id
+                        ))
+                    }
+                    if !seenBlockIDs.insert(ref.cueBlockID).inserted {
+                        issues.append(stableIssue(
+                            code: "duplicate-cue-block-ref",
+                            entity: ref.cueBlockID,
+                            message: "Cue \(cue.name) references Cue Block \(ref.cueBlockID.uuidString) more than once",
+                            cueID: cue.id
+                        ))
+                    }
+                    // Structural: missing block is broken even when disabled.
+                    if !cueBlockIDs.contains(ref.cueBlockID) {
+                        issues.append(stableIssue(
+                            code: "missing-cue-block-ref",
+                            entity: ref.cueBlockID,
+                            message: "Cue \(cue.name) references missing Cue Block \(ref.cueBlockID.uuidString)",
+                            cueID: cue.id
+                        ))
+                    }
+                }
                 for fx in cue.levels.fixtures {
                     if !fixtureIDs.contains(fx.fixtureId) {
                         issues.append(stableIssue(

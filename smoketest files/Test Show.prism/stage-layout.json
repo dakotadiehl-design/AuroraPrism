@@ -1,0 +1,63 @@
+{
+  "canvasHeight" : 800,
+  "canvasWidth" : 1200,
+  "fixtures" : [
+    {
+      "aimDirection" : -1.0729269294359165,
+      "beamLength" : 195.5570652173913,
+      "beamSpread" : 0.5315270601986168,
+      "beamVisible" : true,
+      "fixtureID" : "81C92AAA-33D8-427D-B63C-A22143ABE17E",
+      "hidden" : false,
+      "id" : "4BCCB47F-440A-4220-A7CD-E9362946CAA3",
+      "labelVisible" : true,
+      "locked" : false,
+      "rotation" : 0,
+      "scale" : 1,
+      "x" : 240,
+      "y" : 200,
+      "zIndex" : 0
+    },
+    {
+      "aimDirection" : -1.5707963267948966,
+      "beamLength" : 160,
+      "beamSpread" : 0.5235987755982988,
+      "beamVisible" : true,
+      "fixtureID" : "67361486-9B61-4272-B291-CDFBA8CB9AC1",
+      "hidden" : false,
+      "id" : "C2E3213A-B874-49CC-A14D-C3D54E907B3D",
+      "labelVisible" : true,
+      "locked" : false,
+      "rotation" : 0,
+      "scale" : 1,
+      "x" : 340,
+      "y" : 200,
+      "zIndex" : 0
+    },
+    {
+      "aimDirection" : -1.5707963267948966,
+      "beamLength" : 160,
+      "beamSpread" : 0.5235987755982988,
+      "beamVisible" : true,
+      "fixtureID" : "8A84EC4F-BED6-445C-A60D-B08A9392949E",
+      "hidden" : false,
+      "id" : "46BEB036-31CF-4249-8641-BD8D19519469",
+      "labelVisible" : true,
+      "locked" : false,
+      "rotation" : 0,
+      "scale" : 1,
+      "x" : 280,
+      "y" : 120,
+      "zIndex" : 0
+    }
+  ],
+  "gridSize" : 20,
+  "objects" : [
+
+  ],
+  "scenic" : [
+
+  ],
+  "schemaVersion" : 2,
+  "snapToGrid" : true
+}

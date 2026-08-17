@@ -32,7 +32,7 @@ public final class ClonePatchedFixtureCommand: Command {
 
         let clone = PatchedFixture(
             id: UUID(),
-            name: source.name.hasSuffix(" copy") ? source.name : "\(source.name) copy",
+            name: FixtureNameValidator.uniqueCopyName(for: source.name, in: context.project),
             definitionId: source.definitionId,
             universeId: universeID,
             address: address,

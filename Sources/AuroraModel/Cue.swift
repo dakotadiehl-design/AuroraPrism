@@ -65,6 +65,8 @@ public struct Cue: Codable, Equatable, Sendable, Identifiable, Hashable {
     public var tracking: TrackingMode
     public var levels: CueLevelData
     public var loop: LoopSpec?
+    /// Ordered live references to Cue Blocks. Order is merge-significant.
+    public var cueBlockRefs: [CueBlockReference]
 
     public init(
         id: UUID = UUID(),
@@ -77,7 +79,8 @@ public struct Cue: Codable, Equatable, Sendable, Identifiable, Hashable {
         followTime: TimeInterval? = nil,
         tracking: TrackingMode = .track,
         levels: CueLevelData = .empty,
-        loop: LoopSpec? = nil
+        loop: LoopSpec? = nil,
+        cueBlockRefs: [CueBlockReference] = []
     ) {
         self.id = id
         self.number = number
@@ -90,6 +93,44 @@ public struct Cue: Codable, Equatable, Sendable, Identifiable, Hashable {
         self.tracking = tracking
         self.levels = levels
         self.loop = loop
+        self.cueBlockRefs = cueBlockRefs
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, number, name, fadeIn, fadeOut, delay, follow, followTime, tracking, levels, loop, cueBlockRefs
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        number = try c.decode(Decimal.self, forKey: .number)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        fadeIn = try c.decodeIfPresent(TimeInterval.self, forKey: .fadeIn) ?? 0
+        fadeOut = try c.decodeIfPresent(TimeInterval.self, forKey: .fadeOut) ?? 0
+        delay = try c.decodeIfPresent(TimeInterval.self, forKey: .delay) ?? 0
+        follow = try c.decodeIfPresent(FollowMode.self, forKey: .follow) ?? .none
+        followTime = try c.decodeIfPresent(TimeInterval.self, forKey: .followTime)
+        tracking = try c.decodeIfPresent(TrackingMode.self, forKey: .tracking) ?? .track
+        levels = try c.decodeIfPresent(CueLevelData.self, forKey: .levels) ?? .empty
+        loop = try c.decodeIfPresent(LoopSpec.self, forKey: .loop)
+        // Older cue-list JSON without the key decodes to empty (schema ≤4).
+        cueBlockRefs = try c.decodeIfPresent([CueBlockReference].self, forKey: .cueBlockRefs) ?? []
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(number, forKey: .number)
+        try c.encode(name, forKey: .name)
+        try c.encode(fadeIn, forKey: .fadeIn)
+        try c.encode(fadeOut, forKey: .fadeOut)
+        try c.encode(delay, forKey: .delay)
+        try c.encode(follow, forKey: .follow)
+        try c.encodeIfPresent(followTime, forKey: .followTime)
+        try c.encode(tracking, forKey: .tracking)
+        try c.encode(levels, forKey: .levels)
+        try c.encodeIfPresent(loop, forKey: .loop)
+        try c.encode(cueBlockRefs, forKey: .cueBlockRefs)
     }
 }
 

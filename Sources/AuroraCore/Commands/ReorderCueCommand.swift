@@ -55,12 +55,18 @@ public final class ReorderCueCommand: Command {
 }
 
 /// Duplicates a cue immediately after the source (new identity, same levels/timing).
+/// Cue Block references keep the same `cueBlockID` and order but receive new reference UUIDs.
+/// New cue id and reference ids are fixed on first perform so undo/redo preserves identity.
 @MainActor
 public final class DuplicateCueCommand: Command {
     public let name: String
     private let listID: UUID
     private let sourceCueID: UUID
     private var createdID: UUID?
+    private var remappedRefs: [CueBlockReference]?
+    private var createdName: String?
+    private var createdNumber: Decimal?
+    private var insertIndex: Int?
 
     public init(listID: UUID, sourceCueID: UUID, name: String = "Duplicate Cue") {
         self.listID = listID
@@ -79,14 +85,30 @@ public final class DuplicateCueCommand: Command {
             throw CommandError.message("Cue not found")
         }
         let source = cues[sourceIndex]
+
+        if createdID == nil {
+            createdID = UUID()
+            createdName = source.name.isEmpty ? "Copy" : "\(source.name) Copy"
+            createdNumber = source.number + Decimal(string: "0.1")!
+            remappedRefs = source.cueBlockRefs.map { ref in
+                CueBlockReference(id: UUID(), cueBlockID: ref.cueBlockID, enabled: ref.enabled)
+            }
+            insertIndex = sourceIndex + 1
+        }
+
+        guard let createdID, let createdName, let createdNumber, let remappedRefs, let insertIndex else {
+            throw CommandError.message("Duplicate Cue internal state missing")
+        }
+
         var copy = source
-        copy.id = UUID()
-        copy.name = source.name.isEmpty ? "Copy" : "\(source.name) Copy"
-        // Bump display number slightly for readability.
-        copy.number = source.number + Decimal(string: "0.1")!
-        createdID = copy.id
+        copy.id = createdID
+        copy.name = createdName
+        copy.number = createdNumber
+        copy.cueBlockRefs = remappedRefs
+
         context.updateProject { project in
-            project.cueLists[listIndex].cues.insert(copy, at: sourceIndex + 1)
+            let idx = min(insertIndex, project.cueLists[listIndex].cues.count)
+            project.cueLists[listIndex].cues.insert(copy, at: idx)
             project.metadata.modifiedAt = Date()
         }
     }

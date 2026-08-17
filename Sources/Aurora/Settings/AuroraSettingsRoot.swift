@@ -3,6 +3,7 @@ import AuroraMIDI
 import AuroraModel
 import AuroraRemote
 import AuroraUI
+import AppKit
 import SwiftUI
 
 /// Native Settings shell (UI-02C).
@@ -19,6 +20,9 @@ struct AuroraSettingsRoot: View {
             SettingsGeneralTab()
                 .environmentObject(appModel)
                 .tabItem { settingsTabLabel("General", systemImage: "gearshape") }
+            SettingsFixtureLibraryTab()
+                .environmentObject(appModel)
+                .tabItem { settingsTabLabel("Fixture Library", systemImage: "books.vertical") }
             SettingsMIDITab()
                 .environmentObject(appModel)
                 .tabItem { settingsTabLabel("MIDI", systemImage: "pianokeys") }
@@ -46,6 +50,74 @@ struct AuroraSettingsRoot: View {
         } icon: {
             Image(systemName: systemImage)
                 .symbolRenderingMode(.monochrome)
+        }
+    }
+}
+
+private struct SettingsFixtureLibraryTab: View {
+    @EnvironmentObject private var appModel: AppModel
+    @State private var errorMessage: String?
+
+    var body: some View {
+        Form {
+            settingsScopeHeader("APPLICATION")
+            Section("User Library Directory") {
+                Text(appModel.document.userFixtureLibraryDirectory.path)
+                    .font(.body.monospaced())
+                    .textSelection(.enabled)
+                HStack {
+                    Button("Choose…") { chooseDirectory() }
+                    Button("Use Default") { setDirectory(nil) }
+                    Button("Reveal in Finder") {
+                        NSWorkspace.shared.activateFileViewerSelecting([appModel.document.userFixtureLibraryDirectory])
+                    }
+                }
+                Text("Imported fixture profiles are stored here and are available to every show. Profiles used by a show are also embedded in that project for portability.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            Section("Status") {
+                LabeledContent("User modes", value: "\(appModel.document.userFixtureDefinitions.count)")
+                LabeledContent("Built-in modes", value: "\(appModel.document.fixtureLibrary?.definitions.count ?? 0)")
+                Button("Reload Library") {
+                    do {
+                        try appModel.document.reloadUserFixtureLibrary()
+                        appModel.notifyUI()
+                    } catch {
+                        errorMessage = error.localizedDescription
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+        .alert("Fixture Library Error", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "The Fixture Library could not be updated.")
+        }
+    }
+
+    private func chooseDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = appModel.document.userFixtureLibraryDirectory
+        panel.prompt = "Use Directory"
+        guard panel.runModal() == .OK else { return }
+        setDirectory(panel.url)
+    }
+
+    private func setDirectory(_ url: URL?) {
+        do {
+            try appModel.document.setUserFixtureLibraryDirectory(url)
+            appModel.notifyUI()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }

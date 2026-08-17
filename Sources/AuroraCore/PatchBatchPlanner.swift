@@ -8,6 +8,7 @@ public struct PatchBatchPlan: Equatable, Sendable {
     public var startAddress: UInt16
     public var quantity: Int
     public var namePrefix: String
+    public var nameStartNumber: Int
     public var footprint: UInt16
     /// Per-fixture planned start addresses.
     public var starts: [UInt16]
@@ -23,13 +24,15 @@ public struct PatchBatchPlan: Equatable, Sendable {
         footprint: UInt16,
         starts: [UInt16],
         isValid: Bool,
-        rejectionReason: String? = nil
+        rejectionReason: String? = nil,
+        nameStartNumber: Int = 1
     ) {
         self.definitionID = definitionID
         self.universeID = universeID
         self.startAddress = startAddress
         self.quantity = quantity
         self.namePrefix = namePrefix
+        self.nameStartNumber = nameStartNumber
         self.footprint = footprint
         self.starts = starts
         self.isValid = isValid
@@ -93,17 +96,31 @@ public enum PatchBatchPlanner {
             starts.append(UInt16(cursor))
             cursor = end + 1
         }
+        let resolvedPrefix = namePrefix.isEmpty ? "Fix" : namePrefix
         return PatchBatchPlan(
             definitionID: definitionID,
             universeID: universeID,
             startAddress: startAddress,
             quantity: qty,
-            namePrefix: namePrefix.isEmpty ? "Fix" : namePrefix,
+            namePrefix: resolvedPrefix,
             footprint: footprint,
             starts: starts,
             isValid: true,
-            rejectionReason: nil
+            rejectionReason: nil,
+            nameStartNumber: nextAvailableNameStart(project: project, prefix: resolvedPrefix, quantity: qty)
         )
+    }
+
+    private static func nextAvailableNameStart(project: ShowProject, prefix: String, quantity: Int) -> Int {
+        let existing = Set(project.fixtures.map { $0.name.trimmingCharacters(in: .whitespacesAndNewlines).localizedLowercase })
+        var start = 1
+        while true {
+            let available = (0..<quantity).allSatisfy {
+                !existing.contains("\(prefix) \(start + $0)".localizedLowercase)
+            }
+            if available { return start }
+            start += 1
+        }
     }
 
     /// Next-free: first contiguous range that fits the whole batch.

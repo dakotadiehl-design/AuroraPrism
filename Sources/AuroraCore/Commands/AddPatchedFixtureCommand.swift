@@ -14,6 +14,7 @@ public final class AddPatchedFixtureCommand: Command {
     }
 
     public func perform(context: CommandContext) throws {
+        try FixtureNameValidator.validate(fixture.name, in: context.project)
         try PatchValidator.validatePlacement(fixture: fixture, in: context.project)
 
         context.updateProject { project in

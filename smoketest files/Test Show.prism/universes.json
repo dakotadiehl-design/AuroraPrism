@@ -1,0 +1,16 @@
+[
+  {
+    "channelCount" : 512,
+    "id" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6",
+    "name" : "Universe 1",
+    "number" : 1,
+    "protocolHint" : "local"
+  },
+  {
+    "channelCount" : 512,
+    "id" : "5E15F10C-8112-4D6C-B4D8-C0C1103BB153",
+    "name" : "Universe 2",
+    "number" : 2,
+    "protocolHint" : "none"
+  }
+]

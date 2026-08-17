@@ -3,6 +3,29 @@ import XCTest
 
 @MainActor
 final class WorkspaceFloatC5Tests: XCTestCase {
+    func testScreenModeDefaultsSingleAndRoundTrips() {
+        let suite = "prism.tests.screen-mode.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        XCTAssertEqual(WorkspaceScreenModeStore.load(from: defaults), .single)
+        WorkspaceScreenModeStore.save(.multi, to: defaults)
+        XCTAssertEqual(WorkspaceScreenModeStore.load(from: defaults), .multi)
+    }
+
+    func testDockAllPreservesHiddenAndDocksFloatingSurfaces() {
+        var state = WorkspaceFloatState()
+        state.float(.programmer)
+        state.float(.stagePreview)
+        state.hide(.diagnostics)
+
+        state.dockAll()
+
+        XCTAssertTrue(state.isDocked(.programmer))
+        XCTAssertTrue(state.isDocked(.stagePreview))
+        XCTAssertEqual(state.record(for: .diagnostics).kind, .hidden)
+    }
+
     func testDefaultAllDocked() {
         let state = WorkspaceFloatState.default
         for id in FloatSurfaceID.allCases {

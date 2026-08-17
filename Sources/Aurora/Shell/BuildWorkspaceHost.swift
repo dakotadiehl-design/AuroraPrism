@@ -71,6 +71,7 @@ struct BuildWorkspaceHost: View {
         appModel.workspace.showsLowerRegionInCurrentBuildMode
             && appModel.workspace.showsInMainWindow(.lowerShelf)
             && (layout.isVisible(.cueList)
+                || layout.isVisible(.cueBlocks)
                 || layout.isVisible(.palettes)
                 || layout.isVisible(.song)
                 || layout.isVisible(.console))
@@ -130,14 +131,6 @@ struct BuildWorkspaceHost: View {
                             collapsedLowerShelfStrip
                                 .frame(height: collapsedShelfHeight)
                         }
-                    } else if appModel.workspace.isFloating(.lowerShelf),
-                              appModel.workspace.showsLowerRegionInCurrentBuildMode {
-                        CompactFloatRestoreChip(
-                            surface: .lowerShelf,
-                            onDock: { redockSurface(.lowerShelf) },
-                            onFocus: { appModel.floatWindows.focusWindow(for: .lowerShelf) }
-                        )
-                        .frame(height: collapsedShelfHeight)
                     }
                 }
                 .background(AuroraColor.surfaceWorkspace)
@@ -285,49 +278,33 @@ struct BuildWorkspaceHost: View {
             let totalH = max(geo.size.height, 1)
             // Edit Stage always shows the plot (unless Stage is floated out).
             let stageDocked = appModel.workspace.showsInMainWindow(.stagePreview)
+            let progDocked = appModel.workspace.showsInMainWindow(.programmer)
             let showPreview = stageDocked && (stageEditActive || appModel.workspace.showsDesignStagePreview)
             let previewH: CGFloat = {
                 guard showPreview else { return 0 }
+                // A floated Programmer relinquishes its complete docked region.
+                if !progDocked { return totalH }
                 let frac = stageEditActive
                     ? max(displayedDesignPreviewFraction, 0.55)
                     : displayedDesignPreviewFraction
                 let minProg: CGFloat = stageEditActive ? 80 : 120
                 return max(140, min(totalH * frac, totalH - minProg))
             }()
-            // C5.1: compact chip when Stage floated — Programmer reclaims vertical space.
-            let stageChipH: CGFloat = (!stageDocked && appModel.workspace.isFloating(.stagePreview)) ? 28 : 0
-            let progDocked = appModel.workspace.showsInMainWindow(.programmer)
-            let progChipH: CGFloat = (!progDocked && appModel.workspace.isFloating(.programmer)) ? 28 : 0
-            let reservedTop = previewH + stageChipH + ((previewH > 0 || stageChipH > 0) ? 4 : 0)
-            let progH = totalH - reservedTop - progChipH
+            let reservedTop = previewH + (previewH > 0 && progDocked ? 4 : 0)
+            let progH = totalH - reservedTop
 
             VStack(spacing: 0) {
-                if !stageDocked, appModel.workspace.isFloating(.stagePreview) {
-                    CompactFloatRestoreChip(
-                        surface: .stagePreview,
-                        onDock: { redockSurface(.stagePreview) },
-                        onFocus: { appModel.floatWindows.focusWindow(for: .stagePreview) }
-                    )
-                    .frame(height: stageChipH)
-                    if progDocked || progChipH > 0 {
-                        designPreviewDivider(totalHeight: totalH)
-                    }
-                } else if showPreview {
+                if showPreview {
                     DesignStageSurface(showsUndockChrome: true)
                         .frame(height: previewH)
                         .clipped()
-                    designPreviewDivider(totalHeight: totalH)
+                    if progDocked {
+                        designPreviewDivider(totalHeight: totalH)
+                    }
                 } else if stageDocked {
                     collapsedPreviewBar
                 }
-                if !progDocked, appModel.workspace.isFloating(.programmer) {
-                    CompactFloatRestoreChip(
-                        surface: .programmer,
-                        onDock: { redockSurface(.programmer) },
-                        onFocus: { appModel.floatWindows.focusWindow(for: .programmer) }
-                    )
-                    .frame(height: progChipH)
-                } else if stageEditActive && progH < 100 {
+                if progDocked && stageEditActive && progH < 100 {
                     compactProgrammerStrip
                         .frame(height: max(72, progH))
                         .clipped()
@@ -339,10 +316,6 @@ struct BuildWorkspaceHost: View {
             }
             .clipped()
         }
-    }
-
-    private func redockSurface(_ surface: FloatSurfaceID) {
-        appModel.redockSurface(surface)
     }
 
     private var compactProgrammerStrip: some View {

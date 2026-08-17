@@ -1,0 +1,66 @@
+{
+  "cues" : [
+    {
+      "cueBlockRefs" : [
+
+      ],
+      "delay" : 0,
+      "fadeIn" : 0,
+      "fadeOut" : 5,
+      "follow" : "none",
+      "id" : "E96C7E15-FB73-494F-AF2F-3EC104B89090",
+      "levels" : {
+        "fixtures" : [
+          {
+            "attributes" : {
+              "colorB" : 0,
+              "colorG" : 0,
+              "colorHue" : 0,
+              "colorR" : 1,
+              "colorSat" : 1,
+              "colorVal" : 1,
+              "colorWB" : 0,
+              "intensity" : 1
+            },
+            "fixtureId" : "81C92AAA-33D8-427D-B63C-A22143ABE17E",
+            "paletteRefs" : {
+
+            }
+          }
+        ]
+      },
+      "name" : "Test Cue Red",
+      "number" : 2,
+      "tracking" : "track"
+    },
+    {
+      "cueBlockRefs" : [
+
+      ],
+      "delay" : 0,
+      "fadeIn" : 0,
+      "fadeOut" : 0,
+      "follow" : "none",
+      "id" : "714595BA-F9E2-4E3E-9BFF-1EB4DF637900",
+      "levels" : {
+        "fixtures" : [
+          {
+            "attributes" : {
+              "intensity" : 1
+            },
+            "fixtureId" : "81C92AAA-33D8-427D-B63C-A22143ABE17E",
+            "paletteRefs" : {
+
+            }
+          }
+        ]
+      },
+      "name" : "Blue",
+      "number" : 3,
+      "tracking" : "track"
+    }
+  ],
+  "id" : "E58E9605-4F38-4E37-BF2D-755F7292BD70",
+  "name" : "List 1",
+  "notes" : ""
+}

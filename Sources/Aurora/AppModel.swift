@@ -383,6 +383,17 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Commits reviewed LightKey personalities and refreshes fixture-dependent runtime state.
+    func importLightKeyFixtureDefinitions(
+        _ definitions: [FixtureDefinition],
+        sourceName: String
+    ) throws -> Int {
+        let count = try document.importFixtureDefinitions(definitions, sourceName: sourceName)
+        reloadEngine()
+        notifyUI()
+        return count
+    }
+
     func openShow() {
         Task { @MainActor in await openShowAsync() }
     }
@@ -449,6 +460,11 @@ final class AppModel: ObservableObject {
     /// Awaitable save for quit / discard flows (BLOCKER-1).
     @discardableResult
     func saveShowAsync(presentErrorsAsModal: Bool = true) async -> Bool {
+        // Programmer is engine-ephemeral until recorded into a cue. Offer to bridge
+        // the live look into the show document before writing the package.
+        guard ensureProgrammerLookHandledBeforeSave(presentErrorsAsModal: presentErrorsAsModal) else {
+            return false
+        }
         if let documentURL = document.documentURL {
             if ProjectPackage.isLegacyPackageURL(documentURL) {
                 return await migrateLegacyProjectOnSave(
@@ -459,6 +475,149 @@ final class AppModel: ObservableObject {
             return await saveAsync(to: documentURL, presentErrorsAsModal: presentErrorsAsModal)
         }
         return await saveShowAsAsync(presentErrorsAsModal: presentErrorsAsModal)
+    }
+
+    /// When the programmer holds a look, prompt to Update/Record a cue before Save.
+    /// Returns `false` if the user cancels (Save aborted).
+    @discardableResult
+    func ensureProgrammerLookHandledBeforeSave(presentErrorsAsModal: Bool = true) -> Bool {
+        let levels = engine.programmer.captureLevels()
+        guard !ProgrammerCueBridge.levelsAreEmpty(levels) else { return true }
+
+        if !presentErrorsAsModal {
+            // Quit path without modals: still prefer updating a target cue when possible
+            // so the look is not silently discarded; otherwise save show only.
+            if applyProgrammerLevelsToUpdateTarget(levels) != nil {
+                document.statusMessage = "Saved look into cue before package write"
+                return true
+            }
+            document.statusMessage = "Saving show without recording programmer look"
+            return true
+        }
+
+        let preferredCueID = performance.playbackCueID ?? performance.currentCue.cueID
+        let preferredListID = performance.cueListID ?? performance.currentCue.listID
+        let updateTarget = ProgrammerCueBridge.resolveUpdateTarget(
+            project: session.project,
+            preferredListID: preferredListID,
+            preferredCueID: preferredCueID
+        )
+        // Fallback: first cue in project when playback has no cue id yet.
+        let target = updateTarget ?? ProgrammerCueBridge.resolveUpdateTarget(
+            project: session.project,
+            preferredListID: session.project.cueLists.first?.id,
+            preferredCueID: session.project.cueLists.first?.cues.first?.id
+        )
+        let canRecord = ProgrammerCueBridge.resolveRecordList(
+            project: session.project,
+            preferredListID: performance.cueListID ?? session.project.cueLists.first?.id
+        ) != nil
+
+        let alert = NSAlert()
+        alert.messageText = "Store live programmer look in the show?"
+        alert.informativeText = """
+        Color and intensity from the Programmer are not stored in the project file until they are recorded into a cue.
+
+        \(levels.fixtures.count) fixture(s) have live values. Choose how to continue before saving.
+        """
+        alert.alertStyle = .informational
+
+        // Button order is product decision mapping (alert returns first/second/…).
+        var buttonMap: [NSApplication.ModalResponse: ProgrammerCueBridge.SaveLookDecision] = [:]
+        if let target {
+            alert.addButton(withTitle: "Update “\(target.cue.name.isEmpty ? "Cue" : target.cue.name)”")
+            buttonMap[.alertFirstButtonReturn] = .updateTargetCue
+            alert.addButton(withTitle: "Record New Cue")
+            buttonMap[.alertSecondButtonReturn] = .recordNewCue
+            alert.addButton(withTitle: "Save Without Look")
+            buttonMap[.alertThirdButtonReturn] = .saveWithoutLook
+            alert.addButton(withTitle: "Cancel")
+            // Fourth button uses alertThirdButtonReturn + 1 in AppKit.
+            buttonMap[NSApplication.ModalResponse(rawValue: NSApplication.ModalResponse.alertThirdButtonReturn.rawValue + 1)] = .cancel
+        } else if canRecord {
+            alert.addButton(withTitle: "Record New Cue")
+            buttonMap[.alertFirstButtonReturn] = .recordNewCue
+            alert.addButton(withTitle: "Save Without Look")
+            buttonMap[.alertSecondButtonReturn] = .saveWithoutLook
+            alert.addButton(withTitle: "Cancel")
+            buttonMap[.alertThirdButtonReturn] = .cancel
+        } else {
+            alert.informativeText += "\n\nThis show has no cue list yet. Create a cue list, or save without storing the look."
+            alert.addButton(withTitle: "Save Without Look")
+            buttonMap[.alertFirstButtonReturn] = .saveWithoutLook
+            alert.addButton(withTitle: "Cancel")
+            buttonMap[.alertSecondButtonReturn] = .cancel
+        }
+
+        let response = alert.runModal()
+        let decision = buttonMap[response] ?? .cancel
+
+        switch decision {
+        case .updateTargetCue:
+            if let name = applyProgrammerLevelsToUpdateTarget(levels) {
+                document.statusMessage = "Updated \(name) from programmer"
+                notifyUI()
+                return true
+            }
+            document.statusMessage = "Could not update cue — save cancelled"
+            return false
+        case .recordNewCue:
+            if let name = applyProgrammerLevelsAsNewCue(levels) {
+                document.statusMessage = "Recorded \(name) from programmer"
+                notifyUI()
+                return true
+            }
+            document.statusMessage = "Could not record cue — save cancelled"
+            return false
+        case .saveWithoutLook:
+            document.statusMessage = "Saving show without programmer look"
+            return true
+        case .cancel:
+            return false
+        }
+    }
+
+    /// Applies captured levels to the best-effort update target. Returns cue name on success.
+    @discardableResult
+    func applyProgrammerLevelsToUpdateTarget(_ levels: CueLevelData) -> String? {
+        let target = ProgrammerCueBridge.resolveUpdateTarget(
+            project: session.project,
+            preferredListID: performance.cueListID ?? session.project.cueLists.first?.id,
+            preferredCueID: performance.playbackCueID
+                ?? session.project.cueLists.first?.cues.first?.id
+        )
+        guard let target else { return nil }
+        let updated = ProgrammerCueBridge.cueByApplyingLevels(target.cue, levels: levels)
+        do {
+            try session.perform(UpdateCueCommand(listID: target.listID, cue: updated))
+            applyProjectUpdate()
+            return updated.name.isEmpty ? "cue" : updated.name
+        } catch {
+            document.statusMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    /// Records a new cue with captured levels. Returns cue name on success.
+    @discardableResult
+    func applyProgrammerLevelsAsNewCue(_ levels: CueLevelData) -> String? {
+        guard let list = ProgrammerCueBridge.resolveRecordList(
+            project: session.project,
+            preferredListID: performance.cueListID ?? session.project.cueLists.first?.id
+        ) else { return nil }
+        let cue = ProgrammerCueBridge.makeRecordedCue(
+            levels: levels,
+            list: list,
+            preferences: session.project.preferences
+        )
+        do {
+            try session.perform(AddCueCommand(listID: list.id, cue: cue))
+            applyProjectUpdate()
+            return cue.name
+        } catch {
+            document.statusMessage = error.localizedDescription
+            return nil
+        }
     }
 
     @discardableResult
@@ -1038,6 +1197,7 @@ final class AppModel: ObservableObject {
         guard !didShutdown else { return }
         didShutdown = true
         isTerminating = true
+        floatWindows.closeAllWindows()
         autosave.stop()
         // UI11-05 / C5.1: flush layout + float frames; do not redock floats on quit.
         workspace.flushLayoutPersistence()
@@ -1071,6 +1231,18 @@ final class AppModel: ObservableObject {
     func redockSurface(_ surface: FloatSurfaceID) {
         workspace.redock(surface)
         floatWindows.closeWindow(for: surface)
+        notifyUI()
+    }
+
+    /// Single Screen is both a persistence policy and an immediate workspace action.
+    /// Multi Screen preserves the current arrangement and restores it on the next launch.
+    func setWorkspaceScreenMode(_ mode: WorkspaceScreenMode) {
+        workspace.setScreenMode(mode)
+        if mode == .single {
+            for surface in FloatSurfaceID.allCases where workspace.isFloating(surface) {
+                redockSurface(surface)
+            }
+        }
         notifyUI()
     }
 

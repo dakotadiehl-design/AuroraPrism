@@ -205,6 +205,26 @@ struct AuroraApp: App {
         .defaultPosition(.center)
         .commandsRemoved()
 
+        Window("LightKey Fixture Importer", id: "lightkey-fixture-importer") {
+            LightKeyFixtureImporterWindowRoot()
+                .environmentObject(appModel)
+                .buttonStyle(AuroraButtonStyle())
+        }
+        .defaultSize(width: 1100, height: 700)
+        .windowResizability(.contentMinSize)
+        .defaultPosition(.center)
+        .commandsRemoved()
+
+        Window("User Fixture Library", id: "user-fixture-library") {
+            UserFixtureLibraryWindow()
+                .environmentObject(appModel)
+                .buttonStyle(AuroraButtonStyle())
+        }
+        .defaultSize(width: 760, height: 620)
+        .windowResizability(.contentMinSize)
+        .defaultPosition(.center)
+        .commandsRemoved()
+
         Settings {
             // Pass by value/reference without EnvironmentObject on the TabView shell —
             // high-frequency AppModel polls must not rebuild SF Symbol tab items.
@@ -260,6 +280,10 @@ struct AuroraApp: App {
                     Button("Import Fixture Definition…") {
                         appModel.importFixtureDefinition()
                     }
+
+                    Button("Import LightKey Fixture…") {
+                        NotificationCenter.default.post(name: .openLightKeyFixtureImporter, object: nil)
+                    }
                 }
             }
 
@@ -280,6 +304,10 @@ struct AuroraApp: App {
             // C4.3: merge visibility into the system View menu — do not create CommandMenu("View").
             CommandGroup(after: .toolbar) {
                 if !isPerform {
+                    Button("Show Fixture Library") {
+                        NotificationCenter.default.post(name: .openUserFixtureLibrary, object: nil)
+                    }
+                    Divider()
                     Button("Show Stage Preview") {
                         appModel.workspace.setBuildWorkspaceMode(.program)
                         appModel.workspace.setStagePreviewCollapsed(false)
@@ -289,6 +317,15 @@ struct AuroraApp: App {
                     Button("Hide Stage Preview") {
                         appModel.workspace.setStagePreviewCollapsed(true)
                         appModel.notifyUI()
+                    }
+                    Divider()
+                    Picker("Screen Mode", selection: Binding(
+                        get: { appModel.workspace.screenMode },
+                        set: { appModel.setWorkspaceScreenMode($0) }
+                    )) {
+                        ForEach(WorkspaceScreenMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
                     }
                     Divider()
                     Menu("Move to Window") {
@@ -342,7 +379,7 @@ struct AuroraApp: App {
                         appModel.notifyUI()
                     }
                     Button("Hide Lower Region") {
-                        for id: WorkspacePanelID in [.cueList, .palettes, .song, .console] {
+                        for id: WorkspacePanelID in [.cueList, .cueBlocks, .palettes, .song, .console] {
                             if appModel.workspace.layout.isVisible(id) {
                                 appModel.workspace.togglePanel(id)
                             }

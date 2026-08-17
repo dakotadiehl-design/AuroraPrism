@@ -112,6 +112,17 @@ enum PanelRegistry {
                     }
                 )
             )
+        case .cueBlocks:
+            return AnyView(
+                ScrollView {
+                    CueBlocksPanel(
+                        context: context,
+                        programmer: appModel.engine.programmer,
+                        onProgrammerChanged: { appModel.noteProgrammerUIChanged() },
+                        onProjectChanged: { appModel.notifyUI() }
+                    )
+                }
+            )
         case .palettes:
             return AnyView(
                 PalettesPanel(
@@ -205,8 +216,6 @@ enum PanelRegistry {
                     outputStatus: appModel.outputStatus
                 )
             )
-        case .inspector:
-            return LegacyWorkspaceView.defaultPanel(id: id, context: context)
         }
     }
 }

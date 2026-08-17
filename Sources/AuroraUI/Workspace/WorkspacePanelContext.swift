@@ -27,16 +27,25 @@ public struct WorkspacePanelContext {
 @MainActor
 public struct FixtureLibraryBox {
     public var definitions: [FixtureDefinition]
+    public var builtInDefinitionIDs: Set<UUID>
+    public var userDefinitionIDs: Set<UUID>
     public var search: (String) -> [FixtureDefinition]
     public var makeEmbeddableCopy: (FixtureDefinition) -> FixtureDefinition
+    public var removeUserDefinitions: (Set<UUID>) throws -> Void
 
     public init(
         definitions: [FixtureDefinition],
+        builtInDefinitionIDs: Set<UUID> = [],
+        userDefinitionIDs: Set<UUID> = [],
         search: @escaping (String) -> [FixtureDefinition],
-        makeEmbeddableCopy: @escaping (FixtureDefinition) -> FixtureDefinition
+        makeEmbeddableCopy: @escaping (FixtureDefinition) -> FixtureDefinition,
+        removeUserDefinitions: @escaping (Set<UUID>) throws -> Void = { _ in }
     ) {
         self.definitions = definitions
+        self.builtInDefinitionIDs = builtInDefinitionIDs
+        self.userDefinitionIDs = userDefinitionIDs
         self.search = search
         self.makeEmbeddableCopy = makeEmbeddableCopy
+        self.removeUserDefinitions = removeUserDefinitions
     }
 }

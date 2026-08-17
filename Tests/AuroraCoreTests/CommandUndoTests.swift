@@ -161,7 +161,8 @@ final class CommandUndoTests: XCTestCase {
         let existing = makeFixture(address: 1, project: baseline)
         baseline.fixtures = [existing]
         let session = DocumentSession(project: baseline)
-        let overlap = makeFixture(address: 1, project: baseline)
+        var overlap = makeFixture(address: 1, project: baseline)
+        overlap.name = "F2"
         XCTAssertThrowsError(try session.perform(AddPatchedFixtureCommand(fixture: overlap))) { error in
             guard case CommandError.patchOverlap = error else {
                 return XCTFail("Unexpected \(error)")
