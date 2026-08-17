@@ -12,6 +12,7 @@ let package = Package(
         .library(name: "AuroraCore", targets: ["AuroraCore"]),
         .library(name: "AuroraEngine", targets: ["AuroraEngine"]),
         .library(name: "AuroraMIDI", targets: ["AuroraMIDI"]),
+        .library(name: "AuroraMusical", targets: ["AuroraMusical"]),
         .library(name: "AuroraOutput", targets: ["AuroraOutput"]),
         .library(name: "AuroraFixtureLib", targets: ["AuroraFixtureLib"]),
         .library(name: "AuroraDiagnostics", targets: ["AuroraDiagnostics"]),
@@ -23,6 +24,10 @@ let package = Package(
         // MARK: - Libraries (dependency edges match system design §3.2 / PR1 doc §6)
         .target(
             name: "AuroraModel"
+        ),
+        // Musical Engine foundation: no CoreMIDI. Timing/provider runtime only.
+        .target(
+            name: "AuroraMusical"
         ),
         .target(
             name: "AuroraFixtureLib",
@@ -40,7 +45,7 @@ let package = Package(
         ),
         .target(
             name: "AuroraEngine",
-            dependencies: ["AuroraModel", "AuroraOutput"]
+            dependencies: ["AuroraModel", "AuroraOutput", "AuroraMusical"]
         ),
         .target(
             name: "AuroraCore",
@@ -48,7 +53,7 @@ let package = Package(
         ),
         .target(
             name: "AuroraMIDI",
-            dependencies: ["AuroraModel"],
+            dependencies: ["AuroraModel", "AuroraMusical"],
             linkerSettings: [
                 .linkedFramework("CoreMIDI"),
                 .linkedFramework("Network"),
@@ -61,7 +66,7 @@ let package = Package(
             // AuroraMIDI: MIDIMappingsPanel uses ShowAction (declared dependency; avoids illicit import).
             // Still no AuroraOutput dependency (DMX stays out of UI).
             name: "AuroraUI",
-            dependencies: ["AuroraCore", "AuroraModel", "AuroraEngine", "AuroraMIDI", "AuroraFixtureLib"],
+            dependencies: ["AuroraCore", "AuroraModel", "AuroraEngine", "AuroraMIDI", "AuroraMusical", "AuroraFixtureLib"],
             resources: [
                 .copy("Resources/StageAssets"),
             ]
@@ -88,6 +93,7 @@ let package = Package(
                 "AuroraEngine",
                 "AuroraOutput",
                 "AuroraMIDI",
+                "AuroraMusical",
                 "AuroraRemote",
                 "AuroraDiagnostics",
             ]
@@ -97,6 +103,10 @@ let package = Package(
         .testTarget(
             name: "AuroraModelTests",
             dependencies: ["AuroraModel"]
+        ),
+        .testTarget(
+            name: "AuroraMusicalTests",
+            dependencies: ["AuroraMusical"]
         ),
         .testTarget(
             name: "AuroraCoreTests",
@@ -116,11 +126,11 @@ let package = Package(
         ),
         .testTarget(
             name: "AuroraEngineTests",
-            dependencies: ["AuroraEngine", "AuroraModel", "AuroraOutput", "AuroraDiagnostics"]
+            dependencies: ["AuroraEngine", "AuroraModel", "AuroraOutput", "AuroraDiagnostics", "AuroraMusical"]
         ),
         .testTarget(
             name: "AuroraMIDITests",
-            dependencies: ["AuroraMIDI"]
+            dependencies: ["AuroraMIDI", "AuroraMusical"]
         ),
         .testTarget(
             name: "AuroraRemoteTests",
@@ -133,6 +143,7 @@ let package = Package(
                 "AuroraCore",
                 "AuroraEngine",
                 "AuroraMIDI",
+                "AuroraMusical",
                 "AuroraOutput",
                 "AuroraFixtureLib",
                 "AuroraDiagnostics",

@@ -40,6 +40,19 @@ public enum ProjectValidator {
         issues.append(contentsOf: duplicateIDIssues(project.midiMappings.map(\.id), label: "midi-mapping"))
         issues.append(contentsOf: duplicateIDIssues(project.effects.map(\.id), label: "effect"))
 
+        // Media relative paths are dictionary keys on save/materialize — must be unique.
+        var seenMediaPaths = Set<String>()
+        for asset in project.mediaAssets {
+            let key = asset.relativePath
+            if !seenMediaPaths.insert(key).inserted {
+                issues.append(stableIssue(
+                    code: "duplicate-media-relative-path",
+                    entity: asset.id,
+                    message: "Duplicate media relative path \(key)"
+                ))
+            }
+        }
+
         // Cue IDs unique across all lists
         var allCueIDs: [UUID] = []
         for list in project.cueLists {

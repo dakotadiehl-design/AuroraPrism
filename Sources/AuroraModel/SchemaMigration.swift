@@ -46,6 +46,14 @@ public enum SchemaMigration {
                 next.drumProfiles = [.generalMIDIKit]
             }
             return next
+        case 3:
+            // v3 → v4: AME document empty; ensure each song has a default Main section.
+            // Do NOT synthesize sections from SongEntry.label (labels may mean cue notes only).
+            var next = project
+            for i in next.songs.indices {
+                SongSectionMigrationHelper.ensureDefaultMainSection(&next.songs[i])
+            }
+            return next
         default:
             throw SchemaMigrationError.unsupportedVersion(found: version, supportedMaximum: currentVersion)
         }

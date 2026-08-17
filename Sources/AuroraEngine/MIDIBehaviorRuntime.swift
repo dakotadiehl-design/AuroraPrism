@@ -178,6 +178,24 @@ public final class MIDIBehaviorRuntime: @unchecked Sendable {
         }
     }
 
+    /// Release all live instances owned by a MIDI device (unplug / source disconnect).
+    /// Marks matching instances released at `time` so release envelopes can complete.
+    @discardableResult
+    public func releaseAll(forDeviceID deviceID: String, at time: TimeInterval) -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        let prefix = deviceID + ":"
+        var count = 0
+        for i in live.indices {
+            if live[i].sourceKey.hasPrefix(prefix), !live[i].released {
+                live[i].released = true
+                live[i].releaseStart = time
+                count += 1
+            }
+        }
+        return count
+    }
+
     /// Apply live envelopes onto look and prune finished.
     public func apply(on look: ActiveLook, time: TimeInterval) -> ActiveLook {
         lock.lock()

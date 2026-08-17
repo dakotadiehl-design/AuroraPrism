@@ -3,11 +3,24 @@ import AuroraOutput
 import Foundation
 
 /// Real-time lighting engine: fixed-rate tick, cue playback, merge, output flush, snapshots.
+///
+/// Threading contract (Post-C6 audit):
+/// - `lock` protects snapshots, config, project indexes, and small control state.
+/// - `frameQueue` serializes the **complete** frame pipeline (evaluate → write → flush → publish).
+/// - Scheduler ticks and forced frames (panic / unfreeze / clear / test) all enter via `frameQueue`.
+/// - Panic/unfreeze use synchronous `sync` so physical output is updated before return.
+/// - After `stop()` returns, no prior frame may still flush (barrier on `frameQueue`).
+/// - Playback / Programmer / EffectRunner own their internal locks; they are not whole-frame atomic alone.
 public final class LightingEngine: @unchecked Sendable {
     private let output: OutputManager
     private let clock: EngineClock
     private let scheduler = EngineScheduler()
     private let lock = NSLock()
+    /// Serializes complete frame bodies (scheduler + forced frames).
+    private let frameQueue = DispatchQueue(
+        label: "com.aurora.engine.frames",
+        qos: .userInteractive
+    )
 
     private var configuration: EngineConfiguration
     private var project: ShowProject = .empty(name: "Engine")
@@ -23,6 +36,11 @@ public final class LightingEngine: @unchecked Sendable {
     private var frozenPresentationLook: ActiveLook?
     private var lastSnapshotPublishTime: TimeInterval = 0
     private var startedOutput = false
+    /// When false, frame bodies no-op (post-stop barrier).
+    private var framesEnabled = false
+
+    /// Debug/test: overlapping frame bodies must never exceed 1.
+    private let concurrentFrameCounter = ConcurrentFrameCounter()
 
     public let playback = PlaybackController()
     public let programmer = Programmer()
@@ -45,6 +63,16 @@ public final class LightingEngine: @unchecked Sendable {
         self.output = output
         self.configuration = configuration
         self.clock = clock
+        frameQueue.setSpecific(key: Self.frameQueueKey, value: 1)
+    }
+
+    /// Peak concurrent frame bodies observed (tests assert == 1).
+    public var maxConcurrentFramesObserved: Int {
+        concurrentFrameCounter.maxObserved
+    }
+
+    public func resetConcurrentFrameStatsForTesting() {
+        concurrentFrameCounter.reset()
     }
 
     public var globalShowControl: GlobalShowControlState {
@@ -95,7 +123,7 @@ public final class LightingEngine: @unchecked Sendable {
         lock.unlock()
         if !on {
             // Snap: force a frame so output leaves held state immediately.
-            processFrame(publishSnapshotAlways: true)
+            runFrame(publishSnapshotAlways: true, wait: true)
         }
     }
 
@@ -148,7 +176,7 @@ public final class LightingEngine: @unchecked Sendable {
         programmer.setBlind(false)
         programmer.setHighlight(false)
         midiBehaviors.panic()
-        processFrame(publishSnapshotAlways: true)
+        runFrame(publishSnapshotAlways: true, wait: true)
     }
 
     /// Clear temporary overrides without full panic (keeps master; clears programmer/highlight/blackout/freeze/blind).
@@ -164,7 +192,7 @@ public final class LightingEngine: @unchecked Sendable {
         programmer.setBlind(false)
         programmer.setHighlight(false)
         midiBehaviors.clear()
-        processFrame(publishSnapshotAlways: true)
+        runFrame(publishSnapshotAlways: true, wait: true)
     }
 
     public var isRunning: Bool { scheduler.isRunning }
@@ -268,7 +296,9 @@ public final class LightingEngine: @unchecked Sendable {
         playback.stop(at: clock.now())
     }
 
-    public func fire(cueID: UUID) {
+    /// Fire a cue by ID. Returns whether the cue was found and a transition began.
+    @discardableResult
+    public func fire(cueID: UUID) -> Bool {
         playback.fire(cueID: cueID, at: clock.now())
     }
 
@@ -295,36 +325,92 @@ public final class LightingEngine: @unchecked Sendable {
     public func start() throws {
         guard !isRunning else { return }
         try output.startAll()
+        lock.lock()
         startedOutput = true
+        framesEnabled = true
+        lock.unlock()
 
         let period = configurationSnapshot.framePeriod
         scheduler.start(period: period) { [weak self] in
-            self?.processFrame(publishSnapshotAlways: false)
+            // Async enqueue — never nest sync onto frameQueue from the frame queue itself.
+            self?.runFrame(publishSnapshotAlways: false, wait: false)
         }
 
-        processFrame(publishSnapshotAlways: true)
+        runFrame(publishSnapshotAlways: true, wait: true)
     }
 
     public func stop() {
-        scheduler.stop()
-        if startedOutput {
-            output.stopAll()
-            startedOutput = false
-        }
+        // Disable new frames first so any in-flight/enqueued work no-ops after barrier.
         lock.lock()
+        framesEnabled = false
+        lock.unlock()
+
+        scheduler.stop()
+
+        // Barrier: wait until every previously enqueued frame body finishes.
+        frameQueue.sync(flags: .barrier) {}
+
+        lock.lock()
+        let wasStarted = startedOutput
+        startedOutput = false
         snapshot.isRunning = false
         lock.unlock()
+
+        if wasStarted {
+            output.stopAll()
+        }
     }
 
     /// Synchronous single frame for unit tests.
     public func stepForTesting() {
-        processFrame(publishSnapshotAlways: true)
+        // Tests may step without start(); temporarily enable frame execution.
+        lock.lock()
+        let prior = framesEnabled
+        framesEnabled = true
+        lock.unlock()
+        runFrame(publishSnapshotAlways: true, wait: true)
+        lock.lock()
+        framesEnabled = prior
+        lock.unlock()
     }
 
-    private func processFrame(publishSnapshotAlways: Bool) {
+    // MARK: - Frame entry
+
+    /// All frame work enters here. `wait: true` runs synchronously on the frame queue
+    /// (panic/unfreeze). Scheduler uses `wait: false` to avoid blocking the timer thread
+    /// when already on the frame path... actually scheduler is a different queue, so either
+    /// is fine; async keeps timer responsive if a forced sync frame is in progress.
+    private func runFrame(publishSnapshotAlways: Bool, wait: Bool) {
+        let body: () -> Void = { [weak self] in
+            self?.processFrameBody(publishSnapshotAlways: publishSnapshotAlways)
+        }
+        if wait {
+            // Avoid deadlock if already on frameQueue (should not happen for public API).
+            if DispatchQueue.getSpecific(key: Self.frameQueueKey) != nil {
+                body()
+            } else {
+                frameQueue.sync(execute: body)
+            }
+        } else {
+            frameQueue.async(execute: body)
+        }
+    }
+
+    private static let frameQueueKey = DispatchSpecificKey<UInt8>()
+
+    private func processFrameBody(publishSnapshotAlways: Bool) {
+        // After stop, refuse frames. `stepForTesting` temporarily enables framesEnabled.
+        lock.lock()
+        let allow = framesEnabled
+        lock.unlock()
+        guard allow else { return }
+        _ = publishSnapshotAlways
+
+        concurrentFrameCounter.enter()
+        defer { concurrentFrameCounter.leave() }
+
         let frameStart = CFAbsoluteTimeGetCurrent()
         lock.lock()
-        let project = self.project
         let compiled = self.compiledShow
         let cachedIssues = self.cachedResolutionIssues
         let manual = self.manualLook
@@ -380,6 +466,15 @@ public final class LightingEngine: @unchecked Sendable {
             lock.unlock()
         }
 
+        // Re-check enable before physical flush (stop may have raced after we began).
+        lock.lock()
+        let stillEnabled = framesEnabled
+        lock.unlock()
+        guard stillEnabled else {
+            frameMetrics.record(durationSeconds: CFAbsoluteTimeGetCurrent() - frameStart)
+            return
+        }
+
         for (universeNumber, channels) in levels {
             output.ensureUniverse(universeNumber, channelCount: channels.count)
             output.setLevels(universe: universeNumber, values: channels)
@@ -427,5 +522,38 @@ public final class LightingEngine: @unchecked Sendable {
         }
 
         frameMetrics.record(durationSeconds: CFAbsoluteTimeGetCurrent() - frameStart)
+    }
+}
+
+// MARK: - Concurrent frame counter (testability)
+
+private final class ConcurrentFrameCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var current = 0
+    private var maxSeen = 0
+
+    var maxObserved: Int {
+        lock.lock(); defer { lock.unlock() }
+        return maxSeen
+    }
+
+    func enter() {
+        lock.lock()
+        current += 1
+        maxSeen = max(maxSeen, current)
+        lock.unlock()
+    }
+
+    func leave() {
+        lock.lock()
+        current = max(0, current - 1)
+        lock.unlock()
+    }
+
+    func reset() {
+        lock.lock()
+        current = 0
+        maxSeen = 0
+        lock.unlock()
     }
 }

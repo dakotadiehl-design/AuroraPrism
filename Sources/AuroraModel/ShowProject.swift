@@ -28,6 +28,8 @@ public struct ShowProject: Codable, Equatable, Sendable {
     public var workspaceLayoutId: UUID?
     /// 2D Stage Designer layout (P0-A). Visual only — does not affect patch.
     public var stageLayout: StageLayout
+    /// Advanced MIDI Engine + Musical Engine project document (schema v4+).
+    public var ame: AMEProjectDocument
 
     public init(
         schemaVersion: Int = ProjectPackage.currentSchemaVersion,
@@ -49,7 +51,8 @@ public struct ShowProject: Codable, Equatable, Sendable {
         midiFeedbackProfiles: [MIDIFeedbackProfile] = [],
         effects: [EffectDefinition] = [],
         workspaceLayoutId: UUID? = nil,
-        stageLayout: StageLayout = .empty
+        stageLayout: StageLayout = .empty,
+        ame: AMEProjectDocument = .empty
     ) {
         self.schemaVersion = schemaVersion
         self.metadata = metadata
@@ -71,6 +74,7 @@ public struct ShowProject: Codable, Equatable, Sendable {
         self.effects = effects
         self.workspaceLayoutId = workspaceLayoutId
         self.stageLayout = stageLayout
+        self.ame = ame
     }
 
     /// Empty project suitable for offline editing with no drivers attached.

@@ -36,6 +36,27 @@ final class InputController: ObservableObject {
         publishHealth(sourceCount: 0, failed: false)
     }
 
+    /// Optional clock adapter from show control (timing independent of channel-voice Learn path).
+    private weak var clockAdapter: MIDIClockTimingAdapter?
+    /// Optional inventory listener (binding resolution / Musical Engine source admit).
+    private var inventoryListener: (([MIDIDeviceInfo]) -> Void)?
+
+    /// Current CoreMIDI source inventory (canonical `uid:` / `ep:` ids).
+    var midiSources: [MIDIDeviceInfo] { midi.sources }
+
+    /// Bind Musical Engine clock adapter (must be set before or with startMIDI).
+    func attachClockAdapter(_ adapter: MIDIClockTimingAdapter) {
+        clockAdapter = adapter
+    }
+
+    /// Called whenever the live source inventory changes (hotplug).
+    func setInventoryListener(_ listener: (([MIDIDeviceInfo]) -> Void)?) {
+        inventoryListener = listener
+        if midiSubsystemRunning {
+            listener?(midi.sources)
+        }
+    }
+
     /// Installs a **dedicated** MIDI log observer (does not replace other observers).
     func startMIDI(router: ControlActionRouter, session: @escaping () -> DocumentSession, onLog: @escaping (String) -> Void) {
         let learnFlag = midiLearnFlag
@@ -52,22 +73,43 @@ final class InputController: ObservableObject {
                 self?.objectWillChange.send()
             }
         }
+        // Full ingress → Musical Engine clock path (runs even when Learn is armed).
+        // Capture adapter reference for nonisolated CoreMIDI callback.
+        let adapter = clockAdapter
+        midi.setIngressHandler { ingress in
+            adapter?.handle(ingress: ingress)
+        }
         midi.setHandler { [weak self] events in
             if learnFlag.isArmed {
                 Task { @MainActor in
                     self?.handleMIDILearnOnly(events, session: session(), router: router, onLog: onLog)
+                }
+                // Still allow AME learn path if armed for AME
+                if router.isAMELearning {
+                    router.handleAMELearnEvents(events)
                 }
                 return
             }
             for e in events {
                 self?.midiOut.noteInputFrom(sourceID: e.sourceID)
             }
+            if router.isAMELearning {
+                router.handleAMELearnEvents(events)
+                return
+            }
             router.handleMIDIEvents(events)
         }
         // ST-01: hotplug inventory updates without requiring MIDI traffic.
         midi.setInventoryChangeHandler { [weak self] count in
             Task { @MainActor in
-                self?.publishHealth(sourceCount: count, failed: false)
+                guard let self else { return }
+                self.publishHealth(sourceCount: count, failed: false)
+                self.inventoryListener?(self.midi.sources)
+            }
+        }
+        midi.setSourceLifecycleHandler { [weak router] event in
+            if case .disconnected(let sourceID) = event {
+                router?.handleMIDISourceDisconnected(sourceID)
             }
         }
         do {

@@ -188,14 +188,17 @@ public final class PlaybackController: @unchecked Sendable {
         clearLoopStateLocked()
     }
 
-    public func fire(cueID: UUID, at now: TimeInterval) {
+    /// Fire a cue by ID. Returns `false` when the cue is not on the active list.
+    @discardableResult
+    public func fire(cueID: UUID, at now: TimeInterval) -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        guard let list, let idx = list.cues.firstIndex(where: { $0.id == cueID }) else { return }
+        guard let list, let idx = list.cues.firstIndex(where: { $0.id == cueID }) else { return false }
         frozen = false
         pendingFollowAt = nil
         clearLoopStateLocked()
         beginTransition(to: idx, at: now, list: list, isLoopReentry: false)
+        return true
     }
 
     private func clearLoopStateLocked() {
