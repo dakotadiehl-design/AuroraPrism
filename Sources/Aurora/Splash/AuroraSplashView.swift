@@ -2,6 +2,7 @@ import AuroraUI
 import SwiftUI
 
 /// Launch splash — professional lighting-control power-on (process launch only).
+/// Hosted exclusively on the main `ContentView` overlay — never on float windows.
 struct AuroraSplashView: View {
     @ObservedObject var model: LaunchSplashController
 
@@ -10,89 +11,73 @@ struct AuroraSplashView: View {
     var body: some View {
         ZStack {
             SplashBackgroundView()
+                .opacity(1.0 - 0.35 * model.exitProgress)
 
-            // Centered brand card
-            ZStack {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(AuroraColor.surfaceBase.opacity(0.92))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .strokeBorder(
-                                LinearGradient(
-                                    colors: [
-                                        AuroraColor.accent.opacity(0.35),
-                                        Color.white.opacity(0.06),
-                                        AuroraColor.accent.opacity(0.15),
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-                    .shadow(color: Color.black.opacity(0.55), radius: 28, y: 12)
+            // Centered brand composition (cinematic, not a heavy dialog card).
+            VStack(spacing: 0) {
+                Spacer(minLength: 40)
 
-                VStack(spacing: 0) {
-                    Spacer(minLength: 36)
-
-                    ZStack {
-                        AuroraRibbonView(
-                            phase: model.animationPhase,
-                            reduceMotion: reduceMotion,
-                            readyPulse: model.readyPulse
-                        )
-                        SplashLogoView(
-                            phase: model.animationPhase,
-                            readyPulse: model.readyPulse,
-                            reduceMotion: reduceMotion
-                        )
-                    }
-                    .frame(height: 140)
-
-                    SplashWordmarkView(
+                ZStack {
+                    AuroraRibbonView(
                         phase: model.animationPhase,
+                        reduceMotion: reduceMotion,
+                        readyPulse: model.readyPulse
+                    )
+                    SplashLogoView(
+                        phase: model.animationPhase,
+                        readyPulse: model.readyPulse,
                         reduceMotion: reduceMotion
                     )
-                    .padding(.top, 18)
-
-                    Text("LIGHTING CONTROL")
-                        .font(.system(size: 10, weight: .medium))
-                        .tracking(3.2)
-                        .foregroundStyle(AuroraColor.textTertiary)
-                        .opacity(wordmarkSubtitleOpacity)
-                        .padding(.top, 8)
-
-                    Spacer(minLength: 28)
-
-                    SplashDMXActivityView(
-                        phase: model.animationPhase,
-                        reduceMotion: reduceMotion
-                    )
-                    .padding(.bottom, 16)
-
-                    SplashStartupStatusView(
-                        bootstrap: model.bootstrap,
-                        phase: model.animationPhase
-                    )
-                    .padding(.bottom, 28)
                 }
-                .padding(.horizontal, 36)
+                .frame(height: 168)
+
+                SplashWordmarkView(
+                    phase: model.animationPhase,
+                    reduceMotion: reduceMotion
+                )
+                .padding(.top, 22)
+
+                Text(PrismBrandCopy.productLine)
+                    .font(.system(size: 10, weight: .medium))
+                    .tracking(3.4)
+                    .foregroundStyle(AuroraColor.textTertiary)
+                    .opacity(wordmarkSubtitleOpacity)
+                    .padding(.top, 10)
+
+                Spacer(minLength: 32)
+
+                SplashDMXActivityView(
+                    phase: model.animationPhase,
+                    reduceMotion: reduceMotion
+                )
+                .padding(.bottom, 18)
+
+                SplashStartupStatusView(
+                    bootstrap: model.bootstrap,
+                    phase: model.animationPhase,
+                    onContinueAfterFailure: {
+                        model.dismissAfterFailure()
+                    }
+                )
+                .padding(.bottom, 48)
             }
-            .frame(width: 720, height: 460)
-            .scaleEffect(1.0 + 0.015 * model.exitProgress)
-            .opacity(1.0 - 0.95 * model.exitProgress)
+            .frame(maxWidth: 720)
+            .padding(.horizontal, 40)
+            .scaleEffect(1.0 + 0.012 * model.exitProgress)
+            .opacity(1.0 - model.exitProgress)
 
             VStack {
                 Spacer()
                 HStack {
                     SplashVersionLabel()
-                        .padding(20)
+                        .padding(22)
                     Spacer()
                 }
             }
+            .opacity(1.0 - model.exitProgress)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.opacity(0.55 + 0.35 * (1 - model.exitProgress)))
+        .background(Color.black.opacity(0.15 * (1 - model.exitProgress)))
         .allowsHitTesting(model.isVisible)
         .onAppear {
             model.beginIfNeeded()
@@ -102,7 +87,7 @@ struct AuroraSplashView: View {
     private var wordmarkSubtitleOpacity: Double {
         switch model.animationPhase {
         case .brandingReveal, .engineActivity, .ambient, .ready, .exiting:
-            return 0.85
+            return 0.88
         default:
             return 0
         }
@@ -124,7 +109,7 @@ struct AuroraSplashView: View {
         .preferredColorScheme(.dark)
 }
 
-#Preview("Splash — Aurora reveal") {
+#Preview("Splash — Prism reveal") {
     AuroraSplashView(model: .preview(phase: .auroraReveal, bootstrap: .startingEngine))
         .frame(width: 900, height: 600)
         .preferredColorScheme(.dark)

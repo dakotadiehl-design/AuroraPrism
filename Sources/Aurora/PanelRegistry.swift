@@ -205,7 +205,7 @@ enum PanelRegistry {
                     outputStatus: appModel.outputStatus
                 )
             )
-        default:
+        case .inspector:
             return LegacyWorkspaceView.defaultPanel(id: id, context: context)
         }
     }

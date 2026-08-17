@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - Stage imported media (C4.5)
+// MARK: - Stage imported media (C4.5 / Post-C6 hardening)
 
 /// Project-portable Stage image media: package-relative paths under `media/stage/`.
 ///
@@ -55,6 +55,14 @@ public enum StageMediaSupport {
         return stagingRootURL().appendingPathComponent(name, isDirectory: false)
     }
 
+    /// True when `candidate` is strictly inside `packageRoot` (path-component safe).
+    public static func isURL(_ candidate: URL, containedIn packageRoot: URL) -> Bool {
+        let root = packageRoot.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+        let path = candidate.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+        guard path.count >= root.count else { return false }
+        return Array(path.prefix(root.count)) == root
+    }
+
     /// Resolve a Stage `mediaRef` to a readable file URL if possible.
     public static func resolveFileURL(
         mediaRef: String,
@@ -70,17 +78,16 @@ public enum StageMediaSupport {
                 let candidate = packageRoot
                     .appendingPathComponent(packageStageMediaDirectory, isDirectory: true)
                     .appendingPathComponent(name)
-                if fm.fileExists(atPath: candidate.path) { return candidate }
+                if isURL(candidate, containedIn: packageRoot), fm.fileExists(atPath: candidate.path) {
+                    return candidate
+                }
             }
             return nil
         }
         guard let safe = validatedPackageRelativePath(mediaRef) else { return nil }
         if let packageRoot {
             let inPackage = packageRoot.appendingPathComponent(safe)
-            // Ensure resolved path stays under package root
-            let packagePath = packageRoot.standardizedFileURL.path
-            let resolvedPath = inPackage.standardizedFileURL.path
-            if resolvedPath.hasPrefix(packagePath), fm.fileExists(atPath: resolvedPath) {
+            if isURL(inPackage, containedIn: packageRoot), fm.fileExists(atPath: inPackage.path) {
                 return inPackage
             }
         }
@@ -128,6 +135,9 @@ public enum StageMediaSupport {
 
     /// Ensure all Stage imported images are present under `packageRoot/media/stage/` and
     /// rewrite absolute/legacy `mediaRef` values to package-relative form.
+    ///
+    /// Legacy absolute paths always get a **unique** package filename (UUID), never basename-only,
+    /// so two different `logo.png` files cannot overwrite each other (Post-C6 audit).
     public static func materializeStageMedia(
         into packageRoot: URL,
         project: inout ShowProject
@@ -136,39 +146,51 @@ public enum StageMediaSupport {
         let stageDir = packageRoot.appendingPathComponent(packageStageMediaDirectory, isDirectory: true)
         try fm.createDirectory(at: stageDir, withIntermediateDirectories: true)
 
-        var assetsByPath = Dictionary(uniqueKeysWithValues: project.mediaAssets.map { ($0.relativePath, $0) })
-        var changed = false
+        // First-wins map — never trap on duplicate relative paths.
+        var assetsByPath: [String: MediaAssetRef] = [:]
+        assetsByPath.reserveCapacity(project.mediaAssets.count)
+        for asset in project.mediaAssets {
+            if assetsByPath[asset.relativePath] == nil {
+                assetsByPath[asset.relativePath] = asset
+            }
+        }
 
         for i in project.stageLayout.objects.indices {
             guard project.stageLayout.objects[i].kind == .importedImage else { continue }
             guard let ref = project.stageLayout.objects[i].mediaRef, !ref.isEmpty else { continue }
 
-            let fileName: String
+            let relative: String
             let sourceURL: URL?
+            let displayName: String
 
             if isAbsoluteFilePath(ref) {
                 let abs = URL(fileURLWithPath: ref)
-                fileName = abs.lastPathComponent
+                let ext = abs.pathExtension.isEmpty ? "png" : abs.pathExtension
+                // Unique storage identity — never use basename alone for legacy migration.
+                relative = makeRelativeStageMediaPath(fileExtension: ext)
                 sourceURL = fm.fileExists(atPath: abs.path) ? abs : nil
+                displayName = project.stageLayout.objects[i].name.isEmpty
+                    ? abs.deletingPathExtension().lastPathComponent
+                    : project.stageLayout.objects[i].name
             } else if let safe = validatedPackageRelativePath(ref) {
-                fileName = (safe as NSString).lastPathComponent
-                if let existing = resolveFileURL(mediaRef: safe, packageRoot: packageRoot) {
-                    sourceURL = existing
-                } else {
-                    sourceURL = nil
-                }
+                relative = safe
+                sourceURL = resolveFileURL(mediaRef: safe, packageRoot: packageRoot)
+                displayName = project.stageLayout.objects[i].name.isEmpty
+                    ? (safe as NSString).lastPathComponent
+                    : project.stageLayout.objects[i].name
             } else {
                 continue
             }
 
+            let fileName = (relative as NSString).lastPathComponent
             let dest = stageDir.appendingPathComponent(fileName)
-            let relative = "\(packageStageMediaDirectory)/\(fileName)"
 
-            if let sourceURL, !fm.fileExists(atPath: dest.path) || sourceURL.standardizedFileURL != dest.standardizedFileURL {
-                if sourceURL.standardizedFileURL != dest.standardizedFileURL {
-                    if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
-                    // If source is already dest, skip
+            if let sourceURL {
+                if !fm.fileExists(atPath: dest.path)
+                    || sourceURL.resolvingSymlinksInPath().standardizedFileURL
+                    != dest.resolvingSymlinksInPath().standardizedFileURL {
                     if sourceURL.path != dest.path {
+                        if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
                         try fm.copyItem(at: sourceURL, to: dest)
                     }
                 }
@@ -176,20 +198,16 @@ public enum StageMediaSupport {
 
             if project.stageLayout.objects[i].mediaRef != relative {
                 project.stageLayout.objects[i].mediaRef = relative
-                changed = true
             }
 
             if assetsByPath[relative] == nil {
                 let asset = MediaAssetRef(
-                    name: project.stageLayout.objects[i].name.isEmpty
-                        ? fileName
-                        : project.stageLayout.objects[i].name,
+                    name: displayName,
                     relativePath: relative,
                     notes: "Stage imported image"
                 )
                 project.mediaAssets.append(asset)
                 assetsByPath[relative] = asset
-                changed = true
             }
 
             // Keep staging mirror for open-session resolution after save.
@@ -201,8 +219,6 @@ public enum StageMediaSupport {
                     try? fm.copyItem(at: dest, to: staged)
                 }
             }
-
-            _ = changed
         }
     }
 }

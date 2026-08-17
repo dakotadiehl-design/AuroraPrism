@@ -61,7 +61,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.aurora.lighting
-        PRODUCT_NAME: Aurora
+        PRODUCT_NAME: Prism
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO
@@ -102,6 +102,8 @@ targets:
         product: AuroraOutput
       - package: AuroraPackage
         product: AuroraMIDI
+      - package: AuroraPackage
+        product: AuroraMusical
       - package: AuroraPackage
         product: AuroraRemote
       - package: AuroraPackage

@@ -8,7 +8,7 @@ public struct AuroraAppToolbar: View {
     public var showModeToggle: Bool
 
     public init(
-        projectTitle: String = "Untitled.aurora",
+        projectTitle: String = "Untitled.prism",
         healthSummary: String = "Output OK",
         mode: Binding<AuroraWorkspaceChromeMode> = .constant(.build),
         showModeToggle: Bool = true
@@ -27,7 +27,7 @@ public struct AuroraAppToolbar: View {
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(AuroraColor.accentBright)
                     .rotationEffect(.degrees(45))
-                Text("AURORA")
+                Text("PRISM")
                     .font(AuroraTypography.wordmark)
                     .foregroundStyle(AuroraColor.textPrimary)
                     .tracking(1)

@@ -9,7 +9,7 @@ public struct WorkspacePanelContext {
     public var project: ShowProject { session.project }
     /// Optional library for fixture browser (nil → placeholder / empty).
     public var fixtureLibrary: FixtureLibraryBox?
-    /// Open `.aurora` package URL when the document is on disk (C4.5 Stage media resolution).
+    /// Open Prism package URL when the document is on disk (C4.5 Stage media resolution).
     public var packageURL: URL?
 
     public init(

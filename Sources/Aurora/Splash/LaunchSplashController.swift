@@ -1,3 +1,4 @@
+import AuroraUI
 import Combine
 import Foundation
 
@@ -69,10 +70,10 @@ enum LaunchBootstrapPhase: Equatable, Sendable {
 // MARK: - Controller
 
 /// Process-launch splash: animation phases + bootstrap status.
-/// Shown once per app process; never on project open / mode switch.
+/// Shown once per app process; never on project open / mode switch / float windows.
 @MainActor
 final class LaunchSplashController: ObservableObject {
-    /// Full-window overlay visibility.
+    /// Full-window overlay visibility (main ContentView only).
     @Published private(set) var isVisible: Bool = true
     @Published private(set) var animationPhase: SplashAnimationPhase = .initial
     @Published private(set) var bootstrap: LaunchBootstrapPhase = .launching
@@ -81,11 +82,16 @@ final class LaunchSplashController: ObservableObject {
     /// Logo READY pulse (brief).
     @Published private(set) var readyPulse: Bool = false
 
-    /// Minimum time splash remains visible after appear (visual hold for brand sequence).
-    static let minimumVisibleSeconds: TimeInterval = 5.0
+    /// Minimum time splash remains visible after appear (brand sequence hold).
+    /// Source of truth: `LaunchSplashPolicy` (library-testable).
+    static var minimumVisibleSeconds: TimeInterval { LaunchSplashPolicy.minimumVisibleSeconds }
+
+    /// Absolute cap so a hung bootstrap cannot trap the operator (C6C).
+    static var maximumVisibleSeconds: TimeInterval { LaunchSplashPolicy.maximumVisibleSeconds }
 
     private var introTask: Task<Void, Never>?
     private var dismissTask: Task<Void, Never>?
+    private var maxHoldTask: Task<Void, Never>?
     private var appearDate: Date?
     private var introComplete = false
     private var bootstrapReady = false
@@ -113,6 +119,7 @@ final class LaunchSplashController: ObservableObject {
     deinit {
         introTask?.cancel()
         dismissTask?.cancel()
+        maxHoldTask?.cancel()
     }
 
     // MARK: Bootstrap reporting (call from AppModel.init)
@@ -136,9 +143,17 @@ final class LaunchSplashController: ObservableObject {
         guard !didDismiss else { return }
         bootstrapReady = false
         bootstrap = .failed(message)
-        // Stay visible; cancel ambient exit path.
+        // Stay visible with Continue; cancel ambient exit path.
         dismissTask?.cancel()
         dismissTask = nil
+        maxHoldTask?.cancel()
+        maxHoldTask = nil
+    }
+
+    /// Operator continues past a non-fatal startup presentation failure (C6C).
+    func dismissAfterFailure() {
+        guard case .failed = bootstrap else { return }
+        forceHideForTests()
     }
 
     /// Start intro once first UI appears (or end of AppModel.init).
@@ -147,6 +162,7 @@ final class LaunchSplashController: ObservableObject {
         didBegin = true
         appearDate = Date()
         startIntroAnimation()
+        startMaximumHoldWatchdog()
     }
 
     // MARK: Animation
@@ -157,34 +173,46 @@ final class LaunchSplashController: ObservableObject {
             guard let self else { return }
             self.animationPhase = .initial
 
-            try? await Task.sleep(nanoseconds: 200_000_000)
+            try? await Task.sleep(nanoseconds: 120_000_000)
             guard !Task.isCancelled else { return }
             self.animationPhase = .logoIgnition
 
-            try? await Task.sleep(nanoseconds: 250_000_000)
+            try? await Task.sleep(nanoseconds: 280_000_000)
             guard !Task.isCancelled else { return }
             self.animationPhase = .auroraReveal
 
-            try? await Task.sleep(nanoseconds: 400_000_000)
+            try? await Task.sleep(nanoseconds: 360_000_000)
             guard !Task.isCancelled else { return }
             self.animationPhase = .brandingReveal
 
-            try? await Task.sleep(nanoseconds: 250_000_000)
+            try? await Task.sleep(nanoseconds: 280_000_000)
             guard !Task.isCancelled else { return }
             self.animationPhase = .engineActivity
 
-            try? await Task.sleep(nanoseconds: 450_000_000)
+            try? await Task.sleep(nanoseconds: 400_000_000)
             guard !Task.isCancelled else { return }
 
             self.introComplete = true
             if self.bootstrapReady {
                 await self.performReadyAndExit()
             } else if case .failed = self.bootstrap {
-                // Hold on error.
+                // Hold on error with Continue.
             } else {
                 self.animationPhase = .ambient
                 self.tryCompleteIfPossible()
             }
+        }
+    }
+
+    private func startMaximumHoldWatchdog() {
+        maxHoldTask?.cancel()
+        maxHoldTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Self.maximumVisibleSeconds * 1_000_000_000))
+            guard let self, !Task.isCancelled, !self.didDismiss else { return }
+            // On hard failure, still allow Continue rather than auto-dismiss.
+            if case .failed = self.bootstrap { return }
+            // Hung bootstrap: reveal workspace rather than permanent splash.
+            await self.performReadyAndExit(force: true)
         }
     }
 
@@ -196,11 +224,10 @@ final class LaunchSplashController: ObservableObject {
         }
     }
 
-    private func performReadyAndExit() async {
+    private func performReadyAndExit(force: Bool = false) async {
         guard !didDismiss else { return }
 
-        // Honor minimum visible time.
-        if let appearDate {
+        if !force, let appearDate {
             let elapsed = Date().timeIntervalSince(appearDate)
             let remaining = Self.minimumVisibleSeconds - elapsed
             if remaining > 0 {
@@ -209,20 +236,29 @@ final class LaunchSplashController: ObservableObject {
         }
         guard !Task.isCancelled, !didDismiss else { return }
 
+        if case .failed = bootstrap, !force {
+            return
+        }
+
         bootstrap = .ready
         animationPhase = .ready
         readyPulse = true
-        try? await Task.sleep(nanoseconds: 220_000_000)
+        try? await Task.sleep(nanoseconds: 200_000_000)
         readyPulse = false
         guard !Task.isCancelled, !didDismiss else { return }
 
         animationPhase = .exiting
-        // Animate exitProgress for views that bind it.
-        let steps = 8
+        // Smooth exit curve (ease-ish steps).
+        let steps = 10
         for i in 1...steps {
             guard !Task.isCancelled else { return }
-            exitProgress = Double(i) / Double(steps)
-            try? await Task.sleep(nanoseconds: 40_000_000)
+            let t = Double(i) / Double(steps)
+            // Ease-in-out cubic for exit progress.
+            let eased = t < 0.5
+                ? 4 * t * t * t
+                : 1 - pow(-2 * t + 2, 3) / 2
+            exitProgress = eased
+            try? await Task.sleep(nanoseconds: 28_000_000)
         }
 
         didDismiss = true
@@ -230,6 +266,8 @@ final class LaunchSplashController: ObservableObject {
         introTask?.cancel()
         introTask = nil
         dismissTask = nil
+        maxHoldTask?.cancel()
+        maxHoldTask = nil
     }
 
     /// Test helper: force dismiss without animation.
@@ -238,5 +276,9 @@ final class LaunchSplashController: ObservableObject {
         isVisible = false
         introTask?.cancel()
         dismissTask?.cancel()
+        maxHoldTask?.cancel()
+        introTask = nil
+        dismissTask = nil
+        maxHoldTask = nil
     }
 }

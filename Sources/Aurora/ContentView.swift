@@ -1,9 +1,15 @@
 import AuroraUI
 import SwiftUI
 
+extension Notification.Name {
+    static let auroraOpenAbout = Notification.Name("aurora.openAbout")
+    static let openAMEEngineWindow = Notification.Name("aurora.openAMEEngine")
+}
+
 /// Production root (UI-02) — Build Option A, Perform seed, explicit Welcome (DOC-01).
 struct ContentView: View {
     @EnvironmentObject private var appModel: AppModel
+    @Environment(\.openWindow) private var openWindow
 
     /// Explicit application Welcome state — not inferred from empty project contents (DOC-01).
     private var showWelcome: Bool {
@@ -34,7 +40,8 @@ struct ContentView: View {
             }
             .background(AuroraColor.surfaceBase)
 
-            // Process-launch splash (once). Workspace initializes underneath.
+            // Process-launch splash (once, main window only). Workspace initializes underneath.
+            // C6C: never mounted on float WindowGroups — avoids duplicate/stranded splash.
             if appModel.launchSplash.isVisible {
                 AuroraSplashView(model: appModel.launchSplash)
                     .transition(.opacity)
@@ -42,17 +49,24 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .buttonStyle(AuroraButtonStyle())
         .frame(minWidth: 1000, minHeight: 640)
         .navigationTitle(appModel.windowTitle)
-        .animation(.easeOut(duration: 0.32), value: appModel.launchSplash.isVisible)
+        .animation(.easeInOut(duration: 0.36), value: appModel.launchSplash.isVisible)
         .onAppear {
             appModel.launchSplash.beginIfNeeded()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .auroraOpenAbout)) { _ in
+            openWindow(id: "about-aurora")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openAMEEngineWindow)) { _ in
+            openWindow(id: "ame-engine")
         }
     }
 }
 
 #if DEBUG
-#Preview("Aurora Workspace") {
+#Preview("Prism Workspace") {
     ContentView()
         .environmentObject(AppModel())
 }

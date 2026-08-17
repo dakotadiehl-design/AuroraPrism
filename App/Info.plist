@@ -7,9 +7,9 @@
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleName</key>
-	<string>Aurora</string>
+	<string>Prism</string>
 	<key>CFBundleDisplayName</key>
-	<string>Aurora Lighting</string>
+	<string>Prism</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleVersion</key>
@@ -30,12 +30,14 @@
 	<string>NSApplication</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.entertainment</string>
-	<!-- Document support: package directory .aurora -->
+	<!-- Prism project and library packages; legacy Aurora extensions remain supported. -->
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>Aurora Show Package</string>
+			<string>Prism Project</string>
+			<key>CFBundleTypeIconName</key>
+			<string>PrismProjectDocument</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>LSHandlerRank</key>
@@ -48,7 +50,29 @@
 			<true/>
 			<key>CFBundleTypeExtensions</key>
 			<array>
+				<string>prism</string>
 				<string>aurora</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Prism Library</string>
+			<key>CFBundleTypeIconName</key>
+			<string>PrismLibraryDocument</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.aurora.library-package</string>
+			</array>
+			<key>LSTypeIsPackage</key>
+			<true/>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>prismlib</string>
+				<string>auroralib</string>
 			</array>
 		</dict>
 	</array>
@@ -58,7 +82,7 @@
 			<key>UTTypeIdentifier</key>
 			<string>com.aurora.show-package</string>
 			<key>UTTypeDescription</key>
-			<string>Aurora Show Package</string>
+			<string>Prism Project</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>com.apple.package</string>
@@ -68,7 +92,27 @@
 			<dict>
 				<key>public.filename-extension</key>
 				<array>
+					<string>prism</string>
 					<string>aurora</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.aurora.library-package</string>
+			<key>UTTypeDescription</key>
+			<string>Prism Library</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.apple.package</string>
+				<string>public.composite-content</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>prismlib</string>
+					<string>auroralib</string>
 				</array>
 			</dict>
 		</dict>
@@ -81,7 +125,7 @@
 	<false/>
 	<!-- Local network: Art-Net, sACN, remote companion, OSC, RTP-MIDI -->
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Aurora uses the local network for Art-Net and sACN lighting output, OSC control, RTP-MIDI, and the stage web remote companion.</string>
+	<string>Prism uses the local network for Art-Net and sACN lighting output, OSC control, RTP-MIDI, and the stage web remote companion.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_osc._udp</string>

@@ -10,13 +10,7 @@ struct AuroraBuildToolbar: View {
 
     var body: some View {
         HStack(spacing: AuroraSpacing.md) {
-            HStack(spacing: 6) {
-                AuroraMarkView(size: 16)
-                Text("AURORA")
-                    .font(AuroraTypography.wordmark)
-                    .foregroundStyle(AuroraColor.textPrimary)
-                    .tracking(1.2)
-            }
+            PrismToolbarBrand(markSize: 16)
 
             if !isPerform {
                 HStack(spacing: 2) {

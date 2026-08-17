@@ -51,7 +51,9 @@ final class ProjectController: ObservableObject {
         return FixtureLibraryBox(
             definitions: fixtureLibrary.definitions,
             search: { fixtureLibrary.search($0) },
-            makeEmbeddableCopy: { fixtureLibrary.makeEmbeddableCopy($0) }
+            // Keep library definition UUID so project fixtures resolve the same personality
+            // and the patch library list does not accumulate look-alike clones.
+            makeEmbeddableCopy: { fixtureLibrary.makeEmbeddableCopy($0, newID: $0.id) }
         )
     }
 
@@ -92,7 +94,10 @@ final class ProjectController: ObservableObject {
     }
 
     /// Prompt only — does not save. Caller awaits save on `.save` (UI-02 B5).
-    func promptDirtyDocumentDecision(actionName: String) -> DirtyDocumentDecision {
+    ///
+    /// Uses plain `runModal()` — fine for New/Open while the app is running.
+    /// Quit uses a dedicated path in `AuroraAppDelegate` (sheets + `terminateLater`).
+    func promptDirtyDocumentDecision(actionName: String) async -> DirtyDocumentDecision {
         guard session.isDirty else { return .proceedClean }
         let alert = NSAlert()
         alert.messageText = "Do you want to save the changes to this show before \(actionName)?"
@@ -131,22 +136,53 @@ final class ProjectController: ObservableObject {
 
     /// Manual Save / Save As through the shared coordinator (BLOCKER-1).
     func save(to url: URL) async throws {
+        // NSSavePanel / open-panel URLs are security-scoped under App Sandbox.
+        let scopedDest = url.startAccessingSecurityScopedResource()
+        defer {
+            if scopedDest { url.stopAccessingSecurityScopedResource() }
+        }
+
         let assetSource: URL?
+        var scopedSource = false
         if let documentURL,
            documentURL.standardizedFileURL != url.standardizedFileURL {
             assetSource = documentURL
+            scopedSource = documentURL.startAccessingSecurityScopedResource()
         } else {
             assetSource = nil
         }
+        defer {
+            if scopedSource, let documentURL {
+                documentURL.stopAccessingSecurityScopedResource()
+            }
+        }
+
         let resolvedKind: ProjectSaveKind = {
             guard let documentURL else { return .manual }
             return documentURL.standardizedFileURL == url.standardizedFileURL ? .manual : .saveAs
         }()
 
+        // Keep window/toolbar title in sync with the package basename on first save and Save As.
+        // Regular Save to the same URL leaves an explicit show name alone.
+        let packageBaseName = url.deletingPathExtension().lastPathComponent
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentName = session.project.metadata.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let isUntitled = currentName.isEmpty
+            || currentName.caseInsensitiveCompare("Untitled Show") == .orderedSame
+        let shouldSyncNameFromPackage = !packageBaseName.isEmpty
+            && (resolvedKind == .saveAs || isUntitled)
+            && packageBaseName != currentName
+        let nameToPersist: String? = shouldSyncNameFromPackage ? packageBaseName : nil
+
+        var projectToWrite = session.project
+        if let nameToPersist {
+            projectToWrite.metadata.name = nameToPersist
+        }
+
         _ = try? ProjectPackage.recoverOrphanedPackages(around: url)
 
         let snapshot = ProjectSaveSnapshot(
-            project: session.project,
+            project: projectToWrite,
             documentStateID: session.documentGeneration,
             destinationURL: url,
             preservingAssetsFrom: assetSource,
@@ -158,10 +194,15 @@ final class ProjectController: ObservableObject {
             // Only mark clean if this state is still current.
             if session.documentGeneration == stateID {
                 documentURL = destination
-                session.applySavedMetadata(modifiedAt: writtenAt)
+                session.applySavedMetadata(modifiedAt: writtenAt, name: nameToPersist)
                 statusMessage = "Saved \(destination.lastPathComponent)"
             } else {
                 documentURL = destination
+                // Title should match the package even if edits landed after the snapshot.
+                // Do not mark clean — the live document still has unsaved changes.
+                if let nameToPersist {
+                    session.applyPackageDisplayName(nameToPersist)
+                }
                 statusMessage = "Saved \(destination.lastPathComponent) (document edited since save)"
             }
             NSDocumentController.shared.noteNewRecentDocumentURL(destination)
@@ -177,6 +218,15 @@ final class ProjectController: ObservableObject {
     @discardableResult
     func autosaveIfPossible() async -> Bool {
         guard let url = documentURL, session.isDirty else { return false }
+        // A legacy project must migrate through the explicit Save path. Never let a
+        // background autosave silently rewrite the original `.aurora` package.
+        guard !ProjectPackage.isLegacyPackageURL(url) else {
+            statusMessage = "Save to migrate this legacy project to .prism"
+            objectWillChange.send()
+            return false
+        }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         let snapshot = ProjectSaveSnapshot(
             project: session.project,
             documentStateID: session.documentGeneration,
@@ -206,6 +256,8 @@ final class ProjectController: ObservableObject {
     }
 
     func openShow(from url: URL) throws {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         _ = try? ProjectPackage.recoverOrphanedPackages(around: url)
         let project = try ProjectPackage.load(from: url)
         session = DocumentSession(project: project)

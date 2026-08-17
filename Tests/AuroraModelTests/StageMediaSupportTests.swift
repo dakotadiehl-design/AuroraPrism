@@ -96,6 +96,74 @@ final class StageMediaSupportTests: XCTestCase {
         XCTAssertNil(url)
     }
 
+    func testTwoLegacyLogoPNGMigrateIndependently() throws {
+        let fm = FileManager.default
+        let tmp = fm.temporaryDirectory.appendingPathComponent("AuroraDualLogo-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: tmp) }
+
+        let aDir = tmp.appendingPathComponent("BandA", isDirectory: true)
+        let bDir = tmp.appendingPathComponent("BandB", isDirectory: true)
+        try fm.createDirectory(at: aDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: bDir, withIntermediateDirectories: true)
+        let logoA = aDir.appendingPathComponent("logo.png")
+        let logoB = bDir.appendingPathComponent("logo.png")
+        try Data([0x01, 0xAA]).write(to: logoA)
+        try Data([0x02, 0xBB]).write(to: logoB)
+
+        var project = ShowProject.empty(name: "Dual")
+        var layout = project.stageLayout
+        layout.appendObject(StageLayoutObject(
+            kind: .importedImage, mediaRef: logoA.path, name: "A",
+            x: 0, y: 0, width: 50, height: 50
+        ))
+        layout.appendObject(StageLayoutObject(
+            kind: .importedImage, mediaRef: logoB.path, name: "B",
+            x: 60, y: 0, width: 50, height: 50
+        ))
+        project.stageLayout = layout
+
+        let package = tmp.appendingPathComponent("Dual.aurora", isDirectory: true)
+        _ = try ProjectPackage.save(project, to: package)
+        let reloaded = try ProjectPackage.load(from: package)
+        let refs = reloaded.stageLayout.objects.compactMap(\.mediaRef)
+        XCTAssertEqual(refs.count, 2)
+        XCTAssertEqual(Set(refs).count, 2, "Each legacy logo must get a unique package path")
+        for ref in refs {
+            let resolved = try XCTUnwrap(StageMediaSupport.resolveFileURL(mediaRef: ref, packageRoot: package))
+            XCTAssertTrue(fm.fileExists(atPath: resolved.path))
+        }
+        // Bytes must remain distinct (no overwrite of first by second).
+        let dataA = try Data(contentsOf: StageMediaSupport.resolveFileURL(mediaRef: refs[0], packageRoot: package)!)
+        let dataB = try Data(contentsOf: StageMediaSupport.resolveFileURL(mediaRef: refs[1], packageRoot: package)!)
+        XCTAssertNotEqual(dataA, dataB)
+    }
+
+    func testDuplicateMediaPathsDoNotTrapMaterialize() throws {
+        let fm = FileManager.default
+        let tmp = fm.temporaryDirectory.appendingPathComponent("AuroraDupMedia-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: tmp) }
+
+        var project = ShowProject.empty(name: "Dup")
+        let path = "media/stage/same.png"
+        project.mediaAssets = [
+            MediaAssetRef(name: "One", relativePath: path),
+            MediaAssetRef(name: "Two", relativePath: path),
+        ]
+        // Must not trap on Dictionary(uniqueKeysWithValues:)
+        try StageMediaSupport.materializeStageMedia(into: tmp, project: &project)
+        XCTAssertEqual(project.mediaAssets.count, 2)
+    }
+
+    func testContainmentRejectsSiblingPrefixDirectory() {
+        let package = URL(fileURLWithPath: "/tmp/Show.aurora")
+        let sibling = URL(fileURLWithPath: "/tmp/Show.aurora-evil/secret.png")
+        XCTAssertFalse(StageMediaSupport.isURL(sibling, containedIn: package))
+        let inside = URL(fileURLWithPath: "/tmp/Show.aurora/media/stage/x.png")
+        XCTAssertTrue(StageMediaSupport.isURL(inside, containedIn: package))
+    }
+
     func testSaveAsPreservesStageMedia() throws {
         let fm = FileManager.default
         let tmp = fm.temporaryDirectory.appendingPathComponent("AuroraC45SA-\(UUID().uuidString)", isDirectory: true)

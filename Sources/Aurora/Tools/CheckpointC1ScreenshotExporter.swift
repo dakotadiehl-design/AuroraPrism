@@ -82,7 +82,7 @@ enum CheckpointC1ScreenshotExporter {
         let context = WorkspacePanelContext(session: session, fixtureLibrary: nil)
         let movers = session.project.groups.first { $0.name == "Movers" }?.fixtureIds ?? []
         let selected = Set(movers.prefix(1))
-        if let id = selected.first {
+        if !selected.isEmpty {
             session.selectFixtures(selected, extending: false)
         }
 

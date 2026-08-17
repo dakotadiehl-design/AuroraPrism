@@ -1,10 +1,15 @@
 import Foundation
 
-/// Portable cross-show Aurora Library package (P0-E).
+/// Portable cross-show Aurora Library package (P0-E / Post-C6 integrity).
 /// Directory bundle of reusable assets independent of a full show.
 public enum AuroraLibraryPackage {
-    public static let packageExtension = "auroralib"
+    /// Preferred external extension for Prism library exports.
+    public static let packageExtension = "prismlib"
+    /// Legacy Aurora extension retained for importing existing libraries.
+    public static let legacyPackageExtension = "auroralib"
     public static let currentSchemaVersion = 1
+    /// Defense-in-depth JSON size cap (same order as project packages).
+    public static let maxJSONFileBytes = 32 * 1024 * 1024
 
     public struct Manifest: Codable, Equatable, Sendable {
         public var schemaVersion: Int
@@ -81,8 +86,23 @@ public enum AuroraLibraryPackage {
     public enum LibraryError: Error, Equatable, Sendable {
         case notADirectory
         case unsupportedSchema(Int)
+        case missingFile(String)
+        case decodingFailed(String)
         case io(String)
     }
+
+    /// Content files always written for schema v1 — required on load.
+    public static let requiredContentFiles: [String] = [
+        "definitions.json",
+        "palettes.json",
+        "presets.json",
+        "effects.json",
+        "midi-mappings.json",
+        "midi-rules.json",
+        "midi-behaviors.json",
+        "drum-profiles.json",
+        "midi-feedback.json",
+    ]
 
     private static let encoder: JSONEncoder = {
         let e = JSONEncoder()
@@ -99,8 +119,9 @@ public enum AuroraLibraryPackage {
 
     public static func save(_ contents: Contents, to url: URL) throws {
         let fm = FileManager.default
-        let tmp = url.deletingLastPathComponent()
-            .appendingPathComponent(".auroralib-tmp-\(UUID().uuidString)")
+        let parent = url.deletingLastPathComponent()
+        let tmp = parent.appendingPathComponent(".auroralib-tmp-\(UUID().uuidString)")
+        let backup = parent.appendingPathComponent(".auroralib-bak-\(UUID().uuidString)")
         try fm.createDirectory(at: tmp, withIntermediateDirectories: true)
         do {
             try writeJSON(contents.manifest, to: tmp.appendingPathComponent("manifest.json"))
@@ -113,10 +134,26 @@ public enum AuroraLibraryPackage {
             try writeJSON(contents.midiBehaviors, to: tmp.appendingPathComponent("midi-behaviors.json"))
             try writeJSON(contents.drumProfiles, to: tmp.appendingPathComponent("drum-profiles.json"))
             try writeJSON(contents.feedbackProfiles, to: tmp.appendingPathComponent("midi-feedback.json"))
+
+            // Backup/replace so a failed move cannot erase a valid library (Post-C6).
             if fm.fileExists(atPath: url.path) {
-                try fm.removeItem(at: url)
+                if fm.fileExists(atPath: backup.path) { try? fm.removeItem(at: backup) }
+                try fm.moveItem(at: url, to: backup)
             }
-            try fm.moveItem(at: tmp, to: url)
+            do {
+                try fm.moveItem(at: tmp, to: url)
+            } catch {
+                if fm.fileExists(atPath: backup.path) {
+                    try? fm.removeItem(at: url)
+                    try? fm.moveItem(at: backup, to: url)
+                }
+                try? fm.removeItem(at: tmp)
+                throw LibraryError.io(error.localizedDescription)
+            }
+            try? fm.removeItem(at: backup)
+        } catch let error as LibraryError {
+            try? fm.removeItem(at: tmp)
+            throw error
         } catch {
             try? fm.removeItem(at: tmp)
             throw LibraryError.io(error.localizedDescription)
@@ -128,27 +165,28 @@ public enum AuroraLibraryPackage {
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else {
             throw LibraryError.notADirectory
         }
-        let manifest: Manifest = try readJSON(url.appendingPathComponent("manifest.json"))
+        let manifest: Manifest = try readJSON(url.appendingPathComponent("manifest.json"), name: "manifest.json")
         guard manifest.schemaVersion <= currentSchemaVersion else {
             throw LibraryError.unsupportedSchema(manifest.schemaVersion)
         }
+        // Schema v1: all content files are required; empty arrays are valid, missing files are not.
         return Contents(
             manifest: manifest,
-            fixtureDefinitions: (try? readJSON(url.appendingPathComponent("definitions.json"))) ?? [],
-            palettes: (try? readJSON(url.appendingPathComponent("palettes.json"))) ?? [],
-            presets: (try? readJSON(url.appendingPathComponent("presets.json"))) ?? [],
-            effects: (try? readJSON(url.appendingPathComponent("effects.json"))) ?? [],
-            midiMappings: (try? readJSON(url.appendingPathComponent("midi-mappings.json"))) ?? [],
-            midiRules: (try? readJSON(url.appendingPathComponent("midi-rules.json"))) ?? [],
-            midiBehaviors: (try? readJSON(url.appendingPathComponent("midi-behaviors.json"))) ?? [],
-            drumProfiles: (try? readJSON(url.appendingPathComponent("drum-profiles.json"))) ?? [],
-            feedbackProfiles: (try? readJSON(url.appendingPathComponent("midi-feedback.json"))) ?? []
+            fixtureDefinitions: try readJSON(url.appendingPathComponent("definitions.json"), name: "definitions.json"),
+            palettes: try readJSON(url.appendingPathComponent("palettes.json"), name: "palettes.json"),
+            presets: try readJSON(url.appendingPathComponent("presets.json"), name: "presets.json"),
+            effects: try readJSON(url.appendingPathComponent("effects.json"), name: "effects.json"),
+            midiMappings: try readJSON(url.appendingPathComponent("midi-mappings.json"), name: "midi-mappings.json"),
+            midiRules: try readJSON(url.appendingPathComponent("midi-rules.json"), name: "midi-rules.json"),
+            midiBehaviors: try readJSON(url.appendingPathComponent("midi-behaviors.json"), name: "midi-behaviors.json"),
+            drumProfiles: try readJSON(url.appendingPathComponent("drum-profiles.json"), name: "drum-profiles.json"),
+            feedbackProfiles: try readJSON(url.appendingPathComponent("midi-feedback.json"), name: "midi-feedback.json")
         )
     }
 
     /// Merge library into show (new UUIDs optional — here we keep IDs and upsert by id).
     public static func merge(_ contents: Contents, into project: inout ShowProject, replaceExisting: Bool = false) {
-        func upsert<T: Identifiable>(_ items: [T], into array: inout [T]) where T.ID == UUID, T: Equatable {
+        func upsert<T: Identifiable>(_ items: [T], into array: inout [T]) where T.ID == UUID {
             for item in items {
                 if let idx = array.firstIndex(where: { $0.id == item.id }) {
                     if replaceExisting { array[idx] = item }
@@ -166,7 +204,6 @@ public enum AuroraLibraryPackage {
         upsert(contents.midiBehaviors, into: &project.midiBehaviors)
         upsert(contents.drumProfiles, into: &project.drumProfiles)
         upsert(contents.feedbackProfiles, into: &project.midiFeedbackProfiles)
-        project.metadata.modifiedAt = Date()
     }
 
     private static func writeJSON<T: Encodable>(_ value: T, to url: URL) throws {
@@ -174,8 +211,24 @@ public enum AuroraLibraryPackage {
         try data.write(to: url, options: .atomic)
     }
 
-    private static func readJSON<T: Decodable>(_ url: URL) throws -> T {
-        let data = try Data(contentsOf: url)
-        return try decoder.decode(T.self, from: data)
+    private static func readJSON<T: Decodable>(_ url: URL, name: String) throws -> T {
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            throw LibraryError.missingFile(name)
+        }
+        do {
+            let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+            if let size = attrs[.size] as? NSNumber, size.intValue > maxJSONFileBytes {
+                throw LibraryError.decodingFailed("\(name): file exceeds size limit")
+            }
+            let data = try Data(contentsOf: url)
+            if data.count > maxJSONFileBytes {
+                throw LibraryError.decodingFailed("\(name): file exceeds size limit")
+            }
+            return try decoder.decode(T.self, from: data)
+        } catch let error as LibraryError {
+            throw error
+        } catch {
+            throw LibraryError.decodingFailed("\(name): \(error.localizedDescription)")
+        }
     }
 }

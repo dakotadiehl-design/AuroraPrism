@@ -1,20 +1,37 @@
 import Foundation
 
-/// Errors thrown while reading or writing an `.aurora` document package.
-public enum ProjectPackageError: Error, Equatable, Sendable {
+/// Errors thrown while reading or writing a Prism document package.
+public enum ProjectPackageError: Error, Equatable, Sendable, LocalizedError {
     case notADirectory(URL)
     case missingFile(String)
     case unsupportedSchemaVersion(found: Int, supportedMaximum: Int)
     case encodingFailed(String)
     case decodingFailed(String)
     case writeFailed(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .notADirectory(let url):
+            return "The selected Prism project is not a package directory: \(url.lastPathComponent)"
+        case .missingFile(let name):
+            return "The Prism project is missing the required file \(name)."
+        case .unsupportedSchemaVersion(let found, let supportedMaximum):
+            return "This project uses schema version \(found), but this version of Prism supports up to version \(supportedMaximum)."
+        case .encodingFailed(let detail):
+            return "Prism could not encode the project: \(detail)"
+        case .decodingFailed(let detail):
+            return "Prism could not read the project: \(detail)"
+        case .writeFailed(let detail):
+            return "Prism could not save the project: \(detail)"
+        }
+    }
 }
 
-/// On-disk `.aurora` package (directory bundle) load/save for `ShowProject`.
+/// On-disk Prism package (directory bundle) load/save for `ShowProject`.
 ///
 /// Layout (schema v1):
 /// ```
-/// Show.aurora/
+/// Show.prism/
 ///   project.json
 ///   universes.json
 ///   fixtures.json
@@ -32,10 +49,28 @@ public enum ProjectPackageError: Error, Equatable, Sendable {
 ///   layouts/        (optional; reserved)
 /// ```
 public enum ProjectPackage {
-    public static let packageExtension = "aurora"
+    /// Preferred external extension for newly saved Prism projects.
+    public static let packageExtension = "prism"
+    /// Legacy Aurora extension retained for opening existing projects.
+    public static let legacyPackageExtension = "aurora"
+
+    public static func isSupportedPackageExtension(_ pathExtension: String) -> Bool {
+        let normalized = pathExtension.lowercased()
+        return normalized == packageExtension || normalized == legacyPackageExtension
+    }
+
+    public static func isLegacyPackageURL(_ url: URL) -> Bool {
+        url.pathExtension.lowercased() == legacyPackageExtension
+    }
+
+    public static func preferredPackageURL(for url: URL) -> URL {
+        guard isLegacyPackageURL(url) else { return url }
+        return url.deletingPathExtension().appendingPathExtension(packageExtension)
+    }
     /// v2: stage layout + fixture model extensions (generic params, multi-cell).
     /// v3: MIDI behaviors, drum profiles, feedback profiles.
-    public static let currentSchemaVersion = 3
+    /// v4: AME document + song sections / musical settings.
+    public static let currentSchemaVersion = 4
 
     private static let projectFileName = "project.json"
     private static let universesFileName = "universes.json"
@@ -53,6 +88,7 @@ public enum ProjectPackage {
     private static let midiFeedbackFileName = "midi-feedback.json"
     private static let effectsFileName = "effects.json"
     private static let stageLayoutFileName = "stage-layout.json"
+    private static let ameFileName = "ame.json"
     private static let cuesDirectoryName = "cues"
 
     // MARK: - JSON coding
@@ -77,8 +113,12 @@ public enum ProjectPackage {
 
     /// Writes `project` as a directory package at `url` (e.g. `…/Show.aurora`).
     ///
-    /// **Atomic:** writes a temporary package, validates it, then replaces the
-    /// destination so a failed write cannot erase a valid existing show.
+    /// **Atomic:** stages a complete package under the system temporary directory,
+    /// validates it, then moves/replaces the destination. Staging is **not** done as a
+    /// sibling of the destination (e.g. `.Show.aurora.tmp-…` next to the show) because
+    /// the App Sandbox often denies creating sibling files even when the user selected
+    /// the final package URL via the save panel.
+    ///
     /// **Media/layouts:** copies `media/` and `layouts/` from `preservingAssetsFrom`
     /// when provided (true Save As from an open package); otherwise from any existing
     /// package already at `url` (ordinary Save).
@@ -90,13 +130,17 @@ public enum ProjectPackage {
         preservingAssetsFrom assetSource: URL? = nil
     ) throws -> Date {
         let fm = FileManager.default
-        let parent = url.deletingLastPathComponent()
-        let tmpName = ".\(url.lastPathComponent).tmp-\(UUID().uuidString)"
-        let tmpURL = parent.appendingPathComponent(tmpName, isDirectory: true)
         let writtenAt = Date()
 
-        if fm.fileExists(atPath: tmpURL.path) {
-            try? fm.removeItem(at: tmpURL)
+        // Always-writable staging area (sandbox-safe).
+        let stageRoot = fm.temporaryDirectory
+            .appendingPathComponent("AuroraSave-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: stageRoot, withIntermediateDirectories: true)
+        // Keep the same last path component so package layout mirrors the destination name.
+        let tmpURL = stageRoot.appendingPathComponent(url.lastPathComponent, isDirectory: true)
+
+        defer {
+            try? fm.removeItem(at: stageRoot)
         }
 
         do {
@@ -107,25 +151,32 @@ public enum ProjectPackage {
             _ = try load(from: tmpURL)
 
             if fm.fileExists(atPath: url.path) {
-                let backupName = ".\(url.lastPathComponent).bak-\(UUID().uuidString)"
-                let backupURL = parent.appendingPathComponent(backupName, isDirectory: true)
-                try fm.moveItem(at: url, to: backupURL)
+                // Replace existing package atomically without sibling .bak in the user folder
+                // (sibling backups also hit sandbox parent-directory restrictions).
                 do {
-                    try fm.moveItem(at: tmpURL, to: url)
-                    try? fm.removeItem(at: backupURL)
+                    _ = try fm.replaceItemAt(
+                        url,
+                        withItemAt: tmpURL,
+                        backupItemName: nil,
+                        options: [.usingNewMetadataOnly]
+                    )
                 } catch {
-                    try? fm.removeItem(at: url)
-                    try? fm.moveItem(at: backupURL, to: url)
-                    try? fm.removeItem(at: tmpURL)
                     throw ProjectPackageError.writeFailed("replace failed: \(error.localizedDescription)")
                 }
             } else {
-                try fm.moveItem(at: tmpURL, to: url)
+                // First save: move staged package into the user-selected path.
+                // Parent directory access comes from the save-panel security scope.
+                do {
+                    try fm.moveItem(at: tmpURL, to: url)
+                } catch {
+                    throw ProjectPackageError.writeFailed("create failed: \(error.localizedDescription)")
+                }
             }
             return writtenAt
-        } catch {
-            try? fm.removeItem(at: tmpURL)
+        } catch let error as ProjectPackageError {
             throw error
+        } catch {
+            throw ProjectPackageError.writeFailed(error.localizedDescription)
         }
     }
 
@@ -243,6 +294,7 @@ public enum ProjectPackage {
         try writeJSON(projectToWrite.midiFeedbackProfiles, to: destination.appendingPathComponent(midiFeedbackFileName), encoder: encoder)
         try writeJSON(projectToWrite.effects, to: destination.appendingPathComponent(effectsFileName), encoder: encoder)
         try writeJSON(projectToWrite.stageLayout, to: destination.appendingPathComponent(stageLayoutFileName), encoder: encoder)
+        try writeJSON(projectToWrite.ame, to: destination.appendingPathComponent(ameFileName), encoder: encoder)
 
         let cuesDir = destination.appendingPathComponent(cuesDirectoryName, isDirectory: true)
         for list in projectToWrite.cueLists {
@@ -320,28 +372,46 @@ public enum ProjectPackage {
         let midiMappings: [MIDIMapping] = try readJSONArray(
             url.appendingPathComponent(midiMappingsFileName), decoder: decoder, name: midiMappingsFileName, required: true
         )
+        // Schema-aware requiredness (Post-C6 audit): optional only for older packages.
+        // v2+: stage-layout.json required. v3+: MIDI behavior/rule/profile files required.
+        // v4+: ame.json required. effects.json required for schema >= 3 (always written since v3).
+        let requireStage = root.schemaVersion >= 2
+        let requireMIDIExt = root.schemaVersion >= 3
+        let requireEffects = root.schemaVersion >= 3
+        let requireAME = root.schemaVersion >= 4
+
         let midiRules: [MIDIRule] = try readJSONArray(
-            url.appendingPathComponent(midiRulesFileName), decoder: decoder, name: midiRulesFileName, required: false
+            url.appendingPathComponent(midiRulesFileName), decoder: decoder, name: midiRulesFileName, required: requireMIDIExt
         )
         let midiBehaviors: [MIDIBehaviorDefinition] = try readJSONArray(
-            url.appendingPathComponent(midiBehaviorsFileName), decoder: decoder, name: midiBehaviorsFileName, required: false
+            url.appendingPathComponent(midiBehaviorsFileName), decoder: decoder, name: midiBehaviorsFileName, required: requireMIDIExt
         )
         let drumProfiles: [DrumDeviceProfile] = try readJSONArray(
-            url.appendingPathComponent(drumProfilesFileName), decoder: decoder, name: drumProfilesFileName, required: false
+            url.appendingPathComponent(drumProfilesFileName), decoder: decoder, name: drumProfilesFileName, required: requireMIDIExt
         )
         let midiFeedbackProfiles: [MIDIFeedbackProfile] = try readJSONArray(
-            url.appendingPathComponent(midiFeedbackFileName), decoder: decoder, name: midiFeedbackFileName, required: false
+            url.appendingPathComponent(midiFeedbackFileName), decoder: decoder, name: midiFeedbackFileName, required: requireMIDIExt
         )
-        // Additive: older packages may omit effects.json.
         let effects: [EffectDefinition] = try readJSONArray(
-            url.appendingPathComponent(effectsFileName), decoder: decoder, name: effectsFileName, required: false
+            url.appendingPathComponent(effectsFileName), decoder: decoder, name: effectsFileName, required: requireEffects
         )
         let stageLayout: StageLayout
         let stageURL = url.appendingPathComponent(stageLayoutFileName)
         if FileManager.default.fileExists(atPath: stageURL.path) {
             stageLayout = try readJSON(from: stageURL, as: StageLayout.self, decoder: decoder, missingName: stageLayoutFileName)
+        } else if requireStage {
+            throw ProjectPackageError.missingFile(stageLayoutFileName)
         } else {
             stageLayout = .empty
+        }
+        let ame: AMEProjectDocument
+        let ameURL = url.appendingPathComponent(ameFileName)
+        if FileManager.default.fileExists(atPath: ameURL.path) {
+            ame = try readJSON(from: ameURL, as: AMEProjectDocument.self, decoder: decoder, missingName: ameFileName)
+        } else if requireAME {
+            throw ProjectPackageError.missingFile(ameFileName)
+        } else {
+            ame = .empty
         }
 
         let cuesDir = url.appendingPathComponent(cuesDirectoryName, isDirectory: true)
@@ -384,7 +454,8 @@ public enum ProjectPackage {
             midiFeedbackProfiles: midiFeedbackProfiles,
             effects: effects,
             workspaceLayoutId: root.workspaceLayoutId,
-            stageLayout: stageLayout
+            stageLayout: stageLayout,
+            ame: ame
         )
         return try SchemaMigration.migrate(loaded)
     }
@@ -464,6 +535,19 @@ public enum ProjectPackage {
             songsFileName,
             mediaAssetsFileName,
             midiMappingsFileName,
+        ]
+    }
+
+    /// Files required for a package written at `currentSchemaVersion` (Post-C6 integrity).
+    public static var currentSchemaRequiredCollectionFiles: [String] {
+        schemaV1RequiredCollectionFiles + [
+            midiRulesFileName,
+            midiBehaviorsFileName,
+            drumProfilesFileName,
+            midiFeedbackFileName,
+            effectsFileName,
+            stageLayoutFileName,
+            ameFileName,
         ]
     }
 }

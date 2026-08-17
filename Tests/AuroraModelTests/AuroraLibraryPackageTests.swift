@@ -35,6 +35,30 @@ final class AuroraLibraryPackageTests: XCTestCase {
         XCTAssertEqual(target.midiBehaviors.count, 1)
     }
 
+    func testMissingPalettesJSONFailsLoad() throws {
+        var project = ShowProject.empty(name: "Lib")
+        project.fixtureDefinitions = [
+            FixtureDefinition(
+                manufacturer: "U", model: "W",
+                channels: [ChannelDef(offset: 1, name: "I", attribute: "intensity")]
+            )
+        ]
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("aurora-lib-miss-\(UUID().uuidString).auroralib")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try AuroraLibraryPackage.save(
+            .from(project: project, name: "Miss"),
+            to: dir
+        )
+        try FileManager.default.removeItem(at: dir.appendingPathComponent("palettes.json"))
+        XCTAssertThrowsError(try AuroraLibraryPackage.load(from: dir)) { error in
+            guard case AuroraLibraryPackage.LibraryError.missingFile(let name) = error else {
+                return XCTFail("Expected missingFile, got \(error)")
+            }
+            XCTAssertEqual(name, "palettes.json")
+        }
+    }
+
     func testPackagePersistsBehaviors() throws {
         var project = ShowProject.empty(name: "Pkg")
         project.midiBehaviors = [MIDIBehaviorDefinition(name: "Snare", drumRole: .snare)]

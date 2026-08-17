@@ -40,6 +40,12 @@ final class AppModel: ObservableObject {
     /// In-process plugin registry (PR29 / P3-4 protocol surfaces).
     let pluginHost = PluginHost()
 
+    /// C5.1: exact FloatSurfaceID ↔ NSWindow mapping + frame tracking.
+    let floatWindows = FloatingSurfaceWindowCoordinator()
+
+    /// True once quit has been accepted — floating teardown must not redock (preserve layout).
+    @Published private(set) var isTerminating = false
+
     private var cancellables = Set<AnyCancellable>()
     private var controlEventObserver: ControlEventObserverToken?
 
@@ -104,6 +110,30 @@ final class AppModel: ObservableObject {
         self.diagnostics = diagnostics
         self.workspace = workspace
         self.settings = settings
+
+        // C5.1: wire float window coordinator → workspace frame / redock policy.
+        floatWindows.isTerminating = { [weak self] in self?.isTerminating == true }
+        floatWindows.onFrameChanged = { [weak self] surface, frame, screenID, screenName in
+            self?.workspace.updateFloatingFrame(
+                surface,
+                frame: frame,
+                screenID: screenID,
+                screenName: screenName
+            )
+        }
+        floatWindows.onUserCloseWhileFloating = { [weak self] surface in
+            guard let self else { return }
+            switch FloatWindowClosePolicy.decide(
+                isTerminating: self.isTerminating,
+                surfaceStillFloating: self.workspace.isFloating(surface)
+            ) {
+            case .redock:
+                self.workspace.redock(surface)
+                self.notifyUI()
+            case .preserveFloating, .ignore:
+                break
+            }
+        }
 
         // Cascade child observation so EnvironmentObject AppModel still refreshes UI.
         for publisher in [
@@ -181,12 +211,19 @@ final class AppModel: ObservableObject {
         }
 
         launchSplash.note(.startingMIDI)
+        // Wave 1: clock adapter independent of channel-voice Learn path.
+        input.attachClockAdapter(showControl.clockAdapter)
         // UI-GATE-1: multi-observer — MIDI log and show-control both subscribe; neither replaces the other.
         input.startMIDI(
             router: showControl.controlRouter,
             session: { [weak self] in self?.document.session ?? DocumentSession(project: .empty()) },
             onLog: { [weak self] msg in self?.diagnostics.log(msg, subsystem: .midi) }
         )
+        // Binding resolution against live inventory (Wave 1–5 review C5).
+        input.setInventoryListener { [weak self] devices in
+            self?.showControl.updateMIDIInventory(devices)
+        }
+        showControl.updateMIDIInventory(input.midiSources)
         _ = showControl.addUIObserver { [weak self] action, _ in
             Task { @MainActor in
                 self?.showControl.refreshEngineStatus()
@@ -254,9 +291,12 @@ final class AppModel: ObservableObject {
     }
 
     /// Programmer UI callback: refresh presentation then broad UI.
+    /// Programmer high-frequency path (color wheel, faders).
+    /// Refreshes presentation store only — avoids full-shell `notifyUI()` on every pointer sample (C.E. 1.1).
     func noteProgrammerUIChanged() {
         refreshProgrammerPresentation()
-        notifyUI()
+        // `programmerPresentation` is already cascaded via objectWillChange subscription.
+        // Stage/output follow engine frames; no broad shell rebuild required here.
     }
 
     /// Deprecated alias for `notifyUI()` (panels still call `bump()`).
@@ -272,19 +312,25 @@ final class AppModel: ObservableObject {
 
     /// Await dirty prompt + optional save. Returns true if the requested operation may continue (UI-02 B5).
     func confirmDiscardIfDirtyAsync(actionName: String) async -> Bool {
-        switch document.promptDirtyDocumentDecision(actionName: actionName) {
+        switch await document.promptDirtyDocumentDecision(actionName: actionName) {
         case .proceedClean, .discard:
             return true
         case .save:
-            return await saveShowAsync()
+            return await saveShowAsync(presentErrorsAsModal: true)
         case .cancel:
             return false
         }
     }
 
-    /// Quit flow: prompt, await save if needed, then caller shuts down.
-    func prepareToTerminate() async -> Bool {
-        await confirmDiscardIfDirtyAsync(actionName: "quitting")
+    /// Stop periodic autosave so it cannot contend with a quit-time manual save.
+    func stopAutosaveForQuit() {
+        autosave.stop()
+    }
+
+    /// Mark quit accepted so floating-window teardown does not rewrite docked layout.
+    func noteTerminationAccepted() {
+        isTerminating = true
+        workspace.flushFloatPersistence()
     }
 
     /// Sync wrapper for call sites that cannot await (prefer async variants).
@@ -325,7 +371,7 @@ final class AppModel: ObservableObject {
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.json]
         panel.title = "Import Fixture Definition"
-        panel.message = "Aurora native JSON or OFL-lite JSON"
+        panel.message = "Prism native JSON, OFL-lite, or Prism converter (.prism-fixture.json)"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             _ = try document.importFixtureDefinitions(from: url)
@@ -347,8 +393,8 @@ final class AppModel: ObservableObject {
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.title = "Open Aurora Show"
-        panel.message = "Choose a .aurora package (folder)"
+        panel.title = "Open Prism Project"
+        panel.message = "Choose a .prism project or legacy .aurora project"
         panel.prompt = "Open"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         await openShow(at: url, skipDirtyConfirm: true)
@@ -370,6 +416,9 @@ final class AppModel: ObservableObject {
             showControl.resetSong()
             afterDocumentReplaced()
             NSDocumentController.shared.noteNewRecentDocumentURL(url)
+            if ProjectPackage.isLegacyPackageURL(url) {
+                await promptToMigrateLegacyProject()
+            }
         } catch {
             document.statusMessage = "Open failed: \(error.localizedDescription)"
             document.presentError(error, title: "Open Failed")
@@ -399,35 +448,88 @@ final class AppModel: ObservableObject {
 
     /// Awaitable save for quit / discard flows (BLOCKER-1).
     @discardableResult
-    func saveShowAsync() async -> Bool {
+    func saveShowAsync(presentErrorsAsModal: Bool = true) async -> Bool {
         if let documentURL = document.documentURL {
-            return await saveAsync(to: documentURL)
+            if ProjectPackage.isLegacyPackageURL(documentURL) {
+                return await migrateLegacyProjectOnSave(
+                    from: documentURL,
+                    presentErrorsAsModal: presentErrorsAsModal
+                )
+            }
+            return await saveAsync(to: documentURL, presentErrorsAsModal: presentErrorsAsModal)
         }
-        return await saveShowAsAsync()
+        return await saveShowAsAsync(presentErrorsAsModal: presentErrorsAsModal)
     }
 
     @discardableResult
-    private func saveShowAsAsync() async -> Bool {
+    private func saveShowAsAsync(
+        presentErrorsAsModal: Bool = true,
+        suggestedURL: URL? = nil,
+        isLegacyMigration: Bool = false
+    ) async -> Bool {
         let panel = NSSavePanel()
-        panel.title = "Save Aurora Show"
-        panel.nameFieldStringValue = "\(session.project.metadata.name).aurora"
-        panel.prompt = "Save"
+        panel.title = isLegacyMigration ? "Migrate to Prism" : "Save Prism Project"
+        panel.message = isLegacyMigration
+            ? "Save the migrated Prism project. The original .aurora project will remain unchanged."
+            : nil
+        panel.directoryURL = suggestedURL?.deletingLastPathComponent()
+        panel.nameFieldStringValue = suggestedURL?.lastPathComponent
+            ?? "\(session.project.metadata.name).\(ProjectPackage.packageExtension)"
+        panel.allowedContentTypes = [UTType(importedAs: "com.aurora.show-package")]
+        panel.prompt = isLegacyMigration ? "Migrate" : "Save"
+        // App-modal is reliable after the quit dirty sheet has dismissed (`Task.yield` in finishQuit).
         guard panel.runModal() == .OK, let url = panel.url else { return false }
-        let packageURL = url.pathExtension == ProjectPackage.packageExtension
+        let packageURL = url.pathExtension.lowercased() == ProjectPackage.packageExtension
             ? url
             : url.appendingPathExtension(ProjectPackage.packageExtension)
-        return await saveAsync(to: packageURL)
+        return await saveAsync(to: packageURL, presentErrorsAsModal: presentErrorsAsModal)
+    }
+
+    /// Legacy projects remain untouched when opened. Choosing migration—or the first
+    /// subsequent Save—uses a prefilled save panel for sandbox authorization, writes a
+    /// `.prism` package, and moves the live document there.
+    private func promptToMigrateLegacyProject() async {
+        let alert = NSAlert()
+        alert.messageText = "Migrate this project to Prism?"
+        alert.informativeText = "This legacy .aurora project can be opened normally. Saving changes will create a .prism project and preserve the original file."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Migrate Now")
+        alert.addButton(withTitle: "Later")
+        if alert.runModal() == .alertFirstButtonReturn,
+           let legacyURL = document.documentURL {
+            _ = await migrateLegacyProjectOnSave(from: legacyURL, presentErrorsAsModal: true)
+        }
+    }
+
+    private func migrateLegacyProjectOnSave(
+        from legacyURL: URL,
+        presentErrorsAsModal: Bool
+    ) async -> Bool {
+        let proposedURL = ProjectPackage.preferredPackageURL(for: legacyURL)
+
+        // Opening a package grants access to that package, not necessarily to create a
+        // sibling in its parent directory. NSSavePanel grants the required destination
+        // security scope and also prevents accidental overwrite without confirmation.
+        return await saveShowAsAsync(
+            presentErrorsAsModal: presentErrorsAsModal,
+            suggestedURL: proposedURL,
+            isLegacyMigration: true
+        )
     }
 
     @discardableResult
-    private func saveAsync(to url: URL) async -> Bool {
+    private func saveAsync(to url: URL, presentErrorsAsModal: Bool = true) async -> Bool {
         do {
             try await document.save(to: url)
             notifyUI()
             return !document.isDirty
         } catch {
             document.statusMessage = "Save failed: \(error.localizedDescription)"
-            document.presentError(error, title: "Save Failed")
+            if presentErrorsAsModal {
+                document.presentError(error, title: "Save Failed")
+            } else {
+                diagnostics.log("Save failed during quit: \(error.localizedDescription)", subsystem: .project)
+            }
             return false
         }
     }
@@ -562,9 +664,9 @@ final class AppModel: ObservableObject {
     func exportLibraryPanel() {
         let panel = NSSavePanel()
         panel.canCreateDirectories = true
-        panel.title = "Export Aurora Library"
-        panel.nameFieldStringValue = "\(session.project.metadata.name).auroralib"
-        panel.allowedContentTypes = [UTType(filenameExtension: "auroralib") ?? .folder]
+        panel.title = "Export Prism Library"
+        panel.nameFieldStringValue = "\(session.project.metadata.name).\(AuroraLibraryPackage.packageExtension)"
+        panel.allowedContentTypes = [UTType(filenameExtension: AuroraLibraryPackage.packageExtension) ?? .folder]
         panel.begin { [weak self] response in
             guard response == .OK, let url = panel.url, let self else { return }
             Task { @MainActor in
@@ -582,7 +684,8 @@ final class AppModel: ObservableObject {
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.title = "Import Aurora Library"
+        panel.title = "Import Prism Library"
+        panel.message = "Choose a .prismlib library or legacy .auroralib library"
         panel.begin { [weak self] response in
             guard response == .OK, let url = panel.url, let self else { return }
             Task { @MainActor in
@@ -934,14 +1037,41 @@ final class AppModel: ObservableObject {
     func shutdown() {
         guard !didShutdown else { return }
         didShutdown = true
+        isTerminating = true
         autosave.stop()
-        // UI11-05: do not lose final layout drag on quit.
+        // UI11-05 / C5.1: flush layout + float frames; do not redock floats on quit.
         workspace.flushLayoutPersistence()
         diagnostics.stopLiveUpdates()
         showControl.stopTimers()
         input.stopAll()
         output.stopAll()
         remote.stopAll()
+    }
+
+    // MARK: - C5.1 unified undock / redock (state + exact window)
+
+    /// Undock with a consistent default frame and open path (panel chrome + View menu).
+    func undockSurface(_ surface: FloatSurfaceID, preferredScreen: NSScreen? = nil) {
+        let defaults = AuroraScreenIdentity.defaultFrame(for: surface, preferredScreen: preferredScreen)
+        // Prefer last stored frame when re-undocking the same surface.
+        let stored = workspace.floatState.record(for: surface).frame
+        let frame: CGRect
+        if let stored, stored.width > 100, stored.height > 100 {
+            frame = stored
+        } else {
+            frame = defaults.frame
+        }
+        let screenID = workspace.floatState.record(for: surface).screenID ?? defaults.screenID
+        let screenName = workspace.floatState.record(for: surface).screenName ?? defaults.screenName
+        workspace.undock(surface, frame: frame, screenID: screenID, screenName: screenName)
+        notifyUI()
+    }
+
+    /// Redock and close the exact registered floating window (no title scanning).
+    func redockSurface(_ surface: FloatSurfaceID) {
+        workspace.redock(surface)
+        floatWindows.closeWindow(for: surface)
+        notifyUI()
     }
 
     // MARK: - Diagnostics projection (DIAG-01…03)
