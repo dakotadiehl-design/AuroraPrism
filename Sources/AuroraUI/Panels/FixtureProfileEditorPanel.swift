@@ -196,7 +196,7 @@ public struct FixtureProfileEditorPanel: View {
                     } label: {
                         Image(systemName: "trash")
                     }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(AuroraButtonStyle(kind: .quiet))
                     .controlSize(.mini)
                 }
                 .font(.caption.monospaced())
@@ -251,7 +251,7 @@ public struct FixtureProfileEditorPanel: View {
     private func actionRow(def: FixtureDefinition) -> some View {
         HStack {
             Button("Save to Show") { saveToShow() }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(AuroraButtonStyle(kind: .primary))
                 .controlSize(.small)
             Button("Save User Library…") { saveToUserLibrary() }
                 .controlSize(.small)

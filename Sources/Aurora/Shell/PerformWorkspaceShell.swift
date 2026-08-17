@@ -156,11 +156,11 @@ struct PerformWorkspaceShell: View {
                     critical: false
                 ) { appModel.toggleBlind() }
                 Button("PANIC") { appModel.panicReset() }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(AuroraButtonStyle(kind: .secondary))
                     .tint(.red)
                     .controlSize(.small)
                 Button("CLEAR OVR") { appModel.clearOverrides() }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(AuroraButtonStyle(kind: .secondary))
                     .controlSize(.small)
                     .help("Clear temporary overrides (programmer blind/highlight/locate, freeze hold)")
                 globalToggle(
@@ -228,7 +228,7 @@ struct PerformWorkspaceShell: View {
                 } label: {
                     Image(systemName: "chevron.left")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(AuroraButtonStyle(kind: .secondary))
                 .controlSize(.small)
 
                 Text(songEntryCaption)
@@ -242,7 +242,7 @@ struct PerformWorkspaceShell: View {
                 } label: {
                     Image(systemName: "chevron.right")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(AuroraButtonStyle(kind: .secondary))
                 .controlSize(.small)
             }
             .padding(.top, AuroraSpacing.lg)

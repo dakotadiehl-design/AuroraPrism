@@ -88,7 +88,7 @@ public struct FixtureBrowserPanel: View {
                 )
                 if context.fixtureLibrary != nil {
                     Button("Show Library") { showLibrary = true }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(AuroraButtonStyle(kind: .secondary))
                         .padding(.bottom, 8)
                 }
             } else {
@@ -127,7 +127,7 @@ public struct FixtureBrowserPanel: View {
                         showLibrary.toggle()
                     }
                     .font(AuroraTypography.metadata)
-                    .buttonStyle(.borderless)
+                    .buttonStyle(AuroraButtonStyle(kind: .quiet))
                     .foregroundStyle(AuroraColor.accentBright)
                     Spacer()
                 }

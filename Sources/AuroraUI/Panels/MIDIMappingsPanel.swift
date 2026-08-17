@@ -40,7 +40,7 @@ public struct MIDIMappingsPanel: View {
                     Button("Learn Back") { onLearn(.back) }
                     Button("Learn Int CC") { onLearn(.programmerAttribute("intensity")) }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(AuroraButtonStyle(kind: .secondary))
             }
             List(context.project.midiMappings) { mapping in
                 HStack {

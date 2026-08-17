@@ -451,6 +451,8 @@ public struct PatchWorkspaceView: View {
             selectedDefinitionID = def.id
             namePrefix = shortPrefix(for: def)
             ghostPlan = nil
+            // Embed once with stable ID so planner/fixtures resolve this personality.
+            _ = try? ensureDefinitionEmbedded(def)
             if clickToPatchArmed {
                 statusText = "PATCH armed — click a free DMX address"
             }
@@ -577,14 +579,14 @@ public struct PatchWorkspaceView: View {
                     .font(.system(size: 12, weight: .bold))
                     .frame(minWidth: 100)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(AuroraButtonStyle(kind: .primary))
             .tint(clickToPatchArmed ? AuroraColor.warning : AuroraColor.accent)
             .controlSize(.regular)
             .disabled(selectedDefinition == nil || selectedUniverse == nil)
 
             Button("NEXT FREE") { patchNextFree() }
                 .font(.system(size: 12, weight: .semibold))
-                .buttonStyle(.bordered)
+                .buttonStyle(AuroraButtonStyle(kind: .secondary))
                 .controlSize(.regular)
                 .disabled(selectedDefinition == nil || selectedUniverse == nil)
 
@@ -1150,7 +1152,8 @@ public struct PatchWorkspaceView: View {
             ghostPlan = nil
             return
         }
-        ensureDefinitionEmbedded(def)
+        // Ensure profile exists for planner (idempotent with stable definition ID).
+        _ = try? ensureDefinitionEmbedded(def)
         let plan = PatchBatchPlanner.plan(
             project: context.project,
             definitionID: def.id,
@@ -1170,7 +1173,6 @@ public struct PatchWorkspaceView: View {
 
     private func commitPlan(at addr: UInt16) {
         guard let def = selectedDefinition, let uni = selectedUniverse else { return }
-        ensureDefinitionEmbedded(def)
         let plan = PatchBatchPlanner.plan(
             project: context.project,
             definitionID: def.id,
@@ -1179,12 +1181,11 @@ public struct PatchWorkspaceView: View {
             quantity: quantity,
             namePrefix: namePrefix.isEmpty ? "Fix" : namePrefix
         )
-        commit(plan)
+        commit(plan, embedding: def)
     }
 
     private func patchNextFree() {
         guard let def = selectedDefinition, let uni = selectedUniverse else { return }
-        ensureDefinitionEmbedded(def)
         let plan = PatchBatchPlanner.planNextFree(
             project: context.project,
             definitionID: def.id,
@@ -1195,16 +1196,20 @@ public struct PatchWorkspaceView: View {
         if plan.isValid {
             ghostPlan = plan
         }
-        commit(plan)
+        commit(plan, embedding: def)
     }
 
-    private func commit(_ plan: PatchBatchPlan) {
+    private func commit(_ plan: PatchBatchPlan, embedding def: FixtureDefinition? = nil) {
         guard plan.isValid else {
             statusText = plan.rejectionReason ?? "Invalid"
             ghostPlan = plan
             return
         }
         do {
+            // Embed once with a **stable** definition ID before fixtures reference it.
+            if let def {
+                try ensureDefinitionEmbedded(def)
+            }
             let cmd = BatchPatchCommand(plan: plan)
             try context.session.perform(cmd)
             context.session.selectFixtures(Set(cmd.createdFixtureIDs), extending: false)
@@ -1230,11 +1235,20 @@ public struct PatchWorkspaceView: View {
         }
     }
 
-    private func ensureDefinitionEmbedded(_ def: FixtureDefinition) {
-        if context.project.definition(id: def.id) == nil {
-            let embed = context.fixtureLibrary?.makeEmbeddableCopy(def) ?? def
-            try? context.session.perform(EmbedFixtureDefinitionCommand(definition: embed))
+    /// Embed a library personality into the project **once**, keeping the same definition UUID
+    /// fixtures will reference. Never mint a new definition ID (that would orphan fixtures and
+    /// spam the library list with look-alike Dimmer cards).
+    @discardableResult
+    private func ensureDefinitionEmbedded(_ def: FixtureDefinition) throws -> FixtureDefinition {
+        if let existing = context.project.definition(id: def.id) {
+            return existing
         }
+        // Preserve def.id so BatchPatchCommand / fixtures resolve the embedded profile.
+        // FixtureLibraryBox may regenerate child channel IDs; never mint a new definition UUID.
+        var embed = context.fixtureLibrary?.makeEmbeddableCopy(def) ?? def
+        embed.id = def.id
+        try context.session.perform(EmbedFixtureDefinitionCommand(definition: embed))
+        return embed
     }
 
     /// Workflow 3: drag profile card → drop on universe address (or next free if miss).
@@ -1265,7 +1279,6 @@ public struct PatchWorkspaceView: View {
                         ?? context.project.definition(id: id)
                         ?? context.fixtureLibrary?.definitions.first(where: { $0.id == id }) {
                         namePrefix = shortPrefix(for: def)
-                        ensureDefinitionEmbedded(def)
                         let plan: PatchBatchPlan
                         if let dropAddr {
                             plan = PatchBatchPlanner.plan(
@@ -1285,7 +1298,7 @@ public struct PatchWorkspaceView: View {
                                 namePrefix: namePrefix
                             )
                         }
-                        commit(plan)
+                        commit(plan, embedding: def)
                     }
                 }
             }

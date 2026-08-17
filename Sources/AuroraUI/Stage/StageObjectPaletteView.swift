@@ -88,7 +88,7 @@ public struct StageObjectPaletteView: View {
                     .font(.caption)
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(AuroraButtonStyle(kind: .secondary))
             .controlSize(.small)
             .padding(8)
         }

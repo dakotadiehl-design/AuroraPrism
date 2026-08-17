@@ -126,4 +126,32 @@ final class StageBeamC41Tests: XCTestCase {
         XCTAssertLessThan(beam.spread, flood.spread)
         XCTAssertGreaterThan(beam.length, flood.length)
     }
+
+    func testBeamOpacityTracksIntensityAndIsZeroWhenOff() {
+        XCTAssertEqual(StageBeamRenderStyle.atmosphereOpacity(0), 0, accuracy: 0.0001)
+        XCTAssertEqual(StageBeamRenderStyle.bodyOpacity(0), 0, accuracy: 0.0001)
+        XCTAssertEqual(StageBeamRenderStyle.coreOpacity(0), 0, accuracy: 0.0001)
+
+        XCTAssertLessThan(
+            StageBeamRenderStyle.bodyOpacity(0.2),
+            StageBeamRenderStyle.bodyOpacity(0.6)
+        )
+        XCTAssertLessThan(
+            StageBeamRenderStyle.bodyOpacity(0.6),
+            StageBeamRenderStyle.bodyOpacity(1)
+        )
+    }
+
+    func testBeamOpacityClampsOutOfRangeInput() {
+        XCTAssertEqual(
+            StageBeamRenderStyle.bodyOpacity(-1),
+            StageBeamRenderStyle.bodyOpacity(0),
+            accuracy: 0.0001
+        )
+        XCTAssertEqual(
+            StageBeamRenderStyle.bodyOpacity(2),
+            StageBeamRenderStyle.bodyOpacity(1),
+            accuracy: 0.0001
+        )
+    }
 }

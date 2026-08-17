@@ -235,7 +235,7 @@ public struct InspectorPanel: View {
                         Button("Select members") {
                             onSelectFixtures(group.fixtureIds)
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(AuroraButtonStyle(kind: .secondary))
                         .controlSize(.small)
                     }
                     AuroraInspectorSection("Fixtures") {
@@ -442,53 +442,59 @@ private struct StageAimControls: View {
                 .font(AuroraTypography.metadata)
                 .foregroundStyle(AuroraColor.textTertiary)
 
-            HStack {
-                Text("Direction")
-                    .font(AuroraTypography.metadata)
-                    .foregroundStyle(AuroraColor.textSecondary)
-                    .frame(width: 64, alignment: .leading)
-                Slider(value: $directionDeg, in: -180...180) { editing in
+            AuroraFader(
+                value: normalizedBinding(
+                    value: $directionDeg,
+                    range: -180...180
+                ),
+                label: "Direction",
+                display: .value(normalized(directionDeg, in: -180...180)),
+                axis: .horizontal,
+                valueFormatter: { value in
+                    "\(Int(denormalized(value, in: -180...180).rounded()))°"
+                },
+                onEditingChanged: { editing in
                     if !editing {
                         onCommit { $0.aimDirection = directionDeg * .pi / 180 }
                     }
                 }
-                Text("\(Int(directionDeg.rounded()))°")
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(AuroraColor.textTertiary)
-                    .frame(width: 36, alignment: .trailing)
-            }
+            )
 
-            HStack {
-                Text("Spread")
-                    .font(AuroraTypography.metadata)
-                    .foregroundStyle(AuroraColor.textSecondary)
-                    .frame(width: 64, alignment: .leading)
-                Slider(value: $spreadDeg, in: 2...120) { editing in
+            AuroraFader(
+                value: normalizedBinding(
+                    value: $spreadDeg,
+                    range: 2...120
+                ),
+                label: "Spread",
+                display: .value(normalized(spreadDeg, in: 2...120)),
+                axis: .horizontal,
+                valueFormatter: { value in
+                    "\(Int(denormalized(value, in: 2...120).rounded()))°"
+                },
+                onEditingChanged: { editing in
                     if !editing {
                         onCommit { $0.beamSpread = max(1, spreadDeg) * .pi / 180 }
                     }
                 }
-                Text("\(Int(spreadDeg.rounded()))°")
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(AuroraColor.textTertiary)
-                    .frame(width: 36, alignment: .trailing)
-            }
+            )
 
-            HStack {
-                Text("Length")
-                    .font(AuroraTypography.metadata)
-                    .foregroundStyle(AuroraColor.textSecondary)
-                    .frame(width: 64, alignment: .leading)
-                Slider(value: $length, in: 40...400) { editing in
+            AuroraFader(
+                value: normalizedBinding(
+                    value: $length,
+                    range: 40...400
+                ),
+                label: "Length",
+                display: .value(normalized(length, in: 40...400)),
+                axis: .horizontal,
+                valueFormatter: { value in
+                    "\(Int(denormalized(value, in: 40...400).rounded()))"
+                },
+                onEditingChanged: { editing in
                     if !editing {
                         onCommit { $0.beamLength = max(8, length) }
                     }
                 }
-                Text("\(Int(length))")
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(AuroraColor.textTertiary)
-                    .frame(width: 36, alignment: .trailing)
-            }
+            )
 
             Toggle("Show beam", isOn: $beamVisible)
                 .font(AuroraTypography.metadata)
@@ -513,6 +519,26 @@ private struct StageAimControls: View {
         spreadDeg = placement.beamSpread * 180 / .pi
         length = placement.beamLength
         beamVisible = placement.beamVisible
+    }
+
+    private func normalized(_ value: Double, in range: ClosedRange<Double>) -> Double {
+        let span = range.upperBound - range.lowerBound
+        guard span > 0 else { return 0 }
+        return min(1, max(0, (value - range.lowerBound) / span))
+    }
+
+    private func denormalized(_ value: Double, in range: ClosedRange<Double>) -> Double {
+        range.lowerBound + min(1, max(0, value)) * (range.upperBound - range.lowerBound)
+    }
+
+    private func normalizedBinding(
+        value: Binding<Double>,
+        range: ClosedRange<Double>
+    ) -> Binding<Double> {
+        Binding(
+            get: { normalized(value.wrappedValue, in: range) },
+            set: { value.wrappedValue = denormalized($0, in: range) }
+        )
     }
 
 }

@@ -136,6 +136,68 @@ final class PatchManagementTests: XCTestCase {
         XCTAssertEqual(session.project.fixtureDefinitions.count, 0)
     }
 
+    /// Stable definition identity: embedding a library personality must keep the same UUID
+    /// so fixtures resolve the profile and the library list does not accumulate clones.
+    func testEmbedPreservesDefinitionIdentityAcrossRepeatedEnsures() throws {
+        let session = DocumentSession(project: ShowProject.empty())
+        let libraryID = UUID()
+        let definition = FixtureDefinition(
+            id: libraryID,
+            manufacturer: "Generic",
+            model: "Dimmer",
+            modeName: "1-channel",
+            channelCount: 1,
+            channels: [ChannelDef(offset: 1, name: "Dimmer", attribute: "intensity")]
+        )
+        // Simulate ensureDefinitionEmbedded: copy with same ID (not a fresh UUID).
+        let embed1 = definition // stable id
+        try session.perform(EmbedFixtureDefinitionCommand(definition: embed1))
+        XCTAssertEqual(session.project.fixtureDefinitions.count, 1)
+        XCTAssertEqual(session.project.fixtureDefinitions[0].id, libraryID)
+
+        // Second ensure with same id is a replace/no-op for count.
+        try session.perform(EmbedFixtureDefinitionCommand(definition: embed1))
+        XCTAssertEqual(session.project.fixtureDefinitions.count, 1)
+
+        // Fixture patched against library id must resolve.
+        let u = Universe(number: 1)
+        try session.perform(AddUniverseCommand(universe: u))
+        try session.perform(AddPatchedFixtureCommand(fixture: PatchedFixture(
+            name: "Dimmer 1",
+            definitionId: libraryID,
+            universeId: u.id,
+            address: 1
+        )))
+        XCTAssertNotNil(session.project.definition(id: libraryID))
+        XCTAssertEqual(session.project.channelCount(for: session.project.fixtures[0]), 1)
+    }
+
+    /// Bug regression: minting a new definition UUID on each ensure grows look-alike library rows.
+    func testMintingNewDefinitionIDsDuplicatesLibraryList() throws {
+        let session = DocumentSession(project: ShowProject.empty())
+        let libraryID = UUID()
+        let libraryDef = FixtureDefinition(
+            id: libraryID,
+            manufacturer: "Generic",
+            model: "Dimmer",
+            modeName: "1-channel",
+            channelCount: 1,
+            channels: [ChannelDef(offset: 1, name: "Dimmer", attribute: "intensity")]
+        )
+        // Broken path: embed a *new* id each time (old makeEmbeddableCopy default).
+        for _ in 0..<4 {
+            var again = libraryDef
+            again.id = UUID()
+            try session.perform(EmbedFixtureDefinitionCommand(definition: again))
+        }
+        XCTAssertEqual(session.project.fixtureDefinitions.count, 4)
+        XCTAssertNil(session.project.definition(id: libraryID), "original library id never embedded")
+        // Correct path keeps a single row under the library id.
+        try session.perform(EmbedFixtureDefinitionCommand(definition: libraryDef))
+        XCTAssertEqual(session.project.definition(id: libraryID)?.model, "Dimmer")
+        XCTAssertEqual(session.project.fixtureDefinitions.count, 5) // 4 orphans + 1 correct
+    }
+
     func testAddressOutOfRange() throws {
         let session = DocumentSession(project: ShowProject.empty())
         let universe = Universe(number: 1, channelCount: 4)

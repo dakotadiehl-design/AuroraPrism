@@ -100,6 +100,8 @@ enum BuildLowerTool: String, CaseIterable, Identifiable, Sendable {
 @MainActor
 final class WorkspaceController: ObservableObject {
     @Published var layout: WorkspaceLayout
+    /// C5: docked / floating / hidden presentation for detachable surfaces.
+    @Published var floatState: WorkspaceFloatState
     @Published var mode: WorkspaceMode = .build
     /// Explicit Welcome vs empty document (DOC-01). Not inferred from fixture/cue counts.
     @Published var showsWelcomeScreen: Bool = true
@@ -117,6 +119,13 @@ final class WorkspaceController: ObservableObject {
     @Published var designFocusPreset: DesignFocusPreset = .balanced
     /// C3: in-place Stage geometry editing on the DESIGN canvas (not a separate workspace).
     @Published var stageEditActive: Bool = false
+
+    /// C5.1: shared Stage camera across docked + floating DESIGN Stage hosts.
+    @Published var designPreviewScale: CGFloat = 1
+    @Published var designPreviewPan: CGSize = .zero
+
+    /// Generation token so floating windows re-open when state reloads.
+    @Published private(set) var floatEpoch: UInt64 = 0
 
     /// Explicit Reveal on Stage (C2/C3) — DESIGN workspace, expand preview, pan to fixture.
     /// Does not force Edit Stage (reveal is a programming/navigation action).
@@ -251,11 +260,87 @@ final class WorkspaceController: ObservableObject {
         objectWillChange.send()
     }
 
-    init(layout: WorkspaceLayout = WorkspaceLayoutStore.load()) {
+    init(
+        layout: WorkspaceLayout = WorkspaceLayoutStore.load(),
+        floatState: WorkspaceFloatState? = nil
+    ) {
         self.layout = layout
+        // Load on MainActor inside init (default args are nonisolated).
+        self.floatState = floatState ?? WorkspaceFloatStore.load()
         // Align tools from persisted layout (UI-11).
         self.leftTool = BuildLeftTool.fromLayoutTab(layout.leadingTab)
         self.lowerTool = BuildLowerTool.fromLayoutTab(layout.bottomTab)
+    }
+
+    // MARK: - C5 float / undock
+
+    func isFloating(_ surface: FloatSurfaceID) -> Bool {
+        floatState.isFloating(surface)
+    }
+
+    func showsInMainWindow(_ surface: FloatSurfaceID) -> Bool {
+        floatState.showsInMainWindow(surface)
+    }
+
+    /// Undock surface into a real macOS window (C5D). Caller should open the WindowGroup.
+    func undock(
+        _ surface: FloatSurfaceID,
+        frame: CGRect? = nil,
+        screenID: String? = nil,
+        screenName: String? = nil
+    ) {
+        // Never float a hidden surface into a live window without an explicit undock.
+        let defaultFrame = frame ?? CGRect(origin: .zero, size: surface.defaultSize)
+        floatState.float(surface, frame: defaultFrame, screenID: screenID, screenName: screenName)
+        floatEpoch &+= 1
+        WorkspaceFloatStore.save(floatState)
+        objectWillChange.send()
+    }
+
+    /// Redock floating surface into the main BUILD shell (C5D). Closing a float window redocks.
+    /// Callers that own windows must also close the exact registered NSWindow (C5.1).
+    func redock(_ surface: FloatSurfaceID) {
+        guard floatState.isFloating(surface) else { return }
+        floatState.dock(surface)
+        floatEpoch &+= 1
+        WorkspaceFloatStore.save(floatState)
+        objectWillChange.send()
+    }
+
+    func updateFloatingFrame(
+        _ surface: FloatSurfaceID,
+        frame: CGRect,
+        screenID: String?,
+        screenName: String? = nil
+    ) {
+        var rec = floatState.record(for: surface)
+        guard rec.kind == .floating else { return }
+        rec.setFrame(frame)
+        if let screenID { rec.screenID = screenID }
+        if let screenName { rec.screenName = screenName }
+        floatState.setRecord(rec, for: surface)
+        WorkspaceFloatStore.saveDebounced(floatState)
+    }
+
+    /// C5E / C5.1: clamp saved frames onto currently available **visible** display frames.
+    func recoverFloatingWindows(to screens: [ScreenVisibleRecord]) {
+        if floatState.recoverFrames(to: screens) {
+            WorkspaceFloatStore.save(floatState)
+            floatEpoch &+= 1
+            objectWillChange.send()
+        }
+    }
+
+    /// Convenience when only CGRects are available (tests / legacy).
+    func recoverFloatingWindows(to screenFrames: [CGRect]) {
+        recoverFloatingWindows(to: screenFrames.enumerated().map {
+            ScreenVisibleRecord(id: "screen-\($0.offset)", visibleFrame: $0.element)
+        })
+    }
+
+    func flushFloatPersistence() {
+        WorkspaceFloatStore.flushPending()
+        WorkspaceFloatStore.save(floatState)
     }
 
     func setBuildWorkspaceMode(_ mode: BuildWorkspaceMode) {
@@ -324,6 +409,7 @@ final class WorkspaceController: ObservableObject {
     func flushLayoutPersistence() {
         WorkspaceLayoutStore.flushPending()
         WorkspaceLayoutStore.save(layout)
+        flushFloatPersistence()
     }
 
     func updateSplitFractions(leading: Double? = nil, trailing: Double? = nil, bottom: Double? = nil, immediate: Bool = false) {

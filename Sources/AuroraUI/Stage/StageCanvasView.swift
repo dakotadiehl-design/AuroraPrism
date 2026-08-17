@@ -937,43 +937,15 @@ public struct StageCanvasView: View {
             let color = state?.color.map { Color(red: $0.r, green: $0.g, blue: $0.b) }
                 ?? Color.white
             let visIntensity = aiming ? max(intensity, 0.45) : intensity
-            // C4.2 polish: single soft outer + soft core (less stained-glass stacking)
-            let coreOpacity = 0.08 + 0.38 * visIntensity
-            ZStack {
-                StageBeamWedgeShape(
-                    origin: pos,
-                    directionRadians: aim,
-                    length: length,
-                    spreadRadians: spread * 1.05
-                )
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            color.opacity(coreOpacity),
-                            color.opacity(coreOpacity * 0.35),
-                            color.opacity(0.01)
-                        ],
-                        center: UnitPoint(
-                            x: 0.5 + 0.15 * cos(aim),
-                            y: 0.5 + 0.15 * sin(aim)
-                        ),
-                        startRadius: 2,
-                        endRadius: max(40, length * 0.85)
-                    )
-                )
-                .blur(radius: beamDetail >= 2 ? 0.8 : 0)
-                StageBeamWedgeShape(
-                    origin: pos,
-                    directionRadians: aim,
-                    length: length * 0.88,
-                    spreadRadians: spread * 0.42
-                )
-                .fill(color.opacity(min(0.55, 0.1 + 0.4 * visIntensity)))
-                .blendMode(.plusLighter)
-            }
-            .allowsHitTesting(false)
-            .compositingGroup()
-            .opacity(0.92)
+            StageBeamView(
+                origin: pos,
+                directionRadians: aim,
+                length: length,
+                spreadRadians: spread,
+                color: color,
+                intensity: visIntensity,
+                detailLevel: beamDetail
+            )
         }
     }
 
@@ -1603,7 +1575,15 @@ public struct StageCanvasView: View {
         do {
             try context.session.perform(UpdateStageLayoutCommand(layout: layout))
             if notify { onLayoutChanged() }
-        } catch {}
+        } catch {
+            // Never silently discard Stage document mutations (Post-C6 audit).
+            let message = error.localizedDescription
+            statusNote?.wrappedValue = message
+            // Best-effort diagnostic surface when available via layout callback chain.
+            #if DEBUG
+            print("Stage layout commit failed: \(message)")
+            #endif
+        }
     }
 
     // MARK: - Camera

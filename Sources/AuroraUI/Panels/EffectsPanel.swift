@@ -122,7 +122,7 @@ public struct EffectsPanel: View {
                             } label: {
                                 Image(systemName: "trash")
                             }
-                            .buttonStyle(.borderless)
+                            .buttonStyle(AuroraButtonStyle(kind: .quiet))
                         }
                     }
                 }

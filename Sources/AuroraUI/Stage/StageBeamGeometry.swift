@@ -89,6 +89,154 @@ public struct StageBeamWedgeShape: Shape {
     }
 }
 
+// MARK: - Atmospheric beam renderer
+
+/// Layered, direction-aware 2D beam. Gradients are drawn from the fixture origin
+/// to the beam tip, avoiding the flat stained-glass triangle produced by a
+/// bounding-box gradient on a rotated wedge.
+public struct StageBeamView: View {
+    public var origin: CGPoint
+    public var directionRadians: Double
+    public var length: Double
+    public var spreadRadians: Double
+    public var color: Color
+    public var intensity: Double
+    public var detailLevel: Int
+
+    public init(
+        origin: CGPoint,
+        directionRadians: Double,
+        length: Double,
+        spreadRadians: Double,
+        color: Color,
+        intensity: Double,
+        detailLevel: Int
+    ) {
+        self.origin = origin
+        self.directionRadians = directionRadians
+        self.length = length
+        self.spreadRadians = spreadRadians
+        self.color = color
+        self.intensity = intensity
+        self.detailLevel = detailLevel
+    }
+
+    public var body: some View {
+        Canvas { context, _ in
+            let level = StageBeamRenderStyle.clampedIntensity(intensity)
+            guard level > 0.001, length > 1 else { return }
+            let tip = CGPoint(
+                x: origin.x + CGFloat(cos(directionRadians) * length),
+                y: origin.y + CGFloat(sin(directionRadians) * length)
+            )
+
+            // Wide atmospheric spill. Blur supplies lateral edge feathering;
+            // the directional gradient removes the hard far edge.
+            let atmosphere = StageBeamGeometry.wedgePath(
+                origin: origin,
+                directionRadians: directionRadians,
+                length: length,
+                spreadRadians: spreadRadians * 1.16
+            )
+            context.drawLayer { layer in
+                layer.addFilter(.blur(radius: detailLevel >= 2 ? 7 : 4))
+                layer.fill(
+                    atmosphere,
+                    with: directionalShading(
+                        opacity: StageBeamRenderStyle.atmosphereOpacity(level),
+                        start: origin,
+                        end: tip,
+                        terminal: 0
+                    )
+                )
+            }
+
+            // Main body: broad near the source, gently luminous through the
+            // middle, then fully transparent before the geometric endpoint.
+            let body = StageBeamGeometry.wedgePath(
+                origin: origin,
+                directionRadians: directionRadians,
+                length: length * 0.98,
+                spreadRadians: spreadRadians
+            )
+            context.drawLayer { layer in
+                layer.addFilter(.blur(radius: detailLevel >= 2 ? 2.2 : 1.2))
+                layer.fill(
+                    body,
+                    with: directionalShading(
+                        opacity: StageBeamRenderStyle.bodyOpacity(level),
+                        start: origin,
+                        end: tip,
+                        terminal: 0
+                    )
+                )
+            }
+
+            // Narrow optical core appears progressively with output level.
+            if detailLevel >= 2, level > 0.08 {
+                let core = StageBeamGeometry.wedgePath(
+                    origin: origin,
+                    directionRadians: directionRadians,
+                    length: length * 0.90,
+                    spreadRadians: max(0.018, spreadRadians * 0.34)
+                )
+                context.blendMode = .plusLighter
+                context.drawLayer { layer in
+                    layer.addFilter(.blur(radius: 1.4))
+                    layer.fill(
+                        core,
+                        with: directionalShading(
+                            opacity: StageBeamRenderStyle.coreOpacity(level),
+                            start: origin,
+                            end: tip,
+                            terminal: 0
+                        )
+                    )
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private func directionalShading(
+        opacity: Double,
+        start: CGPoint,
+        end: CGPoint,
+        terminal: Double
+    ) -> GraphicsContext.Shading {
+        .linearGradient(
+            Gradient(stops: [
+                .init(color: color.opacity(opacity * 0.98), location: 0.00),
+                .init(color: color.opacity(opacity), location: 0.16),
+                .init(color: color.opacity(opacity * 0.68), location: 0.55),
+                .init(color: color.opacity(opacity * 0.22), location: 0.84),
+                .init(color: color.opacity(terminal), location: 1.00),
+            ]),
+            startPoint: start,
+            endPoint: end
+        )
+    }
+}
+
+public enum StageBeamRenderStyle {
+    public static func clampedIntensity(_ intensity: Double) -> Double {
+        min(1, max(0, intensity))
+    }
+
+    public static func atmosphereOpacity(_ intensity: Double) -> Double {
+        0.28 * pow(clampedIntensity(intensity), 0.72)
+    }
+
+    public static func bodyOpacity(_ intensity: Double) -> Double {
+        0.50 * pow(clampedIntensity(intensity), 0.82)
+    }
+
+    public static func coreOpacity(_ intensity: Double) -> Double {
+        0.42 * pow(clampedIntensity(intensity), 1.18)
+    }
+}
+
 // MARK: - Direction composition (C4.1 Step 7)
 
 /// Maps physical Stage aim + optional live Pan/Tilt into a rendered beam direction.

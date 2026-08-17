@@ -207,7 +207,7 @@ public struct StagePanel: View {
                 }
                 .controlSize(.small)
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(AuroraButtonStyle(kind: .quiet))
 
             if !selectedIDs.isEmpty {
                 Button("Reveal") {

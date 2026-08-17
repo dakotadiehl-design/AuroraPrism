@@ -116,10 +116,10 @@ public struct SongPanel: View {
                 .foregroundStyle(AuroraColor.textTertiary)
             Button("◀") { onPrevious() }
                 .controlSize(.small)
-                .buttonStyle(.bordered)
+                .buttonStyle(AuroraButtonStyle(kind: .secondary))
             Button("▶") { onNext() }
                 .controlSize(.small)
-                .buttonStyle(.bordered)
+                .buttonStyle(AuroraButtonStyle(kind: .secondary))
             if entryIndex >= 0 {
                 Text("\(entryIndex + 1)")
                     .font(.system(size: 9, design: .monospaced))

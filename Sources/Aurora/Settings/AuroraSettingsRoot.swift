@@ -303,9 +303,19 @@ private struct SettingsOutputTab: View {
                 Text("Actual enabled: \(appModel.output.localDMXEnabled ? "yes" : "no")")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("Local DMX currently maps Show Universe 1 to ENTTEC physical output.")
+                Text("Universes must be routed to Local DMX (Project section below). Protocol None sends no hardware frames even when the device is running.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
+                let localRouted = appModel.session.project.universes.filter { $0.protocolHint == .local || $0.protocolHint == .mirror }
+                if appModel.output.localDMXEnabled && localRouted.isEmpty {
+                    Text("No show universe is routed to Local DMX — enable Local DMX on a universe below or ENTTEC will stay idle.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                } else if !localRouted.isEmpty {
+                    Text("Local route: \(localRouted.map { "U\($0.number)" }.joined(separator: ", ")) → ENTTEC (USB Pro framing).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Text("Serial list shows USB-serial candidates; not all are confirmed ENTTEC. Selection prefers stable hardware identity.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
