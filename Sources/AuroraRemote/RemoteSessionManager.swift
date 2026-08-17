@@ -180,7 +180,7 @@ public final class RemoteSessionManager: @unchecked Sendable {
         }
 
         // Reclaim idle sessions before enforcing maxClients (P2-12).
-        reclaimInactiveLocked(now: now)
+        _ = reclaimInactiveLocked(now: now)
 
         // Reuse existing session for same clientId (browser reload).
         if let existing = clients.values.first(where: { $0.clientId == clientId }) {

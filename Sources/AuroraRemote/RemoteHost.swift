@@ -107,15 +107,19 @@ public final class RemoteHost: @unchecked Sendable {
     }
 
     public func stop() {
+        // Snapshot handles under lock; cancel outside so NW callbacks cannot re-enter deadlocked.
         lock.lock()
-        listener?.cancel()
+        let listenerToCancel = listener
         listener = nil
-        for (_, conn) in connections {
-            conn.cancel()
-        }
+        let openConnections = Array(connections.values)
         connections.removeAll()
         sessionByConnection.removeAll()
         lock.unlock()
+
+        listenerToCancel?.cancel()
+        for conn in openConnections {
+            conn.cancel()
+        }
         _ = sessions.kickAll()
         setListenerState(.stopped)
     }

@@ -83,14 +83,16 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
     }
 
     public func stop() {
+        // Snapshot under lock; cancel outside so NW path callbacks cannot re-enter deadlocked.
         lock.lock()
-        for (_, conn) in connections {
-            conn.cancel()
-        }
+        let open = Array(connections.values)
         connections.removeAll()
         _isRunning = false
         _state = .disabled
         lock.unlock()
+        for conn in open {
+            conn.cancel()
+        }
     }
 
     public func send(universe: UInt16, dmx: UnsafeBufferPointer<UInt8>) {
@@ -137,22 +139,21 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
     }
 
     private func connection(forHost host: String, port: UInt16) -> NWConnection {
+        // Key by host+port so destination port changes don't orphan sockets.
+        let key = "\(host):\(port)"
         lock.lock()
-        if let existing = connections[host] {
+        if let existing = connections[key] {
             lock.unlock()
             return existing
         }
-        lock.unlock()
-
+        // Create under lock to prevent dual untracked connections (Post-C6 audit).
         let endpointHost = NWEndpoint.Host(host)
         let endpointPort = NWEndpoint.Port(rawValue: port) ?? 5568
         let params = NWParameters.udp
         let conn = NWConnection(host: endpointHost, port: endpointPort, using: params)
-        conn.start(queue: queue)
-
-        lock.lock()
-        connections[host] = conn
+        connections[key] = conn
         lock.unlock()
+        conn.start(queue: queue)
         return conn
     }
 }

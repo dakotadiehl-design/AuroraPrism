@@ -85,45 +85,96 @@ public final class ArtNetOutputDriver: OutputDriver, @unchecked Sendable {
 
         let conn = NWConnection(host: host, port: port, using: params)
         let sem = DispatchSemaphore(value: 0)
-        var startError: Error?
+        // Queue-confined startup result (Post-C6: no unsynchronized startError race).
+        final class StartupBox: @unchecked Sendable {
+            let lock = NSLock()
+            var error: Error?
+            var becameReady = false
+            var cancelled = false
+        }
+        let box = StartupBox()
 
-        conn.stateUpdateHandler = { state in
+        conn.stateUpdateHandler = { [weak self] state in
             switch state {
             case .ready:
+                box.lock.lock()
+                box.becameReady = true
+                box.lock.unlock()
+                self?.lock.lock()
+                self?._state = .ready
+                self?._lastError = nil
+                self?.lock.unlock()
                 sem.signal()
             case .failed(let err):
-                startError = err
+                box.lock.lock()
+                box.error = err
+                box.lock.unlock()
+                self?.lock.lock()
+                self?._lastError = err.localizedDescription
+                self?._state = .failed
+                self?.lock.unlock()
                 sem.signal()
             case .cancelled:
+                box.lock.lock()
+                box.cancelled = true
+                box.lock.unlock()
+                self?.lock.lock()
+                if self?._isRunning == true {
+                    self?._state = .disabled
+                }
+                self?.lock.unlock()
                 sem.signal()
+            case .waiting(let err):
+                self?.lock.lock()
+                self?._lastError = err.localizedDescription
+                if self?._state == .ready {
+                    self?._state = .degraded
+                }
+                self?.lock.unlock()
             default:
                 break
             }
         }
         conn.start(queue: queue)
 
-        _ = sem.wait(timeout: .now() + 0.5)
+        let waitResult = sem.wait(timeout: .now() + 0.5)
+        box.lock.lock()
+        let startError = box.error
+        let ready = box.becameReady
+        let cancelled = box.cancelled
+        box.lock.unlock()
+
         lock.lock()
-        if let startError {
-            _lastError = startError.localizedDescription
-            _state = .degraded
-        } else {
-            _lastError = nil
-            _state = .ready
-        }
         connection = conn
         _isRunning = true
         sequences.removeAll()
+        if let startError {
+            _lastError = startError.localizedDescription
+            _state = .failed
+        } else if cancelled {
+            _state = .disabled
+        } else if ready {
+            _lastError = nil
+            _state = .ready
+        } else if waitResult == .timedOut {
+            // Timeout while still preparing — never report ready (Post-C6 audit).
+            _lastError = "Art-Net connection timed out while starting"
+            _state = .degraded
+        } else {
+            _state = .starting
+        }
         lock.unlock()
     }
 
     public func stop() {
+        // Snapshot under lock; cancel outside so NW path callbacks cannot re-enter deadlocked.
         lock.lock()
-        connection?.cancel()
+        let conn = connection
         connection = nil
         _isRunning = false
         _state = .disabled
         lock.unlock()
+        conn?.cancel()
     }
 
     public func send(universe: UInt16, dmx: UnsafeBufferPointer<UInt8>) {

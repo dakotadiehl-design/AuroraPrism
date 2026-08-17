@@ -36,4 +36,27 @@ final class ENTTECDriverTests: XCTestCase {
         XCTAssertThrowsError(try driver.start())
         XCTAssertEqual(driver.healthSnapshot().state, .failed)
     }
+
+    /// Stop must push a zero universe before closing so the Pro stops retransmitting.
+    func testStopSendsBlackoutBeforeClose() throws {
+        let transport = MockENTTECTransport()
+        let driver = ENTTECUSBDMXProDriver(transport: transport, universeFilter: [1])
+        try driver.start()
+        var dmx = [UInt8](repeating: 0, count: 512)
+        dmx[0] = 200
+        dmx.withUnsafeBufferPointer { ptr in
+            driver.send(universe: 1, dmx: ptr)
+        }
+        XCTAssertEqual(transport.written.count, 1)
+        driver.stop()
+        XCTAssertFalse(transport.isOpen)
+        // Live frame + blackout frame.
+        XCTAssertEqual(transport.written.count, 2)
+        let blackout = transport.written.last!
+        // Payload after header: start code + 512 channels — all zeros.
+        XCTAssertEqual(blackout.count, 518)
+        // DMX channel data begins at index 5 (after 0x7E, label, lenL, lenH, startCode).
+        let channels = blackout.dropFirst(5).dropLast() // drop end code
+        XCTAssertTrue(channels.allSatisfy { $0 == 0 }, "blackout frame must be all zeros")
+    }
 }

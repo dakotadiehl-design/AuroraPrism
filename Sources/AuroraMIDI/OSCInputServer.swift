@@ -67,11 +67,13 @@ public final class OSCInputServer: @unchecked Sendable {
     }
 
     public func stop() {
+        // Snapshot under lock; cancel outside so NW receive callbacks cannot re-enter deadlocked.
         lock.lock()
-        listener?.cancel()
+        let listenerToCancel = listener
         listener = nil
         _isRunning = false
         lock.unlock()
+        listenerToCancel?.cancel()
     }
 
     private func accept(_ connection: NWConnection) {

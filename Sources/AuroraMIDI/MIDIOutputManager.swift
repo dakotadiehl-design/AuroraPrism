@@ -3,10 +3,16 @@ import CoreMIDI
 import Foundation
 
 /// Outbound CoreMIDI channel voice messages (P0-J feedback baseline).
+///
+/// **Teardown contract:** `MIDIClientDispose` never runs while `lock` is held.
+/// Notification-driven `reconcileDestinations` no-ops once shutdown begins, so a
+/// pending setup-changed callback cannot deadlock against `stop()`.
 public final class MIDIOutputManager: @unchecked Sendable {
     private var client = MIDIClientRef()
     private var outputPort = MIDIPortRef()
     private let lock = NSLock()
+    /// Set under lock before CoreMIDI dispose; reconcile/send must no-op when true.
+    private var isStopping = false
     private var destinations: [MIDIEndpointRef: String] = [:]
     private var destinationByID: [String: MIDIEndpointRef] = [:]
     private var diagnostics: ((String) -> Void)?
@@ -32,6 +38,7 @@ public final class MIDIOutputManager: @unchecked Sendable {
 
     public func start() throws {
         lock.lock()
+        isStopping = false
         let started = client != 0 && outputPort != 0
         lock.unlock()
         if started {
@@ -48,31 +55,45 @@ public final class MIDIOutputManager: @unchecked Sendable {
         }
         status = MIDIOutputPortCreate(client, "AuroraOutput" as CFString, &outputPort)
         guard status == noErr else {
-            if client != 0 { MIDIClientDispose(client); client = 0 }
+            let doomed = client
+            client = 0
             outputPort = 0
+            if doomed != 0 {
+                MIDIClientDispose(doomed)
+            }
             throw MIDIError.coreMIDI("MIDI out port failed: \(status)")
         }
         try reconcileDestinations()
     }
 
     public func stop() {
+        // Snapshot/clear under lock only. Dispose outside — CoreMIDI may invoke the
+        // client notification block while disposing, and that block calls reconcile.
         lock.lock()
+        isStopping = true
         destinations.removeAll()
         destinationByID.removeAll()
-        if outputPort != 0 {
-            // no dispose for port separate from client on all OS versions
-            outputPort = 0
+        recentInputSources.removeAll()
+        let clientRef = client
+        outputPort = 0
+        client = 0
+        lock.unlock()
+
+        if clientRef != 0 {
+            MIDIClientDispose(clientRef)
         }
-        if client != 0 {
-            MIDIClientDispose(client)
-            client = 0
-        }
+
+        lock.lock()
+        idStorage.removeAll()
         lock.unlock()
     }
 
     public func reconcileDestinations() throws {
         lock.lock()
-        defer { lock.unlock() }
+        if isStopping || client == 0 {
+            lock.unlock()
+            return
+        }
         destinations.removeAll()
         destinationByID.removeAll()
         let count = MIDIGetNumberOfDestinations()
@@ -87,7 +108,10 @@ public final class MIDIOutputManager: @unchecked Sendable {
             destinationByID[id] = dest
             idStorage[id] = id as NSString
         }
-        diagnostics?("MIDI destinations: \(destinations.count)")
+        let diag = diagnostics
+        let destCount = destinations.count
+        lock.unlock()
+        diag?("MIDI destinations: \(destCount)")
     }
 
     public var destinationIDs: [String] {
@@ -142,6 +166,10 @@ public final class MIDIOutputManager: @unchecked Sendable {
 
     private func send(status: UInt8, d1: UInt8, d2: UInt8, deviceID: String?) {
         lock.lock()
+        if isStopping {
+            lock.unlock()
+            return
+        }
         let port = outputPort
         let targets: [MIDIEndpointRef]
         if let deviceID, let ep = destinationByID[deviceID] {

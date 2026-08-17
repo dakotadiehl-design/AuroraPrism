@@ -94,6 +94,8 @@ public final class MacLocalDMXDeviceEnumerator: LocalDMXDeviceDiscovering {
         }
         return candidates.sorted().map { name in
             let path = "\(dev)/\(name)"
+            // Only strongly DMX/ENTTEC-named paths are labeled Pro; generic FTDI/usbmodem stay `.other`
+            // so Aurora does not write ENTTEC label-6 frames to arbitrary serial devices (Post-C6).
             let looksDMX = name.localizedCaseInsensitiveContains("DMX")
                 || name.localizedCaseInsensitiveContains("ENTTEC")
             return LocalDMXDeviceDescriptor(
@@ -101,7 +103,7 @@ public final class MacLocalDMXDeviceEnumerator: LocalDMXDeviceDiscovering {
                 displayName: looksDMX ? "Likely DMX \(name)" : "Serial \(name)",
                 serialPath: path,
                 hardwareIdentifier: path,
-                deviceType: .enttecUSBDMXPro,
+                deviceType: looksDMX ? .enttecUSBDMXPro : .other,
                 connectionState: .available,
                 supportedUniverses: [1]
             )
@@ -132,20 +134,33 @@ public enum LocalDMXDeviceEnumerator {
 
 /// POSIX raw serial transport for ENTTEC USB Pro binary framing (HW-04).
 ///
-/// Opens the tty with O_RDWR | O_NOCTTY, applies raw termios (no canonical / NL
-/// processing), then optionally wraps a FileHandle for writes. `open()` is
-/// owned by the driver lifecycle — callers must not pre-open.
+/// Opens the tty with `O_RDWR | O_NOCTTY | O_NONBLOCK`, applies raw termios, and
+/// **keeps the fd non-blocking**. Blocking serial I/O is a known quit hang:
+/// engine frames call `write` while `applicationWillTerminate` calls `close`, and
+/// a stuck USB VCOM can block both until the device is unplugged.
+///
+/// Locking contract:
+/// - `ioLock` only protects the fd / `isOpen` fields — never held across `write`/`close` syscalls.
+/// - Writers `dup()` the live fd under the lock, then write on the duplicate outside the lock.
+///   That keeps the open-file description alive if `close()` reclaims the canonical fd number
+///   (raw snapshot of `fd` is unsafe: the OS can reuse the integer for an unrelated file).
+/// - `close` marks closed first so new writers bail, then closes the canonical fd outside the lock.
 public final class MacENTTECSerialTransport: ENTTECSerialTransport, @unchecked Sendable {
     private let path: String
     private var fd: Int32 = -1
-    private var handle: FileHandle?
+    private let ioLock = NSLock()
     public private(set) var isOpen = false
+
+    /// Max time a single DMX frame write may spend waiting for USB buffer space.
+    public var writeTimeout: TimeInterval = 0.05
 
     public init(path: String) {
         self.path = path
     }
 
     public func open() throws {
+        ioLock.lock()
+        defer { ioLock.unlock() }
         if isOpen { return }
         #if os(macOS)
         let opened = path.withCString { cPath in
@@ -155,11 +170,7 @@ public final class MacENTTECSerialTransport: ENTTECSerialTransport, @unchecked S
             isOpen = false
             throw ENTTECError.deviceMissing
         }
-        // Clear non-blocking for bulk writes after open.
-        let flags = fcntl(opened, F_GETFL)
-        if flags >= 0 {
-            _ = fcntl(opened, F_SETFL, flags & ~O_NONBLOCK)
-        }
+        // Keep O_NONBLOCK for the lifetime of the port (do not clear).
         var tio = termios()
         if tcgetattr(opened, &tio) == 0 {
             // Raw binary: disable ICANON, ECHO, ISIG, and output post-processing.
@@ -167,11 +178,10 @@ public final class MacENTTECSerialTransport: ENTTECSerialTransport, @unchecked S
             tio.c_cflag |= tcflag_t(CLOCAL | CREAD)
             tio.c_cflag &= ~tcflag_t(CRTSCTS)
             tio.c_iflag &= ~tcflag_t(IXON | IXOFF | IXANY)
-            // Baud is a dummy for USB VCOM on ENTTEC Pro; leave as-is after raw.
+            // VMIN/VTIME unused for non-blocking; baud is dummy on USB VCOM.
             _ = tcsetattr(opened, TCSANOW, &tio)
         }
         fd = opened
-        handle = FileHandle(fileDescriptor: opened, closeOnDealloc: false)
         isOpen = true
         #else
         throw ENTTECError.deviceMissing
@@ -179,28 +189,48 @@ public final class MacENTTECSerialTransport: ENTTECSerialTransport, @unchecked S
     }
 
     public func close() {
-        #if os(macOS)
-        handle = nil
-        if fd >= 0 {
-            Darwin.close(fd)
-            fd = -1
-        }
-        #else
-        handle = nil
-        #endif
+        // Mark closed under lock first so concurrent writers stop issuing new dups.
+        ioLock.lock()
+        let closeFd = fd
+        fd = -1
         isOpen = false
+        ioLock.unlock()
+
+        guard closeFd >= 0 else { return }
+        #if os(macOS)
+        // Best-effort: keep non-blocking so close is less likely to wait on drain.
+        _ = fcntl(closeFd, F_SETFL, O_NONBLOCK)
+        // Discard pending output — better than hanging terminate on a wedged VCOM.
+        _ = tcflush(closeFd, TCOFLUSH)
+        _ = Darwin.close(closeFd)
+        #endif
     }
 
     public func write(_ data: Data) throws {
-        guard isOpen, fd >= 0 else { throw ENTTECError.notOpen }
         #if os(macOS)
-        let result = data.withUnsafeBytes { buf -> Int in
-            guard let base = buf.baseAddress else { return -1 }
-            return Darwin.write(fd, base, buf.count)
+        // Dup under the lock so a concurrent close of the canonical fd cannot cause us to
+        // write into a recycled descriptor number belonging to some other file.
+        ioLock.lock()
+        guard isOpen, fd >= 0 else {
+            ioLock.unlock()
+            throw ENTTECError.notOpen
         }
-        if result < 0 || result != data.count {
-            throw ENTTECError.writeFailed("write returned \(result)")
+        let writeFd = Darwin.dup(fd)
+        let timeout = writeTimeout
+        ioLock.unlock()
+
+        guard writeFd >= 0 else {
+            throw ENTTECError.writeFailed("dup failed errno \(errno)")
         }
+        defer { _ = Darwin.close(writeFd) }
+
+        // Ensure the duplicate stays non-blocking (dup inherits flags, but be explicit).
+        let flags = fcntl(writeFd, F_GETFL)
+        if flags >= 0 {
+            _ = fcntl(writeFd, F_SETFL, flags | O_NONBLOCK)
+        }
+
+        try POSIXWrite.completeWrite(fd: writeFd, data: data, timeout: timeout)
         #else
         throw ENTTECError.notOpen
         #endif
@@ -208,6 +238,56 @@ public final class MacENTTECSerialTransport: ENTTECSerialTransport, @unchecked S
 
     deinit {
         close()
+    }
+}
+
+/// Full-write loop for partial POSIX writes (testable).
+public enum POSIXWrite {
+    /// Writes all bytes with a wall-clock budget.
+    /// Retries `EINTR` and `EAGAIN`/`EWOULDBLOCK` until `timeout` elapses, then fails.
+    /// Never blocks indefinitely on a stalled USB serial device.
+    public static func completeWrite(
+        fd: Int32,
+        data: Data,
+        timeout: TimeInterval = 0.05
+    ) throws {
+        #if os(macOS)
+        try data.withUnsafeBytes { buf in
+            guard let base = buf.baseAddress else {
+                throw ENTTECError.writeFailed("empty buffer")
+            }
+            var offset = 0
+            let total = buf.count
+            let deadline = Date().addingTimeInterval(max(0.001, timeout))
+            while offset < total {
+                let n = Darwin.write(fd, base.advanced(by: offset), total - offset)
+                if n < 0 {
+                    let err = errno
+                    if err == EINTR { continue }
+                    if err == EAGAIN || err == EWOULDBLOCK {
+                        if Date() >= deadline {
+                            throw ENTTECError.writeFailed("write timeout")
+                        }
+                        // Brief poll for writability (≤2ms) without busy-spinning.
+                        var pfd = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
+                        _ = poll(&pfd, 1, 2)
+                        continue
+                    }
+                    // EBADF after concurrent close — treat as closed.
+                    if err == EBADF {
+                        throw ENTTECError.notOpen
+                    }
+                    throw ENTTECError.writeFailed("write errno \(err)")
+                }
+                if n == 0 {
+                    throw ENTTECError.writeFailed("write returned 0")
+                }
+                offset += n
+            }
+        }
+        #else
+        throw ENTTECError.notOpen
+        #endif
     }
 }
 
@@ -298,8 +378,20 @@ public final class ENTTECUSBDMXProDriver: OutputDriver, OutputHealthReporting, @
     private var _packetsDropped: UInt64 = 0
     private var _lastSuccessAt: Date?
     private var _state: OutputDriverState = .disabled
-    /// Only show-universe numbers listed here are sent (default: 1).
-    public var universeFilter: Set<UInt16>
+    /// Only show-universe numbers listed here are sent (default: 1). Locked storage.
+    private var _universeFilter: Set<UInt16>
+
+    public var universeFilter: Set<UInt16> {
+        get {
+            lock.lock(); defer { lock.unlock() }
+            return _universeFilter
+        }
+        set {
+            lock.lock()
+            _universeFilter = newValue
+            lock.unlock()
+        }
+    }
 
     public init(
         id: UUID = UUID(),
@@ -310,7 +402,7 @@ public final class ENTTECUSBDMXProDriver: OutputDriver, OutputHealthReporting, @
         self.id = id
         self.name = name
         self.transport = transport
-        self.universeFilter = universeFilter
+        self._universeFilter = universeFilter
     }
 
     public func start() throws {
@@ -335,16 +427,35 @@ public final class ENTTECUSBDMXProDriver: OutputDriver, OutputHealthReporting, @
     }
 
     public func stop() {
-        transport.close()
+        // ENTTEC USB Pro keeps retransmitting the last DMX packet in hardware until it
+        // receives new data or loses the host session. Lightkey-style shutdown:
+        // 1) stop accepting engine frames, 2) push a zero universe while the port is open,
+        // 3) close the serial session synchronously.
         lock.lock()
+        let wasRunning = _isRunning
+        let filter = _universeFilter
         _isRunning = false
         _state = .disabled
         lock.unlock()
+
+        if wasRunning, transport.isOpen {
+            var zeros = [UInt8](repeating: 0, count: 512)
+            zeros.withUnsafeBufferPointer { ptr in
+                let packet = ENTTECUSBDMXProProtocol.sendDMXPacket(dmx: ptr)
+                // One blackout frame per mapped show universe (default: U1).
+                for _ in filter {
+                    try? transport.write(packet)
+                }
+            }
+        }
+        // Close must run on this call stack (not a detached queue) so quit cannot exit
+        // with the VCOM session still open and the Pro LED still ticking.
+        transport.close()
     }
 
     public func send(universe: UInt16, dmx: UnsafeBufferPointer<UInt8>) {
         lock.lock()
-        guard _isRunning, universeFilter.contains(universe) else {
+        guard _isRunning, _universeFilter.contains(universe) else {
             if _isRunning { _packetsDropped &+= 1 }
             lock.unlock()
             return
@@ -352,15 +463,35 @@ public final class ENTTECUSBDMXProDriver: OutputDriver, OutputHealthReporting, @
         lock.unlock()
 
         let packet = ENTTECUSBDMXProProtocol.sendDMXPacket(dmx: dmx)
+        // Re-check after building the packet: stop() may have raced us.
+        lock.lock()
+        let stillRunning = _isRunning
+        lock.unlock()
+        guard stillRunning else {
+            lock.lock()
+            _packetsDropped &+= 1
+            lock.unlock()
+            return
+        }
+
         do {
             try transport.write(packet)
             lock.lock()
+            // Drop success accounting if we were stopped mid-write.
+            guard _isRunning else {
+                lock.unlock()
+                return
+            }
             _packetsSent &+= 1
             _lastSuccessAt = Date()
             if _state == .degraded { _state = .ready }
             lock.unlock()
         } catch {
             lock.lock()
+            guard _isRunning else {
+                lock.unlock()
+                return
+            }
             _lastError = error.localizedDescription
             _packetsDropped &+= 1
             _state = .degraded
@@ -381,7 +512,7 @@ public final class ENTTECUSBDMXProDriver: OutputDriver, OutputHealthReporting, @
             lastSuccessAt: _lastSuccessAt,
             packetsSent: _packetsSent,
             packetsDropped: _packetsDropped,
-            activeUniverses: Array(universeFilter).sorted()
+            activeUniverses: Array(_universeFilter).sorted()
         )
     }
 }

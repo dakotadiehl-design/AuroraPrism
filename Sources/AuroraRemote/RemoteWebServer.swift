@@ -119,10 +119,12 @@ public final class RemoteWebServer: @unchecked Sendable {
     }
 
     public func stop() {
+        // Snapshot under lock; cancel outside so NW callbacks cannot re-enter deadlocked.
         lock.lock()
-        listener?.cancel()
+        let listenerToCancel = listener
         listener = nil
         lock.unlock()
+        listenerToCancel?.cancel()
         sessions.invalidateAllTokens()
         setListenerState(.stopped)
     }
@@ -365,7 +367,7 @@ public final class RemoteWebServer: @unchecked Sendable {
                     connection.cancel()
                     return
                 }
-                var bodyStart = headerEnd.upperBound
+                let bodyStart = headerEnd.upperBound
                 var body = Data()
                 if contentLength > 0 {
                     let available = buf.distance(from: bodyStart, to: buf.endIndex)

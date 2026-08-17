@@ -64,9 +64,10 @@ final class OutputController: ObservableObject {
     }
 
     func stopAll() {
+        // Local DMX first: blackout + serial close must finish before process exit.
+        disableLocalDMX()
         artNetDriver.stop()
         sacnDriver.stop()
-        disableLocalDMX()
         outputManager.stopAll()
     }
 
@@ -222,17 +223,24 @@ final class OutputController: ObservableObject {
     }
 
     private func disableLocalDMX(persistRequested: Bool = false) {
-        if let driver = localDMXDriver {
-            driver.stop()
+        // Unregister first so the engine cannot enqueue more DMX frames to this driver.
+        let driver = localDMXDriver
+        let transport = localDMXTransport
+        if let driver {
             outputManager.unregister(id: driver.id)
         }
-        localDMXTransport?.close()
-        localDMXTransport = nil
         localDMXDriver = nil
+        localDMXTransport = nil
         localDMXEnabled = false
         if !persistRequested {
             localDMXStatus = "Local DMX: off"
         }
+        // Synchronous stop: sends a zero DMX frame then closes the serial session.
+        // Must not be deferred to a background queue — process exit would race past close
+        // and the ENTTEC Pro would keep retransmitting the last levels (green LED).
+        // Transport I/O is non-blocking with timeouts, so this is quit-safe.
+        driver?.stop()
+        transport?.close()
     }
 
     /// Start local driver if enabled and registered but not running (engine just started).
