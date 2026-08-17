@@ -16,24 +16,84 @@ final class AuroraAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let appModel else { return .terminateNow }
-        // PRE-UI-3 / BLOCKER-1: await save via coordinator, then orderly shutdown.
-        Task { @MainActor in
-            let proceed = await appModel.prepareToTerminate()
-            if proceed {
-                appModel.shutdown()
+
+        // PRE-UI-3 / BLOCKER-1 — AppKit-driven quit with a reliable dirty prompt.
+        //
+        // Always hop via `DispatchQueue.main.async` so we return `.terminateLater` first,
+        // then present an **app-modal** `NSAlert.runModal()` on the next turn.
+        // Window sheets (`beginSheetModal`) often fail to appear during terminate (no
+        // save dialog when the show is dirty). App-modal runModal is the dependable path.
+        DispatchQueue.main.async { [weak self, weak appModel] in
+            guard let self, let appModel else {
                 NSApp.reply(toApplicationShouldTerminate: true)
-            } else {
-                NSApp.reply(toApplicationShouldTerminate: false)
+                return
             }
+            self.handleQuitOnMain(appModel: appModel)
         }
         return .terminateLater
     }
 
+    /// Runs only after `applicationShouldTerminate` has returned `.terminateLater`.
+    private func handleQuitOnMain(appModel: AppModel) {
+        // AppModel is @MainActor; we are on the main queue.
+        let dirty = MainActor.assumeIsolated { appModel.document.isDirty }
+        if !dirty {
+            MainActor.assumeIsolated {
+                appModel.noteTerminationAccepted()
+                // Shut down hardware *before* replying so ENTTEC blackout/close completes.
+                appModel.shutdown()
+            }
+            NSApp.reply(toApplicationShouldTerminate: true)
+            return
+        }
+
+        MainActor.assumeIsolated { appModel.stopAutosaveForQuit() }
+
+        let alert = NSAlert()
+        alert.messageText = "Do you want to save the changes to this show before quitting?"
+        alert.informativeText = "Your changes will be lost if you don't save them."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Don't Save")
+        alert.addButton(withTitle: "Cancel")
+
+        // App-modal — always visible during quit (unlike document sheets).
+        let response = alert.runModal()
+        Task { @MainActor in
+            await self.finishQuit(response: response, appModel: appModel)
+        }
+    }
+
+    @MainActor
+    private func finishQuit(response: NSApplication.ModalResponse, appModel: AppModel) async {
+        switch response {
+        case .alertFirstButtonReturn:
+            // Modal must fully dismiss before Save As panel or package I/O.
+            await Task.yield()
+            let saved = await appModel.saveShowAsync(presentErrorsAsModal: true)
+            if saved {
+                appModel.noteTerminationAccepted()
+                appModel.shutdown()
+                NSApp.reply(toApplicationShouldTerminate: true)
+            } else {
+                // Stay alive so the user can retry or discard explicitly.
+                NSApp.reply(toApplicationShouldTerminate: false)
+            }
+        case .alertSecondButtonReturn:
+            appModel.noteTerminationAccepted()
+            appModel.shutdown()
+            NSApp.reply(toApplicationShouldTerminate: true)
+        default:
+            NSApp.reply(toApplicationShouldTerminate: false)
+        }
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
+        // Idempotent — usually already ran from finishQuit / clean-quit path.
         appModel?.shutdown()
     }
 
-    /// Finder / Launch Services double-click of a `.aurora` package.
+    /// Finder / Launch Services double-click of a Prism or legacy Aurora package.
     func application(_ application: NSApplication, open urls: [URL]) {
         guard let appModel else { return }
         for url in urls {
@@ -78,6 +138,10 @@ struct AuroraApp: App {
                 .environmentObject(appModel)
                 .onAppear {
                     appDelegate.appModel = appModel
+                    // C5E / C5.1: recover floating windows onto per-screen visible frames.
+                    appModel.workspace.recoverFloatingWindows(
+                        to: AuroraScreenIdentity.currentVisibleScreens()
+                    )
                     // Checkpoint B visual export (production PatchWorkspaceView composites).
                     if ProcessInfo.processInfo.arguments.contains("--export-checkpoint-b-shots") {
                         CheckpointBScreenshotExporter.runIfRequested()
@@ -107,14 +171,50 @@ struct AuroraApp: App {
                         applyBuildWorkspaceLaunchArg()
                     }
                 }
+                .background(FloatWindowRestorer().environmentObject(appModel))
         }
         .defaultSize(width: 1280, height: 800)
+
+        // Phase F: dedicated Advanced MIDI Engine window.
+        Window("MIDI Engine", id: "ame-engine") {
+            AMEEngineWindowRoot()
+                .environmentObject(appModel)
+                .buttonStyle(AuroraButtonStyle())
+        }
+        .defaultSize(width: 1024, height: 640)
+
+        // C5C: real macOS windows for undocked workspace surfaces (shared AppModel).
+        // contentMinSize = user can resize freely; content min comes from the view's min frame.
+        WindowGroup(id: "float-surface", for: FloatSurfaceID.self) { $surface in
+            if let surface {
+                FloatingSurfaceWindow(surface: surface)
+                    .environmentObject(appModel)
+                    .buttonStyle(AuroraButtonStyle())
+            }
+        }
+        .defaultSize(width: 720, height: 560)
+        .windowResizability(.contentMinSize)
+        .defaultPosition(.center)
+        .commandsRemoved()
+
+        Window("About Prism", id: "about-aurora") {
+            AuroraAboutView()
+                .buttonStyle(AuroraButtonStyle())
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+        .commandsRemoved()
+
         Settings {
             // Pass by value/reference without EnvironmentObject on the TabView shell —
             // high-frequency AppModel polls must not rebuild SF Symbol tab items.
             AuroraSettingsRoot(appModel: appModel)
         }
         .commands {
+            CommandGroup(replacing: .appInfo) {
+                AboutAuroraMenuButton()
+            }
+
             CommandGroup(replacing: .newItem) {
                 if !isPerform {
                     Button("New Show") {
@@ -141,10 +241,10 @@ struct AuroraApp: App {
 
                     Divider()
 
-                    Button("Export Aurora Library…") {
+                    Button("Export Prism Library…") {
                         appModel.exportLibraryPanel()
                     }
-                    Button("Import Aurora Library…") {
+                    Button("Import Prism Library…") {
                         appModel.importLibraryPanel()
                     }
 
@@ -189,6 +289,27 @@ struct AuroraApp: App {
                     Button("Hide Stage Preview") {
                         appModel.workspace.setStagePreviewCollapsed(true)
                         appModel.notifyUI()
+                    }
+                    Divider()
+                    Menu("Move to Window") {
+                        ForEach(FloatSurfaceID.allCases) { surface in
+                            Button(surface.title) {
+                                // C5.1: same undock path as panel chrome (default frame + open).
+                                appModel.undockSurface(surface, preferredScreen: NSScreen.main)
+                                // Window open is handled by FloatWindowRestorer via floatEpoch.
+                            }
+                            .disabled(appModel.workspace.isFloating(surface)
+                                      || appModel.workspace.floatState.record(for: surface).kind == .hidden)
+                        }
+                    }
+                    Menu("Dock in Main Window") {
+                        ForEach(FloatSurfaceID.allCases) { surface in
+                            Button(surface.title) {
+                                // C5.1: redock + close exact registered NSWindow.
+                                appModel.redockSurface(surface)
+                            }
+                            .disabled(!appModel.workspace.isFloating(surface))
+                        }
                     }
                     Button("Show Inspector") {
                         if !appModel.workspace.layout.isVisible(.inspector) {
@@ -365,6 +486,11 @@ struct AuroraApp: App {
             }
 
             CommandMenu("MIDI") {
+                Button("MIDI Engine…") {
+                    NotificationCenter.default.post(name: .openAMEEngineWindow, object: nil)
+                }
+                .keyboardShortcut("m", modifiers: [.command, .shift])
+                Divider()
                 Button(appModel.rtpMIDI.configSnapshot.enabled ? "Disable RTP-MIDI" : "Enable RTP-MIDI") {
                     appModel.setRTPMIDIEnabled(!appModel.rtpMIDI.configSnapshot.enabled)
                 }

@@ -55,8 +55,19 @@ public final class DocumentSession {
         savedGeneration = documentGeneration
     }
 
+    /// Apply a package-derived show title without minting a new document generation (Save As basename).
+    public func applyPackageDisplayName(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        project.metadata.name = trimmed
+    }
+
     /// Apply canonical package metadata after save so memory matches disk (P2-21).
-    public func applySavedMetadata(modifiedAt: Date) {
+    /// When `name` is provided (e.g. Save As basename), the in-memory title updates without minting a dirty state.
+    public func applySavedMetadata(modifiedAt: Date, name: String? = nil) {
+        if let name {
+            applyPackageDisplayName(name)
+        }
         project.metadata.modifiedAt = modifiedAt
         markSaved()
     }

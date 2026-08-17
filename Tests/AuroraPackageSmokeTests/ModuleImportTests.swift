@@ -4,6 +4,7 @@ import AuroraEngine
 import AuroraFixtureLib
 import AuroraMIDI
 import AuroraModel
+import AuroraMusical
 import AuroraOutput
 import AuroraUI
 import XCTest
@@ -16,6 +17,7 @@ final class ModuleImportTests: XCTestCase {
             (AuroraCoreModule.name, "AuroraCore"),
             (AuroraEngineModule.name, "AuroraEngine"),
             (AuroraMIDIModule.name, "AuroraMIDI"),
+            (AuroraMusicalModule.name, "AuroraMusical"),
             (AuroraOutputModule.name, "AuroraOutput"),
             (AuroraFixtureLibModule.name, "AuroraFixtureLib"),
             (AuroraDiagnosticsModule.name, "AuroraDiagnostics"),
