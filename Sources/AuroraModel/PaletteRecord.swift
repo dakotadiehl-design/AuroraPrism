@@ -28,7 +28,12 @@ public enum PaletteRecord {
         selectedFixtureIDs: [UUID],
         attributeKeys: [String]? = nil
     ) -> PaletteRecordResult {
-        let keys = attributeKeys ?? ["colorR", "colorG", "colorB", "colorW", "intensity", "pan", "tilt"]
+        let keys = attributeKeys ?? [
+            "colorHue", "colorSat", "colorVal", "colorWB",
+            "colorR", "colorG", "colorB", "colorW", "colorA", "colorUV",
+            "colorWarmWhite", "colorCoolWhite", "colorLime", "colorCyan",
+            "intensity", "pan", "tilt",
+        ]
         guard !selectedFixtureIDs.isEmpty else {
             return PaletteRecordResult(values: [:], commonAttributes: [], mixedAttributes: [])
         }

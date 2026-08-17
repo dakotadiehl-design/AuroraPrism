@@ -85,6 +85,67 @@ final class StagePreviewParityTests: XCTestCase {
         eng.stop()
     }
 
+    func testEffectiveBeamLevelCombinesDimmerAndActiveColorBrightness() {
+        let (project, fx) = rgbDimmerProject()
+        let definition = project.definition(id: project.fixtures[0].definitionId)
+        let level = StagePreviewBuilder.effectiveBeamLevel(
+            attributes: [
+                "intensity": 0.8,
+                ColorAuthoringAttribute.brightness: 0.25,
+                "colorR": 0.25,
+                "colorG": 0.10,
+                "colorB": 0.05,
+            ],
+            definition: definition
+        )
+        XCTAssertEqual(level, 0.2, accuracy: 0.001, "fixture \(fx)")
+    }
+
+    func testEffectiveBeamLevelUsesVirtualDimmerForRGBOnlyFixture() {
+        let definition = FixtureDefinition(
+            manufacturer: "G",
+            model: "RGB only",
+            channels: [
+                ChannelDef(offset: 1, name: "R", attribute: "colorR"),
+                ChannelDef(offset: 2, name: "G", attribute: "colorG"),
+                ChannelDef(offset: 3, name: "B", attribute: "colorB"),
+            ],
+            colorModel: .rgb
+        )
+        let level = StagePreviewBuilder.effectiveBeamLevel(
+            attributes: [
+                "intensity": 0.5,
+                "colorR": 0.6,
+                "colorG": 0.2,
+                "colorB": 0.1,
+            ],
+            definition: definition
+        )
+        XCTAssertEqual(level, 0.3, accuracy: 0.001)
+    }
+
+    func testPreviewNormalizesBeamChromaSeparatelyFromLevel() {
+        let (project, fx) = rgbDimmerProject()
+        let preview = StagePreviewBuilder.build(
+            project: project,
+            look: ActiveLook(fixtureAttributes: [fx: [
+                "intensity": 1,
+                ColorAuthoringAttribute.brightness: 0.4,
+                "colorR": 0.4,
+                "colorG": 0.2,
+                "colorB": 0.1,
+            ]]),
+            frameIndex: 1,
+            time: 0,
+            global: .default
+        )
+        let fixture = preview.fixtures.first { $0.fixtureID == fx }
+        XCTAssertEqual(fixture?.intensity ?? -1, 0.4, accuracy: 0.001)
+        XCTAssertEqual(fixture?.color?.r ?? -1, 1, accuracy: 0.001)
+        XCTAssertEqual(fixture?.color?.g ?? -1, 0.5, accuracy: 0.001)
+        XCTAssertEqual(fixture?.color?.b ?? -1, 0.25, accuracy: 0.001)
+    }
+
     func testBlackoutAndFreezeOnResolvedPath() throws {
         let (project, fx) = rgbDimmerProject()
         let eng = LightingEngine(output: OutputManager())

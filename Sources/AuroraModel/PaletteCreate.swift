@@ -16,7 +16,15 @@ public enum PaletteCreateKind: String, Sendable, Equatable, CaseIterable {
 
     public var attributeKeys: [String] {
         switch self {
-        case .color: return ["colorR", "colorG", "colorB", "colorW"]
+        // C.E. 1.1: authoring H/S/V/WB + physical RGB + dedicated emitters.
+        // Keep list local to AuroraModel (no Engine dependency).
+        case .color:
+            return [
+                "colorHue", "colorSat", "colorVal", "colorWB",
+                "colorR", "colorG", "colorB",
+                "colorW", "colorA", "colorUV",
+                "colorWarmWhite", "colorCoolWhite", "colorLime", "colorCyan",
+            ]
         case .intensity: return ["intensity"]
         case .position: return ["pan", "tilt"]
         }
@@ -46,6 +54,16 @@ public enum PaletteCreate {
         case "colorG": return "Green"
         case "colorB": return "Blue"
         case "colorW": return "White"
+        case "colorA": return "Amber"
+        case "colorUV": return "UV"
+        case "colorWarmWhite": return "Warm White"
+        case "colorCoolWhite": return "Cool White"
+        case "colorLime": return "Lime"
+        case "colorCyan": return "Cyan"
+        case "colorHue": return "Hue"
+        case "colorSat": return "Saturation"
+        case "colorVal": return "Brightness"
+        case "colorWB": return "White Balance"
         case "intensity": return "Intensity"
         case "pan": return "Pan"
         case "tilt": return "Tilt"
@@ -53,12 +71,28 @@ public enum PaletteCreate {
         }
     }
 
+    private static let softAuthoringKeys: Set<String> = [
+        "colorHue", "colorSat", "colorVal", "colorWB",
+    ]
+
+    /// Fixture supports RGB Color Engine authoring (H/S/V/WB → RGB).
+    public static func supportsRGBAuthoring(_ supported: Set<String>) -> Bool {
+        supported.contains("colorR") && supported.contains("colorG") && supported.contains("colorB")
+    }
+
     /// Intersect palette values with fixture-supported attributes (CR-01).
+    /// Soft authoring H/S/V/WB apply only when the fixture supports RGB authoring (Pass 2 final).
     public static func filterValues(
         _ values: [String: Double],
         supported: Set<String>
     ) -> [String: Double] {
-        values.filter { supported.contains($0.key) }
+        let rgbOK = supportsRGBAuthoring(supported)
+        return values.filter { key, _ in
+            if softAuthoringKeys.contains(key) {
+                return rgbOK
+            }
+            return supported.contains(key)
+        }
     }
 
     /// Fixtures that support at least one key in `values` (CR-02).
@@ -142,6 +176,25 @@ public enum PaletteCreate {
         var anyCapable = false
 
         for key in kind.attributeKeys {
+            if softAuthoringKeys.contains(key) {
+                // Soft authoring: record only when present; absent everywhere → skip (not mixed).
+                var samples: [Double] = []
+                for id in selectedFixtureIDs {
+                    if let v = programmerValues[id]?[key] {
+                        samples.append(v)
+                    }
+                }
+                guard !samples.isEmpty else { continue }
+                anyCapable = true
+                let first = samples[0]
+                if samples.allSatisfy({ abs($0 - first) < 1e-9 }) {
+                    common[key] = first
+                } else {
+                    mixed.append(key)
+                }
+                continue
+            }
+
             let capable = selectedFixtureIDs.filter { (capabilityMap[$0] ?? []).contains(key) }
             guard !capable.isEmpty else { continue }
             anyCapable = true

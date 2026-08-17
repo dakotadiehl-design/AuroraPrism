@@ -39,13 +39,12 @@ public enum GlobalShowControl {
     ]
 
     /// Color emitter attributes — scaled by master **only** when no dimmer attribute is present.
-    public static let colorEmitterAttributes: Set<String> = [
-        "colorR", "colorG", "colorB", "colorW", "colorA", "colorC", "colorM", "colorY",
-    ]
+    public static let colorEmitterAttributes: Set<String> = ColorEmitterKind.physicalEmitterAttributes
 
     /// Scale look by master; blackout zeros dimmers (and color-only fixtures).
     /// When a fixture has intensity/dimmer, master scales **only** that channel (preserves chromatic ratios).
-    /// When a fixture has only color emitters, master scales those emitters once.
+    /// When a fixture has only color emitters (or virtual dimmer intensity + emitters), master scales intensity once.
+    /// Soft authoring keys (`colorHue`/`colorSat`/`colorVal`/`colorWB`) are never scaled (C.E. 1.1).
     public static func applyToLook(_ look: ActiveLook, state: GlobalShowControlState) -> ActiveLook {
         guard state.blackout || state.masterIntensity < 0.999 else { return look }
         var result = look
@@ -53,6 +52,9 @@ public enum GlobalShowControl {
             var next = attrs
             let hasDimmer = attrs.keys.contains { isDimmerAttribute($0) }
             for key in attrs.keys {
+                if ColorAuthoringAttribute.isAuthoring(key) {
+                    continue // never touch soft authoring metadata
+                }
                 if state.blackout {
                     if isDimmerAttribute(key) || (!hasDimmer && isColorEmitter(key)) {
                         next[key] = 0
@@ -75,8 +77,7 @@ public enum GlobalShowControl {
     }
 
     public static func isColorEmitter(_ attribute: String) -> Bool {
-        let lower = attribute.lowercased()
-        if colorEmitterAttributes.contains(attribute) || colorEmitterAttributes.contains(lower) { return true }
-        return lower.hasPrefix("color") && !isDimmerAttribute(attribute)
+        if ColorAuthoringAttribute.isAuthoring(attribute) { return false }
+        return ColorEmitterKind.isPhysicalEmitter(attribute)
     }
 }

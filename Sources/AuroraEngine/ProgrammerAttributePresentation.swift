@@ -149,7 +149,10 @@ public struct ProgrammerAttributePresentation: Equatable, Sendable {
 
 public enum ProgrammerAttributePresentationResolver {
     public static let primaryColorAttributes = ["colorR", "colorG", "colorB", "colorW"]
-    public static let knownTechnicalColorExtras = ["colorA", "colorUV", "cyan", "magenta", "yellow"]
+    public static let knownTechnicalColorExtras = [
+        "colorA", "colorUV", "colorCoolWhite", "colorWarmWhite",
+        "colorLime", "colorCyan", "cyan", "magenta", "yellow",
+    ]
     public static let beamAttributeNames = [
         "zoom", "focus", "iris", "frost", "prism", "prismRotate", "gobo", "goboRotate",
         "goboIndex", "beam", "diffusion", "blade1", "blade2", "blade3", "blade4",
@@ -160,7 +163,8 @@ public enum ProgrammerAttributePresentationResolver {
     private static let coreAttributes: Set<String> = [
         "intensity", "dimmer", "dim", "pan", "tilt",
         "colorR", "colorG", "colorB", "colorW",
-        "colorA", "colorUV", "cyan", "magenta", "yellow",
+        "colorA", "colorUV", "colorCoolWhite", "colorWarmWhite",
+        "colorLime", "colorCyan", "cyan", "magenta", "yellow",
     ]
 
     public static func resolve(
@@ -170,10 +174,16 @@ public enum ProgrammerAttributePresentationResolver {
     ) -> ProgrammerAttributePresentation {
         guard !orderedFixtureIDs.isEmpty else { return .empty }
 
-        let caps = capabilityMap(orderedFixtureIDs: orderedFixtureIDs, project: project)
+        let physicalCaps = physicalCapabilityMap(orderedFixtureIDs: orderedFixtureIDs, project: project)
+        let caps = effectiveCapabilityMap(fromPhysical: physicalCaps)
         let values = programmer.values
 
-        let intensity = resolveAttribute("intensity", ordered: orderedFixtureIDs, caps: caps, values: values)
+        let intensity = resolveIntensity(
+            ordered: orderedFixtureIDs,
+            physicalCaps: physicalCaps,
+            effectiveCaps: caps,
+            values: values
+        )
         let pan = resolveAttribute("pan", ordered: orderedFixtureIDs, caps: caps, values: values)
         let tilt = resolveAttribute("tilt", ordered: orderedFixtureIDs, caps: caps, values: values)
         let colorR = resolveAttribute("colorR", ordered: orderedFixtureIDs, caps: caps, values: values)
@@ -237,6 +247,7 @@ public enum ProgrammerAttributePresentationResolver {
         orderedFixtureIDs: [UUID],
         project: ShowProject
     ) -> [UUID] {
+        // Always use **effective** capabilities (virtual intensity included).
         let caps = capabilityMap(orderedFixtureIDs: orderedFixtureIDs, project: project)
         return orderedFixtureIDs.filter { caps[$0]?.contains(attribute) == true }
     }
@@ -258,6 +269,24 @@ public enum ProgrammerAttributePresentationResolver {
     }
 
     public static func resolveAttribute(
+        _ attribute: String,
+        ordered: [UUID],
+        caps: [UUID: Set<String>],
+        values: [UUID: [String: Double]]
+    ) -> ProgrammerAttributeState {
+        if attribute == "intensity" || attribute == "dimmer" || attribute == "dim" {
+            // Prefer resolveIntensity when physical map available; fallback without virtual defaults.
+            return resolveIntensity(
+                ordered: ordered,
+                physicalCaps: caps,
+                effectiveCaps: caps,
+                values: values
+            )
+        }
+        return resolveAttributeGeneric(attribute, ordered: ordered, caps: caps, values: values)
+    }
+
+    private static func resolveAttributeGeneric(
         _ attribute: String,
         ordered: [UUID],
         caps: [UUID: Set<String>],
@@ -290,11 +319,39 @@ public enum ProgrammerAttributePresentationResolver {
         return ProgrammerAttributeState(support: support, value: .mixed)
     }
 
-    public static func capabilityMap(
+    // MARK: - Effective intensity (physical dimmer vs virtual emitter scale)
+
+    public enum EffectiveIntensityMode: Equatable, Sendable {
+        case physical
+        case virtualEmitterScale
+        case unsupported
+    }
+
+    public static func hasPhysicalDimmer(_ caps: Set<String>) -> Bool {
+        caps.contains("intensity") || caps.contains("dimmer") || caps.contains("dim")
+            || caps.contains(where: { GlobalShowControl.isDimmerAttribute($0) && !$0.hasPrefix("color") })
+    }
+
+    public static func hasLightProducingEmitters(_ caps: Set<String>) -> Bool {
+        caps.contains(where: { ColorEmitterKind.isPhysicalEmitter($0) })
+    }
+
+    public static func supportsRGBAuthoring(_ caps: Set<String>) -> Bool {
+        // Meaningful H/S/V/WB resolution requires RGB emitters.
+        caps.contains("colorR") && caps.contains("colorG") && caps.contains("colorB")
+    }
+
+    public static func effectiveIntensityMode(physicalCaps: Set<String>) -> EffectiveIntensityMode {
+        if hasPhysicalDimmer(physicalCaps) { return .physical }
+        if hasLightProducingEmitters(physicalCaps) { return .virtualEmitterScale }
+        return .unsupported
+    }
+
+    /// Raw fixture channel/capability attributes (no virtual intensity injection).
+    public static func physicalCapabilityMap(
         orderedFixtureIDs: [UUID],
         project: ShowProject
     ) -> [UUID: Set<String>] {
-        // Build fixture lookup once (avoid repeated linear scans).
         var byID: [UUID: PatchedFixture] = [:]
         byID.reserveCapacity(project.fixtures.count)
         for f in project.fixtures {
@@ -314,7 +371,6 @@ public enum ProgrammerAttributePresentationResolver {
             }
             let attrs: Set<String>
             if let def = project.definition(id: fixture.definitionId) {
-                // Include expanded multi-cell attributes so Programmer can target cells.
                 attrs = Set(CompiledShow.compileAttributeWrites(definition: def).map(\.attribute))
                     .union(def.channels.map(\.attribute))
             } else {
@@ -324,6 +380,100 @@ public enum ProgrammerAttributePresentationResolver {
             map[id] = attrs
         }
         return map
+    }
+
+    /// Inject virtual intensity into a physical capability set when appropriate.
+    public static func withEffectiveIntensity(_ physical: Set<String>) -> Set<String> {
+        var set = physical
+        if effectiveIntensityMode(physicalCaps: physical) == .virtualEmitterScale {
+            set.insert("intensity")
+        }
+        return set
+    }
+
+    public static func effectiveCapabilityMap(
+        fromPhysical physical: [UUID: Set<String>]
+    ) -> [UUID: Set<String>] {
+        var map: [UUID: Set<String>] = [:]
+        map.reserveCapacity(physical.count)
+        for (id, caps) in physical {
+            map[id] = withEffectiveIntensity(caps)
+        }
+        return map
+    }
+
+    /// **Effective** capability map used by Programmer, Fan, Align, Color Engine, etc.
+    /// Includes virtual `intensity` for light-producing fixtures without a physical dimmer.
+    public static func capabilityMap(
+        orderedFixtureIDs: [UUID],
+        project: ShowProject
+    ) -> [UUID: Set<String>] {
+        effectiveCapabilityMap(
+            fromPhysical: physicalCapabilityMap(orderedFixtureIDs: orderedFixtureIDs, project: project)
+        )
+    }
+
+    /// Intensity presentation using effective values (virtual default = 1.0 when unset).
+    public static func resolveIntensity(
+        ordered: [UUID],
+        physicalCaps: [UUID: Set<String>],
+        effectiveCaps: [UUID: Set<String>],
+        values: [UUID: [String: Double]]
+    ) -> ProgrammerAttributeState {
+        let capable = ordered.filter { effectiveCaps[$0]?.contains("intensity") == true }
+        guard !capable.isEmpty else { return .unsupported }
+        let support: AttributeSupportState = capable.count == ordered.count ? .all : .partial
+
+        var effective: [Double] = []
+        effective.reserveCapacity(capable.count)
+        var anyOwned = false
+        var anyVirtualDefault = false
+        var anyPhysicalUntouched = false
+
+        for id in capable {
+            let physical = physicalCaps[id] ?? []
+            let mode = effectiveIntensityMode(physicalCaps: physical)
+            if let v = values[id]?["intensity"] ?? values[id]?["dimmer"] ?? values[id]?["dim"] {
+                effective.append(v)
+                anyOwned = true
+            } else if mode == .virtualEmitterScale {
+                // Untouched virtual intensity → effective 100% (neutral multiplier).
+                effective.append(1.0)
+                anyVirtualDefault = true
+            } else {
+                // Physical dimmer untouched — keep existing semantics (no fabricated 1.0).
+                anyPhysicalUntouched = true
+            }
+        }
+
+        if effective.isEmpty {
+            return ProgrammerAttributeState(support: support, value: .untouched)
+        }
+
+        // Partial ownership: some physical fixtures untouched while others have values.
+        if anyPhysicalUntouched && anyOwned {
+            return ProgrammerAttributeState(support: support, value: .mixed)
+        }
+        if anyPhysicalUntouched && !anyOwned && !anyVirtualDefault {
+            return ProgrammerAttributeState(support: support, value: .untouched)
+        }
+        if anyPhysicalUntouched && anyVirtualDefault && !anyOwned {
+            // Physical untouched (no value) + virtual default 1.0 → mixed presentation
+            // unless we only have virtual fixtures (already handled as all effective).
+            return ProgrammerAttributeState(support: support, value: .mixed)
+        }
+
+        // All capable contributed an effective value.
+        if effective.count < capable.count {
+            return ProgrammerAttributeState(support: support, value: .mixed)
+        }
+        let first = effective[0]
+        let allSame = effective.allSatisfy { abs($0 - first) < 1e-9 }
+        if allSame {
+            // Virtual-only defaults at 1.0 appear as common 1.0 (display 100%) without ownership.
+            return ProgrammerAttributeState(support: support, value: .common(first))
+        }
+        return ProgrammerAttributeState(support: support, value: .mixed)
     }
 }
 

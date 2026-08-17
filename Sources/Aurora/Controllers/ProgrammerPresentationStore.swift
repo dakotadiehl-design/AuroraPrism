@@ -18,12 +18,14 @@ final class ProgrammerPresentationStore: ObservableObject {
         project: ShowProject,
         programmer: Programmer
     ) {
-        presentation = ProgrammerAttributePresentationResolver.resolve(
+        let next = ProgrammerAttributePresentationResolver.resolve(
             orderedFixtureIDs: orderedFixtureIDs,
             project: project,
             programmer: programmer.snapshot()
         )
+        // Skip revision/publish when capability presentation is unchanged (Post-C6 / pre-color-engine).
+        guard next != presentation else { return }
+        presentation = next
         revision &+= 1
-        // @Published already emits; do not double-send objectWillChange.
     }
 }

@@ -206,4 +206,28 @@ final class PaletteCreateTests: XCTestCase {
         )
         XCTAssertEqual(compatible, [mover])
     }
+
+    /// Pass 2 final: soft H/S/V/WB only apply to RGB-authoring fixtures.
+    func testSoftAuthoringGatedByRGBCapability() {
+        let rgb: Set<String> = ["colorR", "colorG", "colorB", "colorW"]
+        let whiteOnly: Set<String> = ["colorW"]
+        let dimmerOnly: Set<String> = ["intensity"]
+        let soft = [
+            "colorHue": 210.0, "colorSat": 0.75, "colorVal": 0.4, "colorWB": 0.25,
+            "colorW": 0.5,
+        ]
+        let rgbFiltered = PaletteCreate.filterValues(soft, supported: rgb)
+        XCTAssertEqual(rgbFiltered["colorHue"], 210)
+        XCTAssertEqual(rgbFiltered["colorW"], 0.5)
+
+        let whiteFiltered = PaletteCreate.filterValues(soft, supported: whiteOnly)
+        XCTAssertNil(whiteFiltered["colorHue"])
+        XCTAssertNil(whiteFiltered["colorSat"])
+        XCTAssertEqual(whiteFiltered["colorW"], 0.5)
+
+        let dimFiltered = PaletteCreate.filterValues(soft, supported: dimmerOnly)
+        XCTAssertTrue(dimFiltered.isEmpty)
+        XCTAssertTrue(PaletteCreate.supportsRGBAuthoring(rgb))
+        XCTAssertFalse(PaletteCreate.supportsRGBAuthoring(whiteOnly))
+    }
 }

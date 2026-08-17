@@ -38,7 +38,7 @@ public final class Programmer: @unchecked Sendable {
     public func set(fixtureID: UUID, attribute: String, value: Double) {
         lock.lock()
         var attrs = state.values[fixtureID] ?? [:]
-        attrs[attribute] = min(1, max(0, value))
+        attrs[attribute] = ColorMath.clampProgrammerAttribute(attribute, value: value)
         state.values[fixtureID] = attrs
         lock.unlock()
     }
@@ -59,7 +59,7 @@ public final class Programmer: @unchecked Sendable {
         for (fixtureID, attrs) in values {
             var merged = state.values[fixtureID] ?? [:]
             for (attribute, value) in attrs {
-                merged[attribute] = min(1, max(0, value))
+                merged[attribute] = ColorMath.clampProgrammerAttribute(attribute, value: value)
             }
             state.values[fixtureID] = merged
         }

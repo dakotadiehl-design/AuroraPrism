@@ -55,14 +55,16 @@ public enum MergeStub {
     }
 
     /// Apply compiled attribute writes for one fixture into a universe buffer.
+    /// Applies virtual dimmer scaling when `intensity` is authored but no physical dimmer channel exists (C.E. 1.1).
     public static func writeCompiledFixture(
         _ fixture: CompiledFixture,
         attributes: [String: Double],
         into buffer: inout [UInt8]
     ) {
+        let resolved = resolveOutputAttributes(attributes, for: fixture)
         let base = Int(fixture.baseAddress)
         for write in fixture.attributeWrites {
-            let raw = attributes[write.attribute]
+            let raw = resolved[write.attribute]
             let normalized: Double?
             if let raw {
                 normalized = write.invert ? (1.0 - raw) : raw
@@ -91,6 +93,34 @@ public enum MergeStub {
                 }
             }
         }
+    }
+
+    /// Output-resolution attribute map: virtual dimmer scales physical emitters without rewriting Programmer stores.
+    public static func resolveOutputAttributes(
+        _ attributes: [String: Double],
+        for fixture: CompiledFixture
+    ) -> [String: Double] {
+        let physical = Set(fixture.attributeWrites.map(\.attribute))
+        let hasPhysicalDimmer = physical.contains { GlobalShowControl.isDimmerAttribute($0) }
+        guard !hasPhysicalDimmer else { return attributes }
+
+        // Virtual dimmer: scale all light-producing emitters by authored intensity (default 1 if unset).
+        let scale = attributes["intensity"]
+            ?? attributes["dimmer"]
+            ?? attributes["dim"]
+            ?? 1.0
+        guard scale < 0.999999 else {
+            // Still strip soft authoring keys from consideration (they are never written).
+            return attributes
+        }
+        var next = attributes
+        for key in attributes.keys {
+            if ColorAuthoringAttribute.isAuthoring(key) { continue }
+            if ColorEmitterKind.isPhysicalEmitter(key) {
+                next[key] = (attributes[key] ?? 0) * scale
+            }
+        }
+        return next
     }
 
     /// Legacy path: compile channel defs on the fly (kept for unit tests of write planning).

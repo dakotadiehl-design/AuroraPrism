@@ -87,17 +87,22 @@ public enum StagePreviewBuilder {
 
         for fx in project.fixtures {
             let attrs = look.fixtureAttributes[fx.id] ?? [:]
-            let intensity = attrs["intensity"] ?? attrs["dimmer"] ?? max(
-                attrs["colorR"] ?? 0,
-                attrs["colorG"] ?? 0,
-                attrs["colorB"] ?? 0
-            )
+            let definition = project.definition(id: fx.definitionId)
+            let intensity = effectiveBeamLevel(attributes: attrs, definition: definition)
             let r = attrs["colorR"]
             let g = attrs["colorG"]
             let b = attrs["colorB"]
             let color: PreviewColor?
             if r != nil || g != nil || b != nil {
-                color = PreviewColor(r: r ?? 0, g: g ?? 0, b: b ?? 0)
+                // Beam brightness belongs in `intensity`; keep color as normalized
+                // chroma so a low-level beam remains saturated rather than muddy.
+                let peak = max(r ?? 0, max(g ?? 0, b ?? 0))
+                let divisor = peak > 1e-9 ? peak : 1
+                color = PreviewColor(
+                    r: (r ?? 0) / divisor,
+                    g: (g ?? 0) / divisor,
+                    b: (b ?? 0) / divisor
+                )
             } else {
                 color = nil
             }
@@ -143,5 +148,36 @@ public enum StagePreviewBuilder {
             freeze: global.freeze,
             masterIntensity: global.masterIntensity
         )
+    }
+
+    /// Approximate emitted light from the already-resolved semantic look.
+    /// Physical-dimmer fixtures combine dimmer and active color brightness;
+    /// color-only fixtures combine their virtual dimmer with emitter output.
+    public static func effectiveBeamLevel(
+        attributes: [String: Double],
+        definition: FixtureDefinition?
+    ) -> Double {
+        let physicalAttributes = definition.map {
+            $0.channels.map(\.attribute) + ($0.cellBlock?.channels.map(\.attribute) ?? [])
+        } ?? []
+        let hasPhysicalDimmer = physicalAttributes.contains(where: GlobalShowControl.isDimmerAttribute)
+        let dimmer = attributes["intensity"] ?? attributes["dimmer"] ?? attributes["dim"]
+        let colorValue = attributes[ColorAuthoringAttribute.brightness]
+        let emitterPeak = attributes.reduce(0.0) { partial, item in
+            guard GlobalShowControl.isColorEmitter(item.key) else { return partial }
+            return max(partial, item.value)
+        }
+        let hasEmitterData = attributes.keys.contains(where: GlobalShowControl.isColorEmitter)
+
+        let level: Double
+        if hasPhysicalDimmer {
+            let chromaticLevel = colorValue ?? (hasEmitterData ? emitterPeak : 1)
+            level = (dimmer ?? 0) * chromaticLevel
+        } else if hasEmitterData {
+            level = (dimmer ?? 1) * emitterPeak
+        } else {
+            level = dimmer ?? 0
+        }
+        return min(1, max(0, level))
     }
 }

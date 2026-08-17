@@ -49,12 +49,17 @@ public final class EffectRunner: @unchecked Sendable {
     }
 
     /// Replace runtime set from durable project definitions.
+    /// First-wins on duplicate IDs (never traps — Post-C6 audit).
     public func load(definitions: [EffectDefinition]) {
         lock.lock()
-        effects = Dictionary(uniqueKeysWithValues: definitions.map { def in
-            let instance = EffectInstance(definition: def)
-            return (instance.id, instance)
-        })
+        var map: [UUID: EffectInstance] = [:]
+        map.reserveCapacity(definitions.count)
+        for def in definitions {
+            if map[def.id] == nil {
+                map[def.id] = EffectInstance(definition: def)
+            }
+        }
+        effects = map
         nextOrder = (effects.values.map(\.order).max() ?? -1) + 1
         lock.unlock()
     }

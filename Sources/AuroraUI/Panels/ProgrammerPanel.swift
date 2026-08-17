@@ -12,7 +12,7 @@ public struct ProgrammerPanel: View {
     public var presentationRevision: UInt64
     public var onChanged: () -> Void
 
-    @State private var activeFamily: AttributeFamily = .intensity
+    @State private var activeFamily: AttributeFamily = .color
     @State private var fanCenter: Double = 0.5
     @State private var fanSpread: Double = 0.25
     @State private var showTechnicalColor = false
@@ -32,12 +32,20 @@ public struct ProgrammerPanel: View {
 
     public enum AttributeFamily: String, CaseIterable, Sendable {
         case intensity = "Intensity"
+        case color = "Color"
+        case position = "Position"
+        case beam = "Beam"
+        case effects = "Effects"
+        // Legacy aliases used by fan/align tools
         case pan = "Pan"
         case tilt = "Tilt"
-        case color = "Color"
-        case beam = "Beam"
         case strobe = "Strobe"
         case generic = "Generic"
+
+        /// Primary Color Engine tab bar (reference layout).
+        public static var colorEngineTabs: [AttributeFamily] {
+            [.color, .position, .beam, .effects]
+        }
     }
 
     public init(
@@ -62,8 +70,14 @@ public struct ProgrammerPanel: View {
         return context.session.selection.snapshot.orderedFixtureIDs
     }
 
+    /// First-wins on duplicate fixture IDs (never traps on malformed project data).
     private var fixtureNames: [UUID: String] {
-        Dictionary(uniqueKeysWithValues: project.fixtures.map { ($0.id, $0.name) })
+        var map: [UUID: String] = [:]
+        map.reserveCapacity(project.fixtures.count)
+        for fx in project.fixtures {
+            if map[fx.id] == nil { map[fx.id] = fx.name }
+        }
+        return map
     }
 
     private var livePresentation: ProgrammerAttributePresentation {
@@ -88,59 +102,39 @@ public struct ProgrammerPanel: View {
                 )
                 .background(AuroraColor.surfacePanel)
             } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: AuroraSpacing.md) {
-                        headerBar(pres)
-                        orderStrip(pres)
-                        controlsRow(pres)
-                        if pres.hasTechnicalColor,
-                           showTechnicalColor || !pres.hasRGBColor {
-                            technicalColorSection(pres)
+                VStack(alignment: .leading, spacing: 0) {
+                    headerBar(pres)
+                        .padding(.horizontal, AuroraSpacing.md)
+                        .padding(.top, AuroraSpacing.sm)
+                    familyTabBar(pres)
+                        .padding(.horizontal, AuroraSpacing.md)
+                        .padding(.vertical, 6)
+                    Divider().background(AuroraColor.separator)
+
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: AuroraSpacing.md) {
+                            familyBody(pres)
+                            if showFanTools {
+                                fanToolStrip
+                            }
                         }
-                        if pres.hasBeam {
-                            extendedFamilySection(
-                                title: "BEAM",
-                                attributes: pres.beamAttributes,
-                                expanded: $showBeam,
-                                family: .beam,
-                                pres: pres
-                            )
-                        }
-                        if pres.hasStrobe {
-                            extendedFamilySection(
-                                title: "SHUTTER / STROBE",
-                                attributes: pres.strobeAttributes,
-                                expanded: $showStrobe,
-                                family: .strobe,
-                                pres: pres
-                            )
-                        }
-                        if pres.hasGeneric {
-                            extendedFamilySection(
-                                title: "GENERIC / RAW",
-                                attributes: pres.genericAttributes,
-                                expanded: $showGeneric,
-                                family: .generic,
-                                pres: pres
-                            )
-                        }
-                        if showFanTools {
-                            fanToolStrip
-                        }
-                        fixtureChips
-                        toolRow(pres)
+                        .padding(AuroraSpacing.md)
                     }
-                    .padding(AuroraSpacing.md)
                 }
                 .background(AuroraColor.surfacePanel)
             }
         }
-        .onAppear { syncDrafts(from: pres) }
+        .onAppear {
+            syncDrafts(from: pres)
+            selectAvailableFamily(in: pres)
+        }
         .onChange(of: presentationRevision) { _, _ in
             syncDrafts(from: livePresentation)
+            selectAvailableFamily(in: livePresentation)
         }
         .onChange(of: orderedIDs) { _, _ in
             syncDrafts(from: livePresentation)
+            selectAvailableFamily(in: livePresentation)
         }
     }
 
@@ -169,6 +163,7 @@ public struct ProgrammerPanel: View {
             .toggleStyle(.switch)
             .controlSize(.mini)
             .help("Highlight")
+            shelfActions(pres)
         }
     }
 
@@ -196,9 +191,142 @@ public struct ProgrammerPanel: View {
         return list.joined(separator: ", ") + extra
     }
 
-    // MARK: - Controls
+    // MARK: - Family tabs + body
 
-    private func controlsRow(_ pres: ProgrammerAttributePresentation) -> some View {
+    private func familyTabBar(_ pres: ProgrammerAttributePresentation) -> some View {
+        HStack(spacing: 2) {
+            ForEach(availableFamilyTabs(pres), id: \.self) { tab in
+                let selected = activeTab == tab
+                Button {
+                    activeFamily = tab == .position ? .pan : tab
+                } label: {
+                    Text(tab.rawValue.uppercased())
+                        .font(AuroraTypography.controlLabel)
+                        .tracking(0.4)
+                        .foregroundStyle(selected ? AuroraColor.accentBright : AuroraColor.textTertiary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(selected ? AuroraColor.accentMuted : Color.clear)
+                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func availableFamilyTabs(_ pres: ProgrammerAttributePresentation) -> [AttributeFamily] {
+        AttributeFamily.colorEngineTabs.filter { tabEnabled($0, pres: pres) }
+    }
+
+    private func selectAvailableFamily(in pres: ProgrammerAttributePresentation) {
+        let available = availableFamilyTabs(pres)
+        guard !available.contains(activeTab), let first = available.first else { return }
+        activeFamily = first
+    }
+
+    private var activeTab: AttributeFamily {
+        switch activeFamily {
+        case .pan, .tilt, .position: return .position
+        case .strobe, .effects: return .effects
+        case .generic: return .beam
+        default: return activeFamily
+        }
+    }
+
+    private func tabEnabled(_ tab: AttributeFamily, pres: ProgrammerAttributePresentation) -> Bool {
+        switch tab {
+        case .intensity: return pres.hasIntensity
+        case .color: return pres.hasColor || pres.hasIntensity
+        case .position: return pres.hasPosition
+        case .beam: return pres.hasBeam
+        case .effects: return pres.hasStrobe || pres.hasGeneric
+        default: return true
+        }
+    }
+
+    @ViewBuilder
+    private func familyBody(_ pres: ProgrammerAttributePresentation) -> some View {
+        switch activeTab {
+        case .color:
+            let colorPres = ProgrammerColorPresentationResolver.resolve(
+                orderedFixtureIDs: orderedIDs,
+                project: project,
+                programmer: programmer.snapshot()
+            )
+            ProgrammerColorEngineView(
+                color: colorPres,
+                programmer: programmer,
+                project: project,
+                onChanged: onChanged
+            )
+            .frame(minHeight: 280)
+            if pres.hasTechnicalColor {
+                Button(showTechnicalColor ? "Hide Technical Channels" : "Technical Channels…") {
+                    showTechnicalColor.toggle()
+                }
+                .font(AuroraTypography.metadata)
+                .buttonStyle(AuroraButtonStyle(kind: .quiet))
+                .foregroundStyle(AuroraColor.accentBright)
+                if showTechnicalColor {
+                    technicalColorSection(pres)
+                }
+            }
+        case .intensity:
+            HStack(alignment: .top, spacing: AuroraSpacing.lg) {
+                if pres.hasIntensity {
+                    intensityControl(pres.intensity)
+                }
+            }
+        case .position:
+            if pres.hasPosition {
+                positionControls(pres)
+            }
+        case .beam:
+            if pres.hasBeam {
+                extendedFamilySection(
+                    title: "BEAM",
+                    attributes: pres.beamAttributes,
+                    expanded: $showBeam,
+                    family: .beam,
+                    pres: pres
+                )
+            }
+            if pres.hasGeneric {
+                extendedFamilySection(
+                    title: "GENERIC / RAW",
+                    attributes: pres.genericAttributes,
+                    expanded: $showGeneric,
+                    family: .generic,
+                    pres: pres
+                )
+            }
+        case .effects:
+            if pres.hasStrobe {
+                extendedFamilySection(
+                    title: "SHUTTER / STROBE",
+                    attributes: pres.strobeAttributes,
+                    expanded: $showStrobe,
+                    family: .strobe,
+                    pres: pres
+                )
+            }
+            if pres.hasGeneric {
+                extendedFamilySection(
+                    title: "GENERIC / RAW",
+                    attributes: pres.genericAttributes,
+                    expanded: $showGeneric,
+                    family: .generic,
+                    pres: pres
+                )
+            }
+        default:
+            controlsRowLegacy(pres)
+        }
+    }
+
+    /// Fallback combined row (legacy).
+    private func controlsRowLegacy(_ pres: ProgrammerAttributePresentation) -> some View {
         HStack(alignment: .top, spacing: AuroraSpacing.lg) {
             if pres.hasIntensity {
                 intensityControl(pres.intensity)
@@ -206,25 +334,13 @@ public struct ProgrammerPanel: View {
             if pres.hasPosition {
                 positionControls(pres)
             }
-            if pres.hasRGBColor {
-                rgbColorControls(pres)
-            } else if pres.hasTechnicalColor {
-                // Technical-only: no HSV wheel
-                VStack(alignment: .leading, spacing: 6) {
-                    colorFamilyChrome(pres)
-                    Button(showTechnicalColor ? "Hide Channels" : "Show Channels") {
-                        showTechnicalColor.toggle()
-                    }
-                    .font(AuroraTypography.metadata)
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(AuroraColor.accentBright)
-                }
-            }
         }
     }
 
     private func intensityControl(_ state: ProgrammerAttributeState) -> some View {
-        let display = displayValue(for: state, untreated: 0)
+        // Virtual intensity defaults to effective 100% when presentation reports .common(1.0).
+        let untreated = state.displayValue ?? 0
+        let display = displayValue(for: state, untreated: untreated)
         return VStack(spacing: 4) {
             attributeChrome(state, label: "Intensity")
             AuroraFader(
@@ -283,29 +399,6 @@ public struct ProgrammerPanel: View {
         }
     }
 
-    private func rgbColorControls(_ pres: ProgrammerAttributePresentation) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            colorFamilyChrome(pres)
-            AuroraColorWheel(
-                hue: $draftHue,
-                saturation: $draftSat,
-                brightness: draftVal,
-                size: 120,
-                isMixed: pres.isRGBMixed
-            )
-            .onChange(of: draftHue) { _, _ in applyHSV(pres); activeFamily = .color }
-            .onChange(of: draftSat) { _, _ in applyHSV(pres); activeFamily = .color }
-            if pres.hasTechnicalColor {
-                Button(showTechnicalColor ? "Hide Channels" : "Technical Channels") {
-                    showTechnicalColor.toggle()
-                }
-                .font(AuroraTypography.metadata)
-                .buttonStyle(.borderless)
-                .foregroundStyle(AuroraColor.accentBright)
-            }
-        }
-    }
-
     private func technicalColorSection(_ pres: ProgrammerAttributePresentation) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("TECHNICAL COLOR")
@@ -329,7 +422,7 @@ public struct ProgrammerPanel: View {
                             showsOwnedChrome: !state.isUntouched && !state.isMixed,
                             display: displayValue(for: state, untreated: 0)
                         )
-                        .frame(width: 48)
+                        .frame(width: AuroraMetrics.valueFaderWidth)
                     }
                 }
             }
@@ -359,12 +452,10 @@ public struct ProgrammerPanel: View {
             }
             .buttonStyle(.plain)
             if expanded.wrappedValue {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 10) {
                         ForEach(attributes, id: \.self) { attr in
                             let state = pres.state(for: attr)
-                            VStack {
-                                attributeChrome(state, label: shortAttrLabel(attr))
+                            VStack(alignment: .leading, spacing: 3) {
                                 AuroraFader(
                                     value: Binding(
                                         get: {
@@ -380,12 +471,12 @@ public struct ProgrammerPanel: View {
                                     ),
                                     label: shortAttrLabel(attr),
                                     showsOwnedChrome: !state.isUntouched && !state.isMixed,
-                                    display: displayValue(for: state, untreated: 0)
+                                    display: displayValue(for: state, untreated: 0),
+                                    axis: .horizontal
                                 )
-                                .frame(width: 48)
+                                .frame(minWidth: 220, maxWidth: 420)
                             }
                         }
-                    }
                 }
             }
         }
@@ -427,7 +518,7 @@ public struct ProgrammerPanel: View {
                 ForEach([AttributeFamily.intensity, .pan, .tilt], id: \.self) { fam in
                     Button(fam.rawValue) { activeFamily = fam }
                         .controlSize(.mini)
-                        .buttonStyle(.bordered)
+                        .buttonStyle(AuroraButtonStyle(kind: .secondary))
                         .tint(activeFamily == fam ? AuroraColor.accent : nil)
                 }
                 Spacer()
@@ -441,51 +532,44 @@ public struct ProgrammerPanel: View {
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
-    private var fixtureChips: some View {
-        let names = fixtureNames
-        return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
-                ForEach(Array(orderedIDs.enumerated()), id: \.element) { idx, id in
-                    AuroraFixtureChip(name: "\(idx + 1) \(names[id] ?? "·")", isSelected: true)
-                }
-            }
-        }
-    }
-
-    private func toolRow(_ pres: ProgrammerAttributePresentation) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                AuroraButton("Locate", kind: .secondary) {
+    private func shelfActions(_ pres: ProgrammerAttributePresentation) -> some View {
+        Menu {
+            Button("Locate", systemImage: "scope") {
                     programmer.locate(fixtureIDs: Set(orderedIDs), project: project)
                     onChanged()
-                }
-                AuroraButton("Home", kind: .secondary) {
+            }
+            Button("Home", systemImage: "house") {
                     programmer.home(fixtureIDs: Set(orderedIDs), project: project)
                     onChanged()
-                }
-                AuroraButton("Clear", kind: .quiet) {
+            }
+            Divider()
+            Button(showFanTools ? "Hide Fan Controls" : "Show Fan Controls", systemImage: "arrow.left.and.right") {
+                showFanTools.toggle()
+                seedFanFromPresentation(pres)
+            }
+            Button("Align to First", systemImage: "align.horizontal.left") {
+                applyAlignToFirst(pres)
+            }
+            .disabled(!canAlign(pres))
+            Divider()
+            Button("Clear Selected", systemImage: "eraser") {
                     programmer.clear(fixtureIDs: Set(orderedIDs))
                     onChanged()
-                }
-                AuroraButton("Clear All", kind: .quiet) {
-                    programmer.clearAll()
-                    onChanged()
-                }
-                Spacer()
             }
-            HStack(spacing: 8) {
-                AuroraButton(showFanTools ? "Hide Fan" : "Fan…", kind: .secondary) {
-                    showFanTools.toggle()
-                    seedFanFromPresentation(pres)
-                }
-                AuroraButton("Align to First", kind: .secondary) {
-                    applyAlignToFirst(pres)
-                }
-                .disabled(!canAlign(pres))
-                .help("Set all capable fixtures to the first ordered fixture’s Programmer value")
-                Spacer()
+            Button(role: .destructive) {
+                programmer.clearAll()
+                onChanged()
+            } label: {
+                Label("Clear All", systemImage: "trash")
             }
-        }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(AuroraColor.textSecondary)
+            }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("Programmer actions")
     }
 
     // MARK: - Chrome / display
@@ -551,42 +635,15 @@ public struct ProgrammerPanel: View {
         onChanged()
     }
 
-    /// One capability map, one multi-attr batch, one presentation refresh.
-    private func applyHSV(_ pres: ProgrammerAttributePresentation) {
-        let rgb = ColorMath.rgb(from: HSVColor(h: draftHue * 360, s: draftSat, v: draftVal))
-        let includeW = pres.colorW.isSupported
-        let attrs = ColorMath.programmerAttributes(from: rgb, includeWhite: includeW)
-        let caps = ProgrammerAttributePresentationResolver.capabilityMap(
-            orderedFixtureIDs: orderedIDs,
-            project: project
-        )
-        var batch: [UUID: [String: Double]] = [:]
-        for (attr, value) in attrs {
-            let capable = ProgrammerAttributePresentationResolver.capableFixtureIDs(
-                attribute: attr,
-                orderedFixtureIDs: orderedIDs,
-                caps: caps
-            )
-            for id in capable {
-                var map = batch[id] ?? [:]
-                map[attr] = value
-                batch[id] = map
-            }
-            draftRGB[attr] = value
-        }
-        programmer.setMany(batch)
-        onChanged()
-    }
-
     private func applyFan() {
         let attribute: String
         switch activeFamily {
         case .intensity: attribute = "intensity"
-        case .pan: attribute = "pan"
+        case .pan, .position: attribute = "pan"
         case .tilt: attribute = "tilt"
         case .color: attribute = "intensity"
         case .beam: attribute = "zoom"
-        case .strobe: attribute = "strobe"
+        case .strobe, .effects: attribute = "strobe"
         case .generic: attribute = "intensity"
         }
         let capable = ProgrammerAttributePresentationResolver.capableFixtureIDs(
@@ -604,11 +661,11 @@ public struct ProgrammerPanel: View {
         let attribute: String
         switch activeFamily {
         case .intensity: attribute = "intensity"
-        case .pan: attribute = "pan"
+        case .pan, .position: attribute = "pan"
         case .tilt: attribute = "tilt"
         case .color: attribute = "colorR"
         case .beam: attribute = pres.beamAttributes.first ?? "zoom"
-        case .strobe: attribute = pres.strobeAttributes.first ?? "strobe"
+        case .strobe, .effects: attribute = pres.strobeAttributes.first ?? "strobe"
         case .generic: attribute = pres.genericAttributes.first ?? "intensity"
         }
         let capable = ProgrammerAttributePresentationResolver.capableFixtureIDs(
@@ -624,13 +681,13 @@ public struct ProgrammerPanel: View {
         switch activeFamily {
         case .color:
             var any = false
-            for attr in ["colorR", "colorG", "colorB", "colorW"] where attributeState(attr, in: pres).isSupported {
+            for attr in ColorAuthoringAttribute.all + ["colorR", "colorG", "colorB", "colorW", "colorA", "colorUV"] {
                 if alignAttribute(attr) { any = true }
             }
             if any { onChanged() }
         case .intensity:
             if alignAttribute("intensity") { onChanged() }
-        case .pan:
+        case .pan, .position:
             if alignAttribute("pan") { onChanged() }
         case .tilt:
             if alignAttribute("tilt") { onChanged() }
@@ -638,7 +695,7 @@ public struct ProgrammerPanel: View {
             var any = false
             for attr in pres.beamAttributes where alignAttribute(attr) { any = true }
             if any { onChanged() }
-        case .strobe:
+        case .strobe, .effects:
             var any = false
             for attr in pres.strobeAttributes where alignAttribute(attr) { any = true }
             if any { onChanged() }
@@ -651,11 +708,19 @@ public struct ProgrammerPanel: View {
 
     @discardableResult
     private func alignAttribute(_ attribute: String) -> Bool {
-        let capable = ProgrammerAttributePresentationResolver.capableFixtureIDs(
-            attribute: attribute,
-            orderedFixtureIDs: orderedIDs,
-            project: project
-        )
+        let capable: [UUID]
+        if ColorAuthoringAttribute.isAuthoring(attribute) {
+            capable = ProgrammerColorPresentationResolver.rgbCapableIDs(
+                orderedFixtureIDs: orderedIDs,
+                project: project
+            )
+        } else {
+            capable = ProgrammerAttributePresentationResolver.capableFixtureIDs(
+                attribute: attribute,
+                orderedFixtureIDs: orderedIDs,
+                project: project
+            )
+        }
         let snap = programmer.snapshot()
         var values: [UUID: Double] = [:]
         for id in capable {
@@ -674,12 +739,12 @@ public struct ProgrammerPanel: View {
         let state: ProgrammerAttributeState
         switch activeFamily {
         case .intensity: state = pres.intensity
-        case .pan: state = pres.pan
+        case .pan, .position: state = pres.pan
         case .tilt: state = pres.tilt
         case .color: state = pres.intensity
         case .beam:
             state = pres.beamAttributes.first.map { pres.state(for: $0) } ?? .unsupported
-        case .strobe:
+        case .strobe, .effects:
             state = pres.strobeAttributes.first.map { pres.state(for: $0) } ?? .unsupported
         case .generic:
             state = pres.genericAttributes.first.map { pres.state(for: $0) } ?? .unsupported
@@ -697,6 +762,7 @@ public struct ProgrammerPanel: View {
 
     private func syncDrafts(from pres: ProgrammerAttributePresentation) {
         if case .common(let v) = pres.intensity.value {
+            // Includes virtual intensity effective default 1.0
             draftIntensity = v
         } else if case .untouched = pres.intensity.value {
             draftIntensity = 0
@@ -745,8 +811,12 @@ public struct ProgrammerPanel: View {
         case "colorG": return "G"
         case "colorB": return "B"
         case "colorW": return "W"
+        case "colorCoolWhite": return "CW"
+        case "colorWarmWhite": return "WW"
         case "colorA": return "A"
         case "colorUV": return "UV"
+        case "colorLime": return "Li"
+        case "colorCyan": return "Cy"
         case "cyan": return "C"
         case "magenta": return "M"
         case "yellow": return "Y"
