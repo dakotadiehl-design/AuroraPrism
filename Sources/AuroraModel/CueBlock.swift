@@ -20,17 +20,46 @@ public struct CueBlockGroup: Codable, Equatable, Sendable, Identifiable, Hashabl
     public var name: String
     public var sourceFixtureGroupID: UUID?
     public var notes: String
+    /// Optional presentation names for semantic sections within this group.
+    /// The Cue Block type remains unchanged; this only customizes the library label.
+    public var sectionNames: [CueBlockType: String]
 
     public init(
         id: UUID = UUID(),
         name: String,
         sourceFixtureGroupID: UUID? = nil,
-        notes: String = ""
+        notes: String = "",
+        sectionNames: [CueBlockType: String] = [:]
     ) {
         self.id = id
         self.name = name
         self.sourceFixtureGroupID = sourceFixtureGroupID
         self.notes = notes
+        self.sectionNames = sectionNames
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, sourceFixtureGroupID, notes, sectionNames
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        sourceFixtureGroupID = try c.decodeIfPresent(UUID.self, forKey: .sourceFixtureGroupID)
+        notes = try c.decodeIfPresent(String.self, forKey: .notes) ?? ""
+        sectionNames = try c.decodeIfPresent([CueBlockType: String].self, forKey: .sectionNames) ?? [:]
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(name, forKey: .name)
+        try c.encodeIfPresent(sourceFixtureGroupID, forKey: .sourceFixtureGroupID)
+        try c.encode(notes, forKey: .notes)
+        if !sectionNames.isEmpty {
+            try c.encode(sectionNames, forKey: .sectionNames)
+        }
     }
 }
 

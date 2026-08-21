@@ -1,4 +1,6 @@
+import AuroraDesignSystem
 import AuroraCore
+import AuroraDiagnostics
 import AuroraModel
 import SwiftUI
 #if canImport(AppKit)
@@ -66,7 +68,7 @@ public struct PatchWorkspaceView: View {
     @State private var showDeleteConfirm = false
     @State private var renameFixtureID: UUID?
     @State private var renameDraft = ""
-    @State private var renameErrorMessage: String?
+    @State private var renameError: PrismErrorReport?
     @State private var pendingRemoveDefinitions: [FixtureDefinition] = []
     @State private var pendingRemoveIsProfile = false
     @State private var pendingRemovalIsProjectOnly = false
@@ -187,15 +189,13 @@ public struct PatchWorkspaceView: View {
         }
         .background(AuroraColor.surfacePanel)
         .focusable()
+        .onExitCommand(perform: cancelPatchOperation)
         .onKeyPress(.delete) { handleDeleteKeyPress() }
         .onKeyPress(.deleteForward) { handleDeleteKeyPress() }
         .onAppear {
             applySeedIfNeeded()
             if selectedUniverseID == nil {
                 selectedUniverseID = universes.first?.id
-            }
-            if selectedDefinitionID == nil {
-                selectedDefinitionID = definitions.first?.id
             }
             if let d = selectedDefinition, namePrefix == "Fix" {
                 namePrefix = shortPrefix(for: d)
@@ -215,14 +215,7 @@ public struct PatchWorkspaceView: View {
         } message: {
             Text("This name is used throughout Patch, Stage, Groups, Programmer, and Cue Blocks.")
         }
-        .alert("Unable to Rename Fixture", isPresented: Binding(
-            get: { renameErrorMessage != nil },
-            set: { if !$0 { renameErrorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { renameErrorMessage = nil }
-        } message: {
-            Text(renameErrorMessage ?? "The fixture could not be renamed.")
-        }
+        .prismErrorAlert(item: $renameError)
         .confirmationDialog(
             deleteConfirmTitle,
             isPresented: $showDeleteConfirm,
@@ -694,7 +687,7 @@ public struct PatchWorkspaceView: View {
             onChanged()
         } catch {
             if removingFromProject { try? context.session.cancelGroup() }
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -788,9 +781,7 @@ public struct PatchWorkspaceView: View {
 
             if clickToPatchArmed {
                 Button("Cancel") {
-                    clickToPatchArmed = false
-                    ghostPlan = nil
-                    statusText = nil
+                    cancelPatchOperation()
                 }
                 .controlSize(.small)
             }
@@ -1082,7 +1073,6 @@ public struct PatchWorkspaceView: View {
                     blockLabel(
                         name: fx.name,
                         model: def?.model ?? "",
-                        range: "\(fx.address)–\(fx.endAddress(channelCount: fp))",
                         width: w
                     )
                     .padding(.horizontal, max(4, min(8, w * 0.08)))
@@ -1095,6 +1085,7 @@ public struct PatchWorkspaceView: View {
                 }
             }
             .frame(width: max(w, 8), height: h)
+            .clipped()
             .position(x: x + max(w, 8) / 2, y: y + h / 2)
             .shadow(
                 color: selected
@@ -1227,8 +1218,11 @@ public struct PatchWorkspaceView: View {
             onChanged()
         } catch {
             renameFixtureID = nil
-            let message = error.localizedDescription
-            DispatchQueue.main.async { renameErrorMessage = message }
+            let report = PrismErrorReporting.report(
+                error: error,
+                context: .command(operation: "rename fixture", category: .uiPatch)
+            )
+            DispatchQueue.main.async { renameError = report }
         }
     }
 
@@ -1257,7 +1251,7 @@ public struct PatchWorkspaceView: View {
             ghostPlan = nil
             onChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -1282,7 +1276,7 @@ public struct PatchWorkspaceView: View {
             ghostPlan = nil
             onChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -1326,7 +1320,7 @@ public struct PatchWorkspaceView: View {
             repatchSheetFixtureID = nil
             onChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -1344,7 +1338,7 @@ public struct PatchWorkspaceView: View {
     }
 
     @ViewBuilder
-    private func blockLabel(name: String, model: String, range: String, width: CGFloat) -> some View {
+    private func blockLabel(name: String, model: String, width: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(name)
                 .font(.system(size: width > 64 ? 12 : 10, weight: .bold))
@@ -1355,11 +1349,6 @@ public struct PatchWorkspaceView: View {
                     .font(.system(size: 10))
                     .foregroundStyle(Color.white.opacity(0.78))
                     .lineLimit(1)
-            }
-            if width > 48 {
-                Text(range)
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(Color.white.opacity(0.68))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1460,6 +1449,15 @@ public struct PatchWorkspaceView: View {
         statusText = "PATCH armed — click starting DMX address for \(quantity)× \(footprint)ch"
     }
 
+    private func cancelPatchOperation() {
+        guard clickToPatchArmed || ghostPlan != nil else { return }
+        clickToPatchArmed = false
+        ghostPlan = nil
+        hoverAddress = nil
+        selectedDefinitionID = nil
+        statusText = nil
+    }
+
     private func updateGhost(at addr: UInt16) {
         guard let def = selectedDefinition, let uni = selectedUniverse else {
             ghostPlan = nil
@@ -1534,7 +1532,7 @@ public struct PatchWorkspaceView: View {
             ghostPlan = nil
             onChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -1547,7 +1545,7 @@ public struct PatchWorkspaceView: View {
             statusText = "Repatched \(fx.name) → \(address)"
             onChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -1642,7 +1640,7 @@ public struct PatchWorkspaceView: View {
             statusText = "Repatched \(fx.name) → \(address)"
             onChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -1653,7 +1651,7 @@ public struct PatchWorkspaceView: View {
             selectedUniverseID = context.project.universes.last?.id
             onChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 

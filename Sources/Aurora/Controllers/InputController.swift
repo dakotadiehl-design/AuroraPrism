@@ -1,4 +1,5 @@
 import AuroraCore
+import AuroraDiagnostics
 import AuroraEngine
 import AuroraMIDI
 import AuroraModel
@@ -58,7 +59,7 @@ final class InputController: ObservableObject {
     }
 
     /// Installs a **dedicated** MIDI log observer (does not replace other observers).
-    func startMIDI(router: ControlActionRouter, session: @escaping () -> DocumentSession, onLog: @escaping (String) -> Void) {
+    func startMIDI(router: ControlActionRouter, session: @escaping () -> DocumentSession) {
         let learnFlag = midiLearnFlag
         // Remove prior subscription if re-started.
         if let token = midiObserverToken {
@@ -82,7 +83,7 @@ final class InputController: ObservableObject {
         midi.setHandler { [weak self] events in
             if learnFlag.isArmed {
                 Task { @MainActor in
-                    self?.handleMIDILearnOnly(events, session: session(), router: router, onLog: onLog)
+                    self?.handleMIDILearnOnly(events, session: session(), router: router)
                 }
                 // Still allow AME learn path if armed for AME
                 if router.isAMELearning {
@@ -119,7 +120,7 @@ final class InputController: ObservableObject {
             publishHealth(sourceCount: midi.connectedCount, failed: false)
         } catch {
             midiSubsystemRunning = false
-            publishHealth(sourceCount: 0, failed: true, errorMessage: error.localizedDescription)
+            publishHealth(sourceCount: 0, failed: true, errorMessage: PrismErrorReporting.userFacingMessage(for: error))
         }
         objectWillChange.send()
     }
@@ -139,11 +140,11 @@ final class InputController: ObservableObject {
         )
     }
 
-    func applySavedRTPMIDI(onLog: (String) -> Void) {
+    func applySavedRTPMIDI() {
         let config = RTPMIDIConfig.load()
         rtpMIDI.apply(config)
         if config.enabled {
-            onLog("RTP-MIDI enabled (\(rtpMIDI.localName))")
+            PrismLog.notice(.controlRTPMIDI, "control.rtpMIDI.started", "RTP-MIDI is on.")
             try? midi.connectAllSources()
             if midiSubsystemRunning {
                 publishHealth(sourceCount: midi.connectedCount, failed: false, detail: rtpMIDI.statusLine())
@@ -151,7 +152,7 @@ final class InputController: ObservableObject {
         }
     }
 
-    func setRTPMIDIEnabled(_ enabled: Bool, onLog: (String) -> Void) {
+    func setRTPMIDIEnabled(_ enabled: Bool) {
         rtpMIDI.setEnabled(enabled)
         if enabled {
             try? midi.connectAllSources()
@@ -159,7 +160,11 @@ final class InputController: ObservableObject {
         if midiSubsystemRunning {
             publishHealth(sourceCount: midi.connectedCount, failed: false, detail: rtpMIDI.statusLine())
         }
-        onLog(rtpMIDI.statusLine())
+        PrismLog.notice(
+            .controlRTPMIDI,
+            enabled ? "control.rtpMIDI.started" : "control.rtpMIDI.stopped",
+            rtpMIDI.statusLine()
+        )
         objectWillChange.send()
     }
 
@@ -168,8 +173,7 @@ final class InputController: ObservableObject {
     func setOSCEnabled(
         _ enabled: Bool,
         router: ControlActionRouter,
-        onUINotify: @escaping @MainActor (ShowAction, Float?) -> Void,
-        onLog: (String) -> Void
+        onUINotify: @escaping @MainActor (ShowAction, Float?) -> Void
     ) {
         if enabled {
             oscServer.setHandler { action, value in
@@ -188,17 +192,14 @@ final class InputController: ObservableObject {
                 try oscServer.start()
                 isOSCEnabled = true
                 oscStatus = "OSC: :\(oscServer.port)"
-                onLog("OSC listening on \(oscServer.port)")
             } catch {
                 isOSCEnabled = false
-                oscStatus = "OSC: error"
-                onLog("OSC start failed: \(error.localizedDescription)")
+                oscStatus = "OSC: error — \(PrismErrorReporting.userFacingMessage(for: error))"
             }
         } else {
             oscServer.stop()
             isOSCEnabled = false
             oscStatus = "OSC: off"
-            onLog("OSC stopped")
         }
         objectWillChange.send()
     }
@@ -220,8 +221,7 @@ final class InputController: ObservableObject {
     private func handleMIDILearnOnly(
         _ events: [MIDIEvent],
         session: DocumentSession,
-        router: ControlActionRouter,
-        onLog: (String) -> Void
+        router: ControlActionRouter
     ) {
         for event in events {
             lastMIDIEvent = event.summary
@@ -232,9 +232,9 @@ final class InputController: ObservableObject {
                 do {
                     try session.perform(AddMIDIMappingCommand(mapping: learned.mapping))
                     router.updateMappings(session.project.midiMappings, project: session.project)
-                    onLog("MIDI learned \(learned.action.storageKey)")
+                    PrismLog.info(.controlMIDI, "control.midi.learned", "Prism learned a MIDI mapping.")
                 } catch {
-                    // surface via status on AppModel
+                    _ = PrismErrorReporting.statusMessage(for: error, operation: "learn MIDI", category: .controlMIDI)
                 }
             }
         }

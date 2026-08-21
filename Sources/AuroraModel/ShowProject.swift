@@ -6,6 +6,9 @@ public struct ShowProject: Codable, Equatable, Sendable {
     public var metadata: ProjectMetadata
     public var preferences: ProjectPreferences
     public var fixtureDefinitions: [FixtureDefinition]
+    /// Shared physical products. Personalities reference these by `physicalFixtureID`.
+    /// Optional storage preserves synthesized decoding of pre-glyph project JSON.
+    public var physicalFixtureDefinitions: [FixturePhysicalDefinition]?
     public var universes: [Universe]
     public var fixtures: [PatchedFixture]
     public var groups: [Group]
@@ -40,6 +43,7 @@ public struct ShowProject: Codable, Equatable, Sendable {
         metadata: ProjectMetadata,
         preferences: ProjectPreferences = .default,
         fixtureDefinitions: [FixtureDefinition] = [],
+        physicalFixtureDefinitions: [FixturePhysicalDefinition] = [],
         universes: [Universe] = [],
         fixtures: [PatchedFixture] = [],
         groups: [Group] = [],
@@ -64,6 +68,7 @@ public struct ShowProject: Codable, Equatable, Sendable {
         self.metadata = metadata
         self.preferences = preferences
         self.fixtureDefinitions = fixtureDefinitions
+        self.physicalFixtureDefinitions = physicalFixtureDefinitions
         self.universes = universes
         self.fixtures = fixtures
         self.groups = groups

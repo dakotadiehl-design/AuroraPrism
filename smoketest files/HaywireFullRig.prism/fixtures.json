@@ -1,0 +1,200 @@
+[
+  {
+    "address" : 1,
+    "definitionId" : "C5556768-CA5D-52ED-92A8-8E5267CD0C11",
+    "groupIds" : [
+
+    ],
+    "id" : "CC15E7F4-1C80-49E9-80F3-07544AA81EF9",
+    "name" : "Stage Left Front Light",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 17,
+    "definitionId" : "C5556768-CA5D-52ED-92A8-8E5267CD0C11",
+    "groupIds" : [
+
+    ],
+    "id" : "89964976-6EA2-43A0-B984-1C8787681B5A",
+    "name" : "Center Stage Front Light",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 33,
+    "definitionId" : "C5556768-CA5D-52ED-92A8-8E5267CD0C11",
+    "groupIds" : [
+
+    ],
+    "id" : "5231051D-23CB-4C94-A859-6328831C8216",
+    "name" : "Stage Right Front Light",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 49,
+    "definitionId" : "62BAE228-93A0-5A3F-A2E5-1E8C11FC3BC8",
+    "groupIds" : [
+
+    ],
+    "id" : "E64A9451-B290-48E7-841F-00AE5246B798",
+    "name" : "Stage Left 4Bar",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 76,
+    "definitionId" : "62BAE228-93A0-5A3F-A2E5-1E8C11FC3BC8",
+    "groupIds" : [
+
+    ],
+    "id" : "B27EA989-A00A-404C-9D86-DD3654DEC66F",
+    "name" : "Stage Right 4Bar",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 103,
+    "definitionId" : "FE585D1C-487D-5E96-9203-22942AC50E15",
+    "groupIds" : [
+
+    ],
+    "id" : "C71BFFE4-FE36-4A38-BE7F-13C554F7F11A",
+    "name" : "Right Uplight",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 109,
+    "definitionId" : "FE585D1C-487D-5E96-9203-22942AC50E15",
+    "groupIds" : [
+
+    ],
+    "id" : "5E0A6EE0-0FFE-4E08-98E0-175FB242DAD5",
+    "name" : "Center Right",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 115,
+    "definitionId" : "FE585D1C-487D-5E96-9203-22942AC50E15",
+    "groupIds" : [
+
+    ],
+    "id" : "F8F29917-C0DD-4063-8A57-C5D0D887C658",
+    "name" : "Center Left Uplight",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 121,
+    "definitionId" : "FE585D1C-487D-5E96-9203-22942AC50E15",
+    "groupIds" : [
+
+    ],
+    "id" : "B32F0E50-1A0A-4B54-94C9-A63FC2118800",
+    "name" : "Left Uplight",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 127,
+    "definitionId" : "2E57D13A-8D90-5007-A12B-8E21501D5981",
+    "groupIds" : [
+
+    ],
+    "id" : "DDFE5B43-3DBF-40E4-B61F-AB99D59BBCFC",
+    "name" : "Backlight Left",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 139,
+    "definitionId" : "2E57D13A-8D90-5007-A12B-8E21501D5981",
+    "groupIds" : [
+
+    ],
+    "id" : "15C586C6-288D-4C7C-B59C-1E8F9B8A0885",
+    "name" : "Backlight Center",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 151,
+    "definitionId" : "2E57D13A-8D90-5007-A12B-8E21501D5981",
+    "groupIds" : [
+
+    ],
+    "id" : "6A415217-6449-46C6-A068-7303EA41DEDB",
+    "name" : "Backlight Right",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 231,
+    "definitionId" : "0162C9D0-F0EC-5439-8A02-7ED9FB899EE0",
+    "groupIds" : [
+
+    ],
+    "id" : "4BE51FC8-C8BF-45A0-BAED-4E81290B59DB",
+    "name" : "Hazer",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 465,
+    "definitionId" : "2E57D13A-8D90-5007-A12B-8E21501D5981",
+    "groupIds" : [
+
+    ],
+    "id" : "C50628C7-58D9-49BB-AD86-B6F2ED7F33E1",
+    "name" : "Dance Floor 1",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 477,
+    "definitionId" : "2E57D13A-8D90-5007-A12B-8E21501D5981",
+    "groupIds" : [
+
+    ],
+    "id" : "0ADCAD12-E44A-46BA-BEEF-4044BBAD5FBD",
+    "name" : "Dance Floor 2",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 489,
+    "definitionId" : "2E57D13A-8D90-5007-A12B-8E21501D5981",
+    "groupIds" : [
+
+    ],
+    "id" : "4C7A7901-5607-45ED-B51E-EAB94A269720",
+    "name" : "Dance Floor 3",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 501,
+    "definitionId" : "2E57D13A-8D90-5007-A12B-8E21501D5981",
+    "groupIds" : [
+
+    ],
+    "id" : "660FFCC4-6AD9-4E57-B8C6-36A02D7BD211",
+    "name" : "Dance Floor 4",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  },
+  {
+    "address" : 233,
+    "definitionId" : "45B8396C-6798-4DA2-BBD6-5425052C17B5",
+    "groupIds" : [
+
+    ],
+    "id" : "8668B822-3ACC-4B18-A578-FE1E82071B5C",
+    "name" : "Fog",
+    "notes" : "",
+    "universeId" : "0F3DE67C-09EE-492C-9D58-20B973BE5069"
+  }
+]

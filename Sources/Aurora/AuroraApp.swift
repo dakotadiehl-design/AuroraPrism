@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import AppKit
 import AuroraUI
 import SwiftUI
@@ -112,6 +113,36 @@ struct AuroraApp: App {
     private var isPerform: Bool { appModel.workspace.mode == .perform }
     private var textEditing: Bool { KeyboardCommandGate.isTextEditingActive }
 
+    private func revealCueBlocksShelf() {
+        // Make the target visible before broadcasting the request. The asynchronous
+        // notification gives SwiftUI one update cycle to install CueBlocksPanel when needed.
+        appModel.workspace.setBuildWorkspaceMode(.program)
+        appModel.workspace.setLowerTool(.cueBlocks)
+        if !appModel.workspace.layout.isVisible(.cueList)
+            && !appModel.workspace.layout.isVisible(.cueBlocks)
+            && !appModel.workspace.layout.isVisible(.palettes)
+            && !appModel.workspace.layout.isVisible(.song)
+            && !appModel.workspace.layout.isVisible(.console) {
+            appModel.workspace.togglePanel(.cueBlocks)
+        }
+        appModel.workspace.setLowerShelfCollapsed(false)
+        appModel.notifyUI()
+    }
+
+    private func requestNewCueBlock() {
+        revealCueBlocksShelf()
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .prismCreateCueBlock, object: nil)
+        }
+    }
+
+    private func requestNewCueBlockGroup() {
+        revealCueBlocksShelf()
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .prismCreateCueBlockGroup, object: nil)
+        }
+    }
+
     /// Automation: `--build-workspace patch|program|stage|profiles`
     private func applyBuildWorkspaceLaunchArg() {
         let args = ProcessInfo.processInfo.arguments
@@ -129,6 +160,16 @@ struct AuroraApp: App {
         if let mode {
             appModel.workspace.setBuildWorkspaceMode(mode)
             appModel.notifyUI()
+        }
+    }
+
+    /// Visual-acceptance automation opens the production scene rather than a
+    /// SwiftUI preview or component gallery.
+    private func openEffectsIfRequested() {
+        guard ProcessInfo.processInfo.arguments.contains("--open-effects-engine") else { return }
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .openEffectsEngineWindow, object: nil)
+            EffectsWindowAcceptanceCapture.runIfRequested()
         }
     }
 
@@ -166,9 +207,11 @@ struct AuroraApp: App {
                         Task { @MainActor in
                             await appModel.openDemoSummerNightAsync()
                             applyBuildWorkspaceLaunchArg()
+                            openEffectsIfRequested()
                         }
                     } else {
                         applyBuildWorkspaceLaunchArg()
+                        openEffectsIfRequested()
                     }
                 }
                 .background(FloatWindowRestorer().environmentObject(appModel))
@@ -182,6 +225,15 @@ struct AuroraApp: App {
                 .buttonStyle(AuroraButtonStyle())
         }
         .defaultSize(width: 1024, height: 640)
+
+        Window("Prism Effects", id: "effects-engine") {
+            EffectsEngineWindowRoot()
+                .environmentObject(appModel)
+                .buttonStyle(AuroraButtonStyle())
+        }
+        .defaultSize(width: 1_440, height: 900)
+        .windowResizability(.contentMinSize)
+        .defaultPosition(.center)
 
         // C5C: real macOS windows for undocked workspace surfaces (shared AppModel).
         // contentMinSize = user can resize freely; content min comes from the view's min frame.
@@ -221,6 +273,26 @@ struct AuroraApp: App {
                 .buttonStyle(AuroraButtonStyle())
         }
         .defaultSize(width: 760, height: 620)
+        .windowResizability(.contentMinSize)
+        .defaultPosition(.center)
+        .commandsRemoved()
+
+        Window("Create Fixture", id: "fixture-creator") {
+            FixtureCreatorWindow()
+                .environmentObject(appModel)
+                .buttonStyle(AuroraButtonStyle())
+        }
+        .defaultSize(width: 860, height: 700)
+        .windowResizability(.contentMinSize)
+        .defaultPosition(.center)
+        .commandsRemoved()
+
+        WindowGroup("DMX Monitor", id: "dmx-monitor", for: DMXMonitorRequest.self) { $request in
+            DMXMonitorWindow(request: request ?? DMXMonitorRequest())
+                .environmentObject(appModel)
+                .buttonStyle(AuroraButtonStyle())
+        }
+        .defaultSize(width: 820, height: 640)
         .windowResizability(.contentMinSize)
         .defaultPosition(.center)
         .commandsRemoved()
@@ -275,15 +347,6 @@ struct AuroraApp: App {
                     }
                     .keyboardShortcut("d", modifiers: [.command, .shift])
 
-                    Divider()
-
-                    Button("Import Fixture Definition…") {
-                        appModel.importFixtureDefinition()
-                    }
-
-                    Button("Import LightKey Fixture…") {
-                        NotificationCenter.default.post(name: .openLightKeyFixtureImporter, object: nil)
-                    }
                 }
             }
 
@@ -466,6 +529,11 @@ struct AuroraApp: App {
                         appModel.workspace.setLeftTool(.groups)
                         appModel.notifyUI()
                     }
+                    Button("Cue Blocks") {
+                        appModel.workspace.setBuildWorkspaceMode(.program)
+                        appModel.workspace.setLowerTool(.cueBlocks)
+                        appModel.notifyUI()
+                    }
                     Button("Palettes") {
                         appModel.workspace.setBuildWorkspaceMode(.program)
                         appModel.workspace.setLowerTool(.palettes)
@@ -482,6 +550,20 @@ struct AuroraApp: App {
                         appModel.notifyUI()
                     }
                     Divider()
+                    Button("New Cue Block…") {
+                        requestNewCueBlock()
+                    }
+                    .keyboardShortcut("b", modifiers: [.command, .shift])
+                    .disabled(
+                        textEditing
+                            || appModel.session.selection.snapshot.orderedFixtureIDs.isEmpty
+                    )
+                    Button("New Cue Block Group…") {
+                        requestNewCueBlockGroup()
+                    }
+                    .keyboardShortcut("g", modifiers: [.command, .shift])
+                    .disabled(textEditing)
+                    Divider()
                     Button("Edit Stage") {
                         appModel.workspace.enterEditStage()
                         appModel.notifyUI()
@@ -492,6 +574,38 @@ struct AuroraApp: App {
                         appModel.notifyUI()
                     }
                 }
+            }
+
+            CommandMenu("Fixtures") {
+                Button("Effects…") {
+                    NotificationCenter.default.post(name: .openEffectsEngineWindow, object: nil)
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+
+                Divider()
+
+                Button("Create Fixture…") {
+                    NotificationCenter.default.post(name: .openFixtureCreator, object: nil)
+                }
+                .keyboardShortcut("f", modifiers: [.command, .shift])
+                .disabled(isPerform)
+
+                Button("Fixture Library…") {
+                    NotificationCenter.default.post(name: .openUserFixtureLibrary, object: nil)
+                }
+                .disabled(isPerform)
+
+                Divider()
+
+                Button("Import Fixture Definition…") {
+                    appModel.importFixtureDefinition()
+                }
+                .disabled(isPerform)
+
+                Button("Import LightKey Fixture…") {
+                    NotificationCenter.default.post(name: .openLightKeyFixtureImporter, object: nil)
+                }
+                .disabled(isPerform)
             }
 
             CommandMenu("Playback") {
@@ -537,22 +651,20 @@ struct AuroraApp: App {
             }
 
             CommandMenu("Remote") {
-                Button(appModel.settings.remoteAccessEnabled ? "Disable Remote" : "Enable Remote") {
-                    // REM-05: menu uses the same settings-backed authority as Settings.
+                Button(appModel.settings.remoteAccessEnabled ? "Disable ACP Remote" : "Enable ACP Remote") {
                     appModel.applyRemoteFromSettings(enabled: !appModel.settings.remoteAccessEnabled)
                 }
-                Button("Lock Remotes to Viewer") {
-                    appModel.setRemoteLockedToViewer(true)
-                }
-                Button("Allow Remote Operators") {
-                    appModel.setRemoteLockedToViewer(false)
-                }
-                Button("Kick All Remote Clients") {
+                Button("Revoke All ACP Clients") {
                     appModel.kickAllRemoteClients()
                 }
             }
 
             CommandMenu("Output") {
+                Button("DMX Monitor…") {
+                    NotificationCenter.default.post(name: .openDMXMonitor, object: nil)
+                }
+                .keyboardShortcut("d", modifiers: [.command, .option])
+                Divider()
                 Button(appModel.artNetConfig.enabled ? "Disable Art-Net" : "Enable Art-Net") {
                     appModel.setArtNetEnabled(!appModel.artNetConfig.enabled)
                 }

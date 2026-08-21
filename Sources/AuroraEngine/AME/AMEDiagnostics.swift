@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import AuroraModel
 import AuroraMusical
 import Foundation
@@ -48,6 +49,96 @@ public enum AMEDiagnosticKind: String, Codable, Equatable, Sendable, Hashable {
     case simulationDomainPurged
     /// AME Learn capture failed (e.g. missing durable source metadata).
     case learnCaptureFailed
+
+    public var prismCode: String {
+        switch self {
+        case .eventReceived: return "ame.ingress.received"
+        case .triggerMatched: return "ame.matching.matched"
+        case .triggerMissed: return "ame.matching.missed"
+        case .mappingCandidate: return "ame.matching.candidate"
+        case .mappingSuppressed: return "ame.matching.suppressed"
+        case .mappingDisabled: return "ame.matching.disabled"
+        case .scopeInactive: return "ame.matching.scope_inactive"
+        case .timingRequirementFailed: return "ame.matching.timing_failed"
+        case .transformRejected: return "ame.transform.rejected"
+        case .behaviorSkipped: return "ame.emission.skipped"
+        case .behaviorFired: return "ame.emission.fired"
+        case .heldAcquired: return "ame.held.acquired"
+        case .heldReleased: return "ame.held.released"
+        case .heldReleaseAll: return "ame.held.release_all"
+        case .heldReleaseEmission: return "ame.held.release_emission"
+        case .heldReleasedByContextChange: return "ame.held.released_by_context"
+        case .heldReleasedByDocumentChange: return "ame.held.released_by_document"
+        case .heldReleasedByModeChange: return "ame.held.released_by_mode"
+        case .heldReleasedBySourceDisconnect: return "ame.held.released_by_source"
+        case .debounceSuppressed, .burstSuppressed: return "ame.matching.rate_suppressed"
+        case .quantizeImmediate: return "ame.quantization.immediate"
+        case .quantizeDeferred: return "ame.quantization.deferred"
+        case .quantizeCancelled: return "ame.quantization.cancelled"
+        case .quantizeHeld: return "ame.quantization.held"
+        case .dryRunEmission: return "ame.emission.dry_run"
+        case .armedEmission: return "ame.emission.armed"
+        case .unsupportedAction: return "ame.emission.unsupported"
+        case .invalidRuntimeConfiguration: return "ame.ingress.invalid_config"
+        case .timestampFallbackUsed: return "ame.ingress.timestamp_fallback"
+        case .sequenceDeferred: return "ame.sequence.deferred"
+        case .sequenceStepFired: return "ame.sequence.step_fired"
+        case .sequenceAdvanced: return "ame.sequence.advanced"
+        case .sequenceReset: return "ame.sequence.reset"
+        case .sequenceMissing: return "ame.sequence.missing"
+        case .sequenceEmpty: return "ame.sequence.empty"
+        case .sequenceInvalidStep: return "ame.sequence.invalid_step"
+        case .sequenceControlAction: return "ame.sequence.control"
+        case .sequenceNoContext: return "ame.sequence.no_context"
+        case .modeEditSkipped: return "ame.matching.edit_skipped"
+        case .simulationDomainPurged: return "ame.held.sim_purged"
+        case .learnCaptureFailed: return "ame.ingress.learn_failed"
+        }
+    }
+
+    public var prismLevel: PrismLogLevel {
+        switch self {
+        case .invalidRuntimeConfiguration: return .error
+        case .unsupportedAction, .learnCaptureFailed: return .warning
+        case .behaviorFired, .armedEmission, .mappingDisabled,
+             .sequenceStepFired, .sequenceAdvanced, .sequenceReset,
+             .simulationDomainPurged, .timestampFallbackUsed:
+            return .info
+        default:
+            return .debug
+        }
+    }
+
+    public var prismCategory: PrismLogCategory {
+        switch self {
+        case .eventReceived, .invalidRuntimeConfiguration, .timestampFallbackUsed, .learnCaptureFailed:
+            return .ameIngress
+        case .transformRejected:
+            return .ameTransform
+        case .behaviorSkipped, .behaviorFired, .dryRunEmission, .armedEmission, .unsupportedAction:
+            return .ameEmission
+        case .heldAcquired, .heldReleased, .heldReleaseAll, .heldReleaseEmission,
+             .heldReleasedByContextChange, .heldReleasedByDocumentChange,
+             .heldReleasedByModeChange, .heldReleasedBySourceDisconnect, .simulationDomainPurged:
+            return .ameHeldState
+        case .quantizeImmediate, .quantizeDeferred, .quantizeCancelled, .quantizeHeld:
+            return .ameQuantization
+        case .sequenceDeferred, .sequenceStepFired, .sequenceAdvanced, .sequenceReset,
+             .sequenceMissing, .sequenceEmpty, .sequenceInvalidStep, .sequenceControlAction, .sequenceNoContext:
+            return .ameSequence
+        default:
+            return .ameMatching
+        }
+    }
+
+    public var ratePolicy: PrismLogRatePolicy? {
+        switch prismLevel {
+        case .debug:
+            return .oncePerSecond
+        default:
+            return nil
+        }
+    }
 }
 
 public struct AMEDiagnosticEvent: Equatable, Sendable, Identifiable {

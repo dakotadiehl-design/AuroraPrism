@@ -1,4 +1,5 @@
 import AuroraCore
+import AuroraDiagnostics
 import AuroraModel
 import SwiftUI
 #if canImport(AppKit)
@@ -10,6 +11,7 @@ public struct PatchPanel: View {
     public var context: WorkspacePanelContext
     @State private var selectedUniverseID: UUID?
     @State private var errorText: String?
+    @State private var errorReport: PrismErrorReport?
     @State private var searchText: String = ""
     @State private var sortKey: PatchSortKey = .address
     @State private var sortAscending: Bool = true
@@ -311,6 +313,14 @@ public struct PatchPanel: View {
             .padding()
             .frame(width: 480, height: 320)
         }
+        .prismErrorAlert(item: $errorReport)
+    }
+
+    private func reportPatchFailure(_ error: Error, operation: String) {
+        errorReport = PrismErrorReporting.report(
+            error: error,
+            context: .command(operation: operation, category: .uiPatch)
+        )
     }
 
     private var emptyDetail: String {
@@ -490,7 +500,7 @@ public struct PatchPanel: View {
             try context.session.perform(AddUniverseCommand(universe: Universe(number: number)))
             selectedUniverseID = context.project.universes.last?.id
         } catch {
-            errorText = error.localizedDescription
+            reportPatchFailure(error, operation: "edit patch")
         }
     }
 
@@ -502,7 +512,7 @@ public struct PatchPanel: View {
         do {
             try context.session.perform(UnpatchFixtureCommand(fixtureIDs: ids))
         } catch {
-            errorText = error.localizedDescription
+            reportPatchFailure(error, operation: "edit patch")
         }
     }
 
@@ -522,7 +532,7 @@ public struct PatchPanel: View {
             context.session.selectFixtures([], extending: false)
             confirmDeleteIDs = []
         } catch {
-            errorText = error.localizedDescription
+            reportPatchFailure(error, operation: "edit patch")
         }
     }
 
@@ -532,7 +542,7 @@ public struct PatchPanel: View {
         do {
             try context.session.perform(ClonePatchedFixtureCommand(sourceFixtureID: id))
         } catch {
-            errorText = error.localizedDescription
+            reportPatchFailure(error, operation: "edit patch")
         }
     }
 
@@ -553,7 +563,7 @@ public struct PatchPanel: View {
             )
             repatchFixtureID = nil
         } catch {
-            errorText = error.localizedDescription
+            reportPatchFailure(error, operation: "edit patch")
         }
     }
 
@@ -586,7 +596,7 @@ public struct PatchPanel: View {
             try context.session.perform(BulkRepatchCommand(changes: changes, name: "Bulk Offset"))
             showBulkSheet = false
         } catch {
-            errorText = error.localizedDescription
+            reportPatchFailure(error, operation: "edit patch")
         }
     }
 
@@ -607,7 +617,7 @@ public struct PatchPanel: View {
             ))
             errorText = "Renumbered \(ordered.count) fixture(s)"
         } catch {
-            errorText = error.localizedDescription
+            reportPatchFailure(error, operation: "edit patch")
         }
     }
 
@@ -633,7 +643,7 @@ public struct PatchPanel: View {
             showBulkCreate = false
             errorText = "Created \(cmd.createdFixtureIDs.count) fixture(s) from \(start)"
         } catch {
-            errorText = error.localizedDescription
+            reportPatchFailure(error, operation: "edit patch")
         }
     }
 
@@ -645,7 +655,7 @@ public struct PatchPanel: View {
             importCSVText = ""
             errorText = "CSV import complete"
         } catch {
-            errorText = error.localizedDescription
+            reportPatchFailure(error, operation: "edit patch")
         }
     }
 }

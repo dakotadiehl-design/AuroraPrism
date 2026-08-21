@@ -5,7 +5,8 @@ import Foundation
 @MainActor
 final class DiagnosticsController: ObservableObject {
     let store: DiagnosticsStore
-    @Published private(set) var consoleLog: [String] = []
+    let memorySink: InMemoryPrismLogSink
+    @Published private(set) var consoleEvents: [PrismLogEvent] = []
     @Published private(set) var validationIssueCount: Int = 0
     /// Semantic operator-facing diagnostics projection.
     @Published private(set) var snapshot: DiagnosticsSnapshot = .empty
@@ -14,8 +15,14 @@ final class DiagnosticsController: ObservableObject {
     private var refreshTimer: Timer?
     private var builder: (() -> DiagnosticsSnapshot)?
 
-    init(store: DiagnosticsStore = DiagnosticsStore()) {
+    init(store: DiagnosticsStore = DiagnosticsStore(), memorySink: InMemoryPrismLogSink = .shared) {
         self.store = store
+        self.memorySink = memorySink
+    }
+
+    /// Compatibility formatted lines (timestamp added at presentation time).
+    var consoleLog: [String] {
+        consoleEvents.suffix(maxConsole).map(\.humanMessage)
     }
 
     func publishSnapshot(_ snap: DiagnosticsSnapshot) {
@@ -46,6 +53,10 @@ final class DiagnosticsController: ObservableObject {
     }
 
     private func tick() {
+        let latest = memorySink.snapshot(limit: maxConsole)
+        if latest.map(\.id) != consoleEvents.map(\.id) {
+            consoleEvents = latest
+        }
         guard let builder else { return }
         let next = builder()
         // Avoid @Published churn when only generatedAt (or nothing) changed —
@@ -55,7 +66,12 @@ final class DiagnosticsController: ObservableObject {
         snapshot = next
     }
 
-    /// Compatibility console line (defaults to `.app` subsystem).
+    func clearConsoleView() {
+        memorySink.clear()
+        consoleEvents = []
+    }
+
+    /// Compatibility console line. Prefer `PrismLog` for new call sites.
     func log(_ message: String) {
         log(message, subsystem: .app, severity: .info)
     }
@@ -66,11 +82,31 @@ final class DiagnosticsController: ObservableObject {
         severity: DiagnosticSeverity = .info,
         code: String? = nil
     ) {
-        let line = "\(ISO8601DateFormatter().string(from: Date()))  [\(subsystem.rawValue)] \(message)"
-        consoleLog.append(line)
-        if consoleLog.count > maxConsole {
-            consoleLog.removeFirst(consoleLog.count - maxConsole)
+        let category: PrismLogCategory
+        switch subsystem {
+        case .app: category = .appLifecycle
+        case .engine: category = .engineShow
+        case .output: category = .outputRouting
+        case .midi: category = .controlMIDI
+        case .remote: category = .remoteHost
+        case .project: category = .projectDocument
+        case .resolution: category = .projectValidation
         }
+        let level: PrismLogLevel
+        switch severity {
+        case .debug: level = .debug
+        case .info: level = .info
+        case .warning: level = .warning
+        case .error: level = .error
+        }
+        PrismLog.shared.log(
+            PrismLogEvent(
+                level: level,
+                category: category,
+                code: code ?? "compat.\(subsystem.rawValue)",
+                humanMessage: message
+            )
+        )
         store.record(DiagnosticEvent(
             subsystem: subsystem,
             severity: severity,
@@ -94,6 +130,12 @@ final class DiagnosticsController: ObservableObject {
                 "\(count) project validation issue(s)",
                 subsystem: .project,
                 code: "validation-issues"
+            )
+            PrismLog.info(
+                .projectValidation,
+                "project.validation.summary",
+                "This show has validation issues.",
+                metadata: ["count": .count(count)]
             )
         }
     }

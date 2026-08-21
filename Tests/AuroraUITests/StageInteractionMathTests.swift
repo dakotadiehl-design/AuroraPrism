@@ -1,3 +1,4 @@
+import AuroraModel
 import AuroraUI
 import XCTest
 
@@ -63,5 +64,86 @@ final class StageInteractionMathTests: XCTestCase {
         let owns = stageMounted && pointerInside && !textEditing
         XCTAssertFalse(owns)
         XCTAssertTrue(stageMounted && pointerInside && !false)
+    }
+
+    func testFirstFixtureDragUsesLocalReplacementSelection() {
+        let selected = UUID()
+        let anchor = UUID()
+
+        XCTAssertEqual(
+            StageFixtureDragSelection.workingSelection(current: [selected], anchorID: anchor),
+            [anchor]
+        )
+        XCTAssertTrue(
+            StageFixtureDragSelection.shouldPublishAfterDrag(current: [selected], anchorID: anchor)
+        )
+    }
+
+    func testSelectedFixtureDragPreservesGroupWithoutRepublishing() {
+        let first = UUID()
+        let anchor = UUID()
+        let current: Set<UUID> = [first, anchor]
+
+        XCTAssertEqual(
+            StageFixtureDragSelection.workingSelection(current: current, anchorID: anchor),
+            current
+        )
+        XCTAssertFalse(
+            StageFixtureDragSelection.shouldPublishAfterDrag(current: current, anchorID: anchor)
+        )
+    }
+
+    func testFixtureHoverInfoIncludesIdentityTypePatchAndUsefulContext() {
+        let universe = Universe(number: 2, name: "Stage Left")
+        let definition = FixtureDefinition(
+            manufacturer: "ETC",
+            model: "Source Four LED",
+            modeName: "Direct 10ch",
+            channelCount: 10,
+            category: "Profile"
+        )
+        let fixture = PatchedFixture(
+            name: "FOH Special",
+            definitionId: definition.id,
+            universeId: universe.id,
+            address: 101
+        )
+
+        let text = StageFixtureHoverInfo.text(
+            fixture: fixture,
+            definition: definition,
+            universe: universe,
+            footprint: 10,
+            groupNames: ["Specials", "FOH"],
+            locked: true
+        )
+
+        XCTAssertTrue(text.contains("FOH Special"))
+        XCTAssertTrue(text.contains("Type: Profile"))
+        XCTAssertTrue(text.contains("Fixture: ETC Source Four LED"))
+        XCTAssertTrue(text.contains("Mode: Direct 10ch · 10 channels"))
+        XCTAssertTrue(text.contains("Universe 2 — Stage Left · Channels 101–110"))
+        XCTAssertTrue(text.contains("Groups: FOH, Specials"))
+        XCTAssertTrue(text.contains("Stage position: Locked"))
+    }
+
+    func testFixtureHoverInfoDescribesUnpatchedFixtureWithoutDefinition() {
+        let fixture = PatchedFixture(
+            name: "Spare",
+            definitionId: UUID(),
+            universeId: UUID(),
+            address: 0
+        )
+        let text = StageFixtureHoverInfo.text(
+            fixture: fixture,
+            definition: nil,
+            universe: nil,
+            footprint: 1,
+            groupNames: [],
+            locked: false
+        )
+        XCTAssertTrue(text.contains("Type: Fixture"))
+        XCTAssertTrue(text.contains("Footprint: 1 channel"))
+        XCTAssertTrue(text.contains("Patch: Unpatched"))
     }
 }

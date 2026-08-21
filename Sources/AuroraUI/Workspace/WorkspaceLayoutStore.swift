@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import Foundation
 
 /// Loads/saves `WorkspaceLayout` in UserDefaults (UI-11 A10 debounced save).
@@ -16,12 +17,23 @@ public enum WorkspaceLayoutStore {
         do {
             var layout = try JSONDecoder().decode(WorkspaceLayout.self, from: data)
             if layout.schemaVersion > WorkspaceLayout.currentSchemaVersion {
+                PrismLog.notice(
+                    .uiWorkspace,
+                    "ui.workspace.layout_reset",
+                    "Prism restored the default workspace because the saved layout is from a newer version."
+                )
                 return .default
             }
             layout.schemaVersion = WorkspaceLayout.currentSchemaVersion
             layout.clampToSafeGeometry()
             return layout
         } catch {
+            PrismLog.warning(
+                .uiWorkspace,
+                "ui.workspace.layout_load_failed",
+                "Prism couldn't read the saved workspace layout and restored the default.",
+                technical: String(reflecting: error)
+            )
             return .default
         }
     }
@@ -34,7 +46,12 @@ public enum WorkspaceLayoutStore {
             let data = try JSONEncoder().encode(copy)
             defaults.set(data, forKey: defaultsKey)
         } catch {
-            // Best-effort.
+            PrismLog.error(
+                .uiWorkspace,
+                "ui.workspace.layout_save_failed",
+                "Prism couldn't save the workspace layout.",
+                technical: String(reflecting: error)
+            )
         }
     }
 

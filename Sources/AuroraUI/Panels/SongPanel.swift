@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import AuroraCore
 import AuroraModel
 import SwiftUI
@@ -251,7 +252,7 @@ public struct SongPanel: View {
             statusText = "Created \(song.title) (empty — add entries)"
             onChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -263,7 +264,7 @@ public struct SongPanel: View {
             statusText = "Deleted \(song.title)"
             onChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -320,7 +321,7 @@ public struct SongPanel: View {
             statusText = status
             onChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 

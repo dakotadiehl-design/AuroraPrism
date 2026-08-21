@@ -7,6 +7,37 @@ import XCTest
 /// (App-target PerformanceSnapshot lives in Aurora; we mirror the critical contract here
 /// via engine snapshot + song fields used by remote/perform UI.)
 final class PerformanceSnapshotBuildTests: XCTestCase {
+    func testPlaybackSnapshotAdvancesSynchronouslyAcrossRepeatedGo() {
+        let first = Cue(number: 1, name: "Opening")
+        let second = Cue(number: 2, name: "Verse")
+        var project = ShowProject.empty(name: "Perf")
+        project.cueLists = [CueList(name: "Main", cues: [first, second])]
+        let engine = LightingEngine(output: OutputManager())
+        engine.load(project: project)
+
+        engine.go()
+        XCTAssertEqual(engine.playback.snapshot().cueID, first.id)
+        XCTAssertEqual(engine.playback.snapshot().cueName, "Opening")
+        var resolved = PerformanceCuePresentation.resolveCues(
+            project: project,
+            playback: engine.playback.snapshot(),
+            song: .empty
+        )
+        XCTAssertEqual(resolved.current.cueID, first.id)
+        XCTAssertEqual(resolved.next.cueID, second.id)
+
+        engine.go()
+        XCTAssertEqual(engine.playback.snapshot().cueID, second.id)
+        XCTAssertEqual(engine.playback.snapshot().cueName, "Verse")
+        resolved = PerformanceCuePresentation.resolveCues(
+            project: project,
+            playback: engine.playback.snapshot(),
+            song: .empty
+        )
+        XCTAssertEqual(resolved.current.cueID, second.id)
+        XCTAssertNil(resolved.next.cueID)
+    }
+
     func testEngineSnapshotCarriesCachedValidationCount() {
         var project = ShowProject.empty(name: "Perf")
         let u = UUID()

@@ -118,14 +118,17 @@ public enum ProgrammerColorPresentationResolver {
     public static func resolve(
         orderedFixtureIDs: [UUID],
         project: ShowProject,
-        programmer: ProgrammerState
+        programmer: ProgrammerState,
+        targets: [FixtureTarget]? = nil
     ) -> ProgrammerColorPresentation {
         guard !orderedFixtureIDs.isEmpty else { return .empty }
 
+        let resolvedTargets = targets ?? orderedFixtureIDs.map { FixtureTarget(fixtureID: $0) }
         let base = ProgrammerAttributePresentationResolver.resolve(
             orderedFixtureIDs: orderedFixtureIDs,
             project: project,
-            programmer: programmer
+            programmer: programmer,
+            targets: resolvedTargets
         )
         let caps = ProgrammerAttributePresentationResolver.capabilityMap(
             orderedFixtureIDs: orderedFixtureIDs,
@@ -142,28 +145,36 @@ public enum ProgrammerColorPresentationResolver {
             ordered: orderedFixtureIDs,
             hasRGB: hasRGB,
             caps: caps,
-            values: values
+            values: values,
+            targets: resolvedTargets,
+            project: project
         )
         let satState = resolveAuthoring(
             ColorAuthoringAttribute.saturation,
             ordered: orderedFixtureIDs,
             hasRGB: hasRGB,
             caps: caps,
-            values: values
+            values: values,
+            targets: resolvedTargets,
+            project: project
         )
         let valState = resolveAuthoring(
             ColorAuthoringAttribute.brightness,
             ordered: orderedFixtureIDs,
             hasRGB: hasRGB,
             caps: caps,
-            values: values
+            values: values,
+            targets: resolvedTargets,
+            project: project
         )
         let wbState = resolveAuthoring(
             ColorAuthoringAttribute.whiteBalance,
             ordered: orderedFixtureIDs,
             hasRGB: hasRGB,
             caps: caps,
-            values: values
+            values: values,
+            targets: resolvedTargets,
+            project: project
         )
 
         var hue = hueState.displayValue
@@ -209,10 +220,7 @@ public enum ProgrammerColorPresentationResolver {
             let supported = orderedFixtureIDs.contains { caps[$0]?.contains(attr) == true }
             guard supported else { continue }
             let state = ProgrammerAttributePresentationResolver.resolveAttribute(
-                attr,
-                ordered: orderedFixtureIDs,
-                caps: caps,
-                values: values
+                attr, targets: resolvedTargets, caps: caps, values: values, project: project
             )
             emitters.append(EmitterControlPresentation(kind: kind, state: state))
         }
@@ -238,7 +246,9 @@ public enum ProgrammerColorPresentationResolver {
         ordered: [UUID],
         hasRGB: Bool,
         caps: [UUID: Set<String>],
-        values: [UUID: [String: Double]]
+        values: [UUID: [String: Double]],
+        targets: [FixtureTarget],
+        project: ShowProject
     ) -> ProgrammerAttributeState {
         guard hasRGB else { return .unsupported }
         let capable = ordered.filter {
@@ -248,16 +258,16 @@ public enum ProgrammerColorPresentationResolver {
         }
         guard !capable.isEmpty else { return .unsupported }
         let support: AttributeSupportState = capable.count == ordered.count ? .all : .partial
-        var found: [Double] = []
-        for id in capable {
-            if let v = values[id]?[attribute] {
-                found.append(v)
-            }
+        let capableSet = Set(capable)
+        let capableTargets = targets.filter { capableSet.contains($0.fixtureID) }
+        let found = capableTargets.compactMap { target -> Double? in
+            guard let concrete = FixtureTargetResolver.concreteAttribute(attribute, target: target, project: project) else { return nil }
+            return values[target.fixtureID]?[concrete]
         }
         if found.isEmpty {
             return ProgrammerAttributeState(support: support, value: .untouched)
         }
-        if found.count < capable.count {
+        if found.count < capableTargets.count {
             return ProgrammerAttributeState(support: support, value: .mixed)
         }
         let first = found[0]

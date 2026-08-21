@@ -10,6 +10,8 @@ final class AuroraLibraryPackageTests: XCTestCase {
             channels: [ChannelDef(offset: 1, name: "I", attribute: "intensity")]
         )
         project.fixtureDefinitions = [def]
+        let physical = FixturePhysicalDefinition(manufacturer: "User", model: "Wash", form: .par, emitters: [.init(id: "lens", name: "Lens", x: 0.5, y: 0.5)])
+        project.physicalFixtureDefinitions = [physical]
         project.midiBehaviors = [
             MIDIBehaviorDefinition(name: "Kick", drumRole: .kick, attribute: "intensity"),
         ]
@@ -25,6 +27,7 @@ final class AuroraLibraryPackageTests: XCTestCase {
         let loaded = try AuroraLibraryPackage.load(from: dir)
         XCTAssertEqual(loaded.manifest.name, "TestLib")
         XCTAssertEqual(loaded.fixtureDefinitions.count, 1)
+        XCTAssertEqual(loaded.physicalFixtureDefinitions, [physical])
         XCTAssertEqual(loaded.midiBehaviors.count, 1)
         XCTAssertEqual(loaded.drumProfiles.count, 1)
         XCTAssertEqual(loaded.feedbackProfiles.first?.masterIntensityCC, 7)
@@ -32,6 +35,7 @@ final class AuroraLibraryPackageTests: XCTestCase {
         var target = ShowProject.empty(name: "Target")
         AuroraLibraryPackage.merge(loaded, into: &target)
         XCTAssertEqual(target.fixtureDefinitions.count, 1)
+        XCTAssertEqual(target.physicalFixtureDefinitions, [physical])
         XCTAssertEqual(target.midiBehaviors.count, 1)
     }
 
@@ -64,6 +68,8 @@ final class AuroraLibraryPackageTests: XCTestCase {
         project.midiBehaviors = [MIDIBehaviorDefinition(name: "Snare", drumRole: .snare)]
         project.drumProfiles = [.generalMIDIKit]
         project.midiFeedbackProfiles = [MIDIFeedbackProfile()]
+        let physical = FixturePhysicalDefinition(manufacturer: "User", model: "Panel", form: .panel)
+        project.physicalFixtureDefinitions = [physical]
 
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("aurora-beh-\(UUID().uuidString).aurora")
@@ -74,5 +80,6 @@ final class AuroraLibraryPackageTests: XCTestCase {
         XCTAssertEqual(loaded.midiBehaviors.count, 1)
         XCTAssertFalse(loaded.drumProfiles.isEmpty)
         XCTAssertEqual(loaded.midiFeedbackProfiles.count, 1)
+        XCTAssertEqual(loaded.physicalFixtureDefinitions, [physical])
     }
 }

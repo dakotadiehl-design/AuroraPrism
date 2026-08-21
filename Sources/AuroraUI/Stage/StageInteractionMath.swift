@@ -2,6 +2,88 @@ import AuroraModel
 import CoreGraphics
 import Foundation
 
+/// Resolves the shared fixture/canvas pointer sequence. A pointer claimed by
+/// interactive content must never be reinterpreted as a blank-stage click.
+public enum StagePointerArbitration {
+    public static func shouldClearSelection(
+        contentClaimed: Bool,
+        performedPan: Bool,
+        movement: CGFloat,
+        performedMarquee: Bool
+    ) -> Bool {
+        !contentClaimed && !performedPan && movement < 4 && !performedMarquee
+    }
+}
+
+/// Keeps first-drag selection local until the pointer sequence ends. Publishing
+/// selection while SwiftUI is delivering a drag can rebuild the fixture subtree
+/// and truncate that same gesture.
+public enum StageFixtureDragSelection {
+    public static func workingSelection(current: Set<UUID>, anchorID: UUID) -> Set<UUID> {
+        current.contains(anchorID) ? current : [anchorID]
+    }
+
+    public static func shouldPublishAfterDrag(current: Set<UUID>, anchorID: UUID) -> Bool {
+        !current.contains(anchorID)
+    }
+}
+
+/// Stable, testable content for the native Stage fixture hover tooltip.
+public enum StageFixtureHoverInfo {
+    public static func text(
+        fixture: PatchedFixture,
+        definition: FixtureDefinition?,
+        universe: Universe?,
+        footprint: UInt16,
+        groupNames: [String],
+        locked: Bool
+    ) -> String {
+        var lines = [fixture.name]
+
+        let category = definition?.category.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        lines.append("Type: \(category.isEmpty ? "Fixture" : category)")
+        let resolvedFootprint = max(footprint, 1)
+        let channelLabel = resolvedFootprint == 1 ? "channel" : "channels"
+
+        if let definition {
+            let product = [definition.manufacturer, definition.model]
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            if !product.isEmpty { lines.append("Fixture: \(product)") }
+            let mode = definition.modeName.trimmingCharacters(in: .whitespacesAndNewlines)
+            lines.append("Mode: \(mode.isEmpty ? "Default" : mode) · \(resolvedFootprint) \(channelLabel)")
+        } else {
+            lines.append("Footprint: \(resolvedFootprint) \(channelLabel)")
+        }
+
+        if fixture.isPatched {
+            let universeLabel: String
+            if let universe {
+                let name = universe.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                universeLabel = name.isEmpty
+                    ? "Universe \(universe.number)"
+                    : "Universe \(universe.number) — \(name)"
+            } else {
+                universeLabel = "Unknown universe"
+            }
+            let end = fixture.endAddress(channelCount: resolvedFootprint)
+            let range = fixture.address == end ? "\(fixture.address)" : "\(fixture.address)–\(end)"
+            lines.append("Patch: \(universeLabel) · Channels \(range)")
+        } else {
+            lines.append("Patch: Unpatched")
+        }
+
+        let groups = groupNames
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        if !groups.isEmpty { lines.append("Groups: \(groups.joined(separator: ", "))") }
+        if locked { lines.append("Stage position: Locked") }
+        return lines.joined(separator: "\n")
+    }
+}
+
 // MARK: - Transform ownership (C4.2)
 
 /// Authoritative answer to “what transform currently owns this pointer?”
@@ -110,6 +192,13 @@ public struct StageFixtureAimState: Equatable, Sendable {
 // MARK: - Direct object rotation math (C4.2)
 
 public enum StageRotateMath {
+    public static func normalizedRadians(_ radians: Double) -> Double {
+        var value = radians.truncatingRemainder(dividingBy: 2 * .pi)
+        if value > .pi { value -= 2 * .pi }
+        if value <= -.pi { value += 2 * .pi }
+        return value
+    }
+
     /// Rotation from pointer around object center (radians).
     public static func rotationFromPointer(
         center: CGPoint,

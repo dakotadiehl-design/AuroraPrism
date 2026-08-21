@@ -1,7 +1,25 @@
+import AuroraDesignSystem
+import AuroraEngine
 import AuroraUI
 import XCTest
 
 final class ValueFaderGeometryTests: XCTestCase {
+
+    func testIntensityFanAliasKeepsModernColorDimmerVisible() {
+        XCTAssertEqual(ProgrammerPanel.visibleTab(for: .intensity), .color)
+        XCTAssertEqual(ProgrammerPanel.visibleTab(for: .pan), .position)
+        XCTAssertEqual(ProgrammerPanel.visibleTab(for: .tilt), .position)
+        XCTAssertEqual(ProgrammerPanel.visibleTab(for: .strobe), .effects)
+    }
+
+    func testIntensityOnlySelectionEnablesModernColorSurface() {
+        let presentation = ProgrammerAttributePresentation(
+            intensity: ProgrammerAttributeState(support: .all, value: .common(0.5))
+        )
+        XCTAssertTrue(ProgrammerPanel.isTabEnabled(.color, presentation: presentation))
+        XCTAssertTrue(ProgrammerPanel.isTabEnabled(.intensity, presentation: presentation))
+        XCTAssertFalse(ProgrammerPanel.isTabEnabled(.position, presentation: presentation))
+    }
 
     private let standard = ValueFaderMetrics.forDensity(.standard)
     private let compact = ValueFaderMetrics.forDensity(.compact)

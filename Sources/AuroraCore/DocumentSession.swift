@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import AuroraModel
 import Foundation
 
@@ -100,6 +101,11 @@ public final class DocumentSession {
         publishSelectionChanged()
     }
 
+    public func selectFixtureTargetsOrdered(_ targets: [FixtureTarget], extending: Bool = false) {
+        selection.selectFixtureTargetsOrdered(targets, extending: extending)
+        publishSelectionChanged()
+    }
+
     public func clearSelection() {
         guard !selection.snapshot.isEmpty else { return }
         selection.clear()
@@ -121,6 +127,7 @@ public final class DocumentSession {
             try command.perform(context: context)
         } catch {
             project = snapshot
+            PrismLog.debug(.projectDocument, "project.command.rolled_back", "A command was rolled back.")
             throw error
         }
 
@@ -175,6 +182,7 @@ public final class DocumentSession {
             project = snapshot
             undoStack.push(command)
             undoStateIDs.append(undoneStateID)
+            PrismLog.debug(.projectDocument, "project.command.rolled_back", "Undo was rolled back.")
             throw error
         }
 
@@ -203,6 +211,7 @@ public final class DocumentSession {
             project = snapshot
             undoStack.pushRedo(command)
             redoStateIDs.append(restoredID)
+            PrismLog.debug(.projectDocument, "project.command.rolled_back", "Redo was rolled back.")
             throw error
         }
 

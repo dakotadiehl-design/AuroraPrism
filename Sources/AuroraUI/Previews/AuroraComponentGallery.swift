@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import SwiftUI
 
 /// UI-01C gallery — render-pack visual identity lock.

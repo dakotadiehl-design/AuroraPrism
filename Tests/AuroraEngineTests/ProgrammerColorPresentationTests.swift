@@ -52,6 +52,35 @@ final class ProgrammerColorPresentationTests: XCTestCase {
         XCTAssertTrue(pres.dimmer.isSupported)
     }
 
+    func testAtmosphericFixtureExposesEveryDefinedFunctionInChannelOrder() {
+        var project = ShowProject.empty(name: "Atmospheric")
+        let universe = Universe(number: 1)
+        let fixtureID = UUID()
+        let definition = FixtureDefinition(
+            manufacturer: "Synthetic", model: "Atmospheric Device", channels: [
+                ChannelDef(offset: 1, name: "Fan Speed", attribute: "fan_speed", semanticKind: .generic),
+                ChannelDef(offset: 2, name: "Fog", attribute: "fog", semanticKind: .generic),
+                ChannelDef(offset: 3, name: "Cleaning Cycle", attribute: "cleaningCycle", semanticKind: .generic),
+            ], portablePhysicalDefinition: FixturePhysicalDefinition(
+                manufacturer: "Synthetic", model: "Atmospheric Device", form: .atmospheric
+            )
+        )
+        project.universes = [universe]
+        project.fixtureDefinitions = [definition]
+        project.fixtures = [PatchedFixture(
+            id: fixtureID, name: "Haze", definitionId: definition.id,
+            universeId: universe.id, address: 1
+        )]
+
+        let presentation = ProgrammerAttributePresentationResolver.resolve(
+            orderedFixtureIDs: [fixtureID], project: project, programmer: .empty
+        )
+        XCTAssertEqual(presentation.functionAttributes, ["fan_speed", "fog", "cleaningCycle"])
+        XCTAssertTrue(presentation.hasFunctions)
+        XCTAssertTrue(presentation.genericAttributes.isEmpty)
+        XCTAssertTrue(presentation.functionAttributes.allSatisfy { presentation.state(for: $0).isSupported })
+    }
+
     func testRGBWShowsWhite() {
         let (project, id) = makeProject(attributes: [
             ("Dimmer", "intensity"),
@@ -95,6 +124,50 @@ final class ProgrammerColorPresentationTests: XCTestCase {
         XCTAssertEqual(pres.emitters.map(\.attribute), ["colorCoolWhite", "colorA", "colorUV"])
     }
 
+    func testCellBlockRGBHexCapabilitiesAppearInProgrammer() {
+        var project = ShowProject.empty(name: "4Bar")
+        let universe = Universe(number: 1)
+        let fixtureID = UUID()
+        let definition = FixtureDefinition(
+            manufacturer: "Chauvet",
+            model: "4Bar Hex ILS",
+            modeName: "27 Channel",
+            channels: [
+                ChannelDef(offset: 1, name: "Mode", attribute: "mode"),
+                ChannelDef(offset: 2, name: "Dimmer", attribute: "intensity"),
+                ChannelDef(offset: 3, name: "Strobe", attribute: "strobe"),
+            ],
+            colorModel: .rgbw,
+            cellBlock: FixtureCellBlock(channels: [
+                ChannelDef(offset: 1, name: "R", attribute: "colorR"),
+                ChannelDef(offset: 2, name: "G", attribute: "colorG"),
+                ChannelDef(offset: 3, name: "B", attribute: "colorB"),
+                ChannelDef(offset: 4, name: "A", attribute: "colorA"),
+                ChannelDef(offset: 5, name: "CW", attribute: "colorCoolWhite"),
+                ChannelDef(offset: 6, name: "UV", attribute: "colorUV"),
+            ], cellCount: 4, cellLabelPrefix: "Pod")
+        )
+        project.universes = [universe]
+        project.fixtureDefinitions = [definition]
+        project.fixtures = [PatchedFixture(
+            id: fixtureID,
+            name: "4Bar 1",
+            definitionId: definition.id,
+            universeId: universe.id,
+            address: 1
+        )]
+
+        let presentation = ProgrammerColorPresentationResolver.resolve(
+            orderedFixtureIDs: [fixtureID],
+            project: project,
+            programmer: .empty
+        )
+
+        XCTAssertTrue(presentation.hasRGB)
+        XCTAssertTrue(presentation.dimmer.isSupported)
+        XCTAssertEqual(presentation.emitters.map(\.kind), [.coolWhite, .amber, .uv])
+    }
+
     func testAuthoringStateRetainedOnResolve() {
         let (project, id) = makeProject(attributes: [
             ("R", "colorR"), ("G", "colorG"), ("B", "colorB"),
@@ -117,6 +190,49 @@ final class ProgrammerColorPresentationTests: XCTestCase {
         XCTAssertEqual(pres.previewRGB.r, expected.r, accuracy: 0.02)
         XCTAssertEqual(pres.previewRGB.g, expected.g, accuracy: 0.02)
         XCTAssertEqual(pres.previewRGB.b, expected.b, accuracy: 0.02)
+    }
+
+    func testSelectedControlElementReadsOnlyItsScopedColor() {
+        var project = ShowProject.empty(name: "Grouped Color")
+        let universe = Universe(number: 1)
+        let fixtureID = UUID()
+        let channels = (0..<2).flatMap { element in
+            ["colorR", "colorG", "colorB"].enumerated().map { component, attribute in
+                ChannelDef(
+                    offset: UInt16(element * 3 + component + 1),
+                    name: attribute,
+                    attribute: attribute,
+                    elementID: "element-\(element)"
+                )
+            }
+        }
+        let definition = FixtureDefinition(manufacturer: "Test", model: "Grouped", channels: channels)
+        project.universes = [universe]
+        project.fixtureDefinitions = [definition]
+        project.fixtures = [PatchedFixture(
+            id: fixtureID, name: "Bar", definitionId: definition.id,
+            universeId: universe.id, address: 1
+        )]
+        var programmer = ProgrammerState.empty
+        programmer.values[fixtureID] = [
+            "colorR@element-0": 1, "colorG@element-0": 0, "colorB@element-0": 0,
+            "colorR@element-1": 0, "colorG@element-1": 0, "colorB@element-1": 1,
+            "colorHue@element-0": 0, "colorHue@element-1": 240,
+            "colorSat@element-0": 1, "colorSat@element-1": 1,
+            "colorVal@element-0": 1, "colorVal@element-1": 1,
+        ]
+
+        let presentation = ProgrammerColorPresentationResolver.resolve(
+            orderedFixtureIDs: [fixtureID],
+            project: project,
+            programmer: programmer,
+            targets: [FixtureTarget(fixtureID: fixtureID, elementID: "element-1")]
+        )
+
+        XCTAssertEqual(presentation.hue ?? -1, 240, accuracy: 0.001)
+        XCTAssertEqual(presentation.previewRGB.r, 0, accuracy: 0.001)
+        XCTAssertEqual(presentation.previewRGB.b, 1, accuracy: 0.001)
+        XCTAssertFalse(presentation.isRGBMixed)
     }
 
     func testLegacyRGBOnlyGetsNeutralWB() {

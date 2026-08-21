@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import AuroraModel
 import Foundation
 import Network
@@ -25,6 +26,7 @@ public final class ArtNetOutputDriver: OutputDriver, @unchecked Sendable {
     private var _packetsDropped: UInt64 = 0
     private var _lastSuccessAt: Date?
     private var _state: OutputDriverState = .disabled
+    private let noteFrameSummary: @Sendable () -> Int?
 
     public var lastError: String? {
         lock.lock()
@@ -38,10 +40,21 @@ public final class ArtNetOutputDriver: OutputDriver, @unchecked Sendable {
         return config
     }
 
-    public init(id: UUID = UUID(), name: String = "Art-Net", config: ArtNetConfig = .default) {
+    public init(
+        id: UUID = UUID(),
+        name: String = "Art-Net",
+        config: ArtNetConfig = .default,
+        frameSummaryNote: (@Sendable () -> Int?)? = nil
+    ) {
         self.id = id
         self.name = name
         self.config = config
+        if let frameSummaryNote {
+            noteFrameSummary = frameSummaryNote
+        } else {
+            let counter = PrismIntervalCounter(interval: 1)
+            noteFrameSummary = { counter.note() }
+        }
     }
 
     public func updateConfig(_ config: ArtNetConfig) throws {
@@ -61,9 +74,16 @@ public final class ArtNetOutputDriver: OutputDriver, @unchecked Sendable {
             try updateConfig(config)
         } catch {
             lock.lock()
-            _lastError = error.localizedDescription
+            _lastError = PrismErrorReporting.userFacingMessage(for: error)
             _state = .failed
             lock.unlock()
+            PrismLog.error(
+                .outputArtnet,
+                "output.artnet.failed",
+                "Prism couldn't update Art-Net.",
+                technical: String(reflecting: error),
+                ratePolicy: .oncePerSecond
+            )
         }
     }
 
@@ -149,7 +169,7 @@ public final class ArtNetOutputDriver: OutputDriver, @unchecked Sendable {
         _isRunning = true
         sequences.removeAll()
         if let startError {
-            _lastError = startError.localizedDescription
+            _lastError = PrismErrorReporting.userFacingMessage(for: startError)
             _state = .failed
         } else if cancelled {
             _state = .disabled
@@ -163,18 +183,34 @@ public final class ArtNetOutputDriver: OutputDriver, @unchecked Sendable {
         } else {
             _state = .starting
         }
+        let startedState = _state
         lock.unlock()
+        if startedState == .ready {
+            PrismLog.notice(.outputArtnet, "output.artnet.started", "Art-Net output is on.")
+        } else if startError != nil || waitResult == .timedOut {
+            PrismLog.error(
+                .outputArtnet,
+                "output.artnet.failed",
+                "Prism couldn't start Art-Net.",
+                technical: startError.map(String.init(reflecting:)) ?? "timeout",
+                ratePolicy: .oncePerSecond
+            )
+        }
     }
 
     public func stop() {
         // Snapshot under lock; cancel outside so NW path callbacks cannot re-enter deadlocked.
         lock.lock()
+        let wasRunning = _isRunning
         let conn = connection
         connection = nil
         _isRunning = false
         _state = .disabled
         lock.unlock()
         conn?.cancel()
+        if wasRunning {
+            PrismLog.notice(.outputArtnet, "output.artnet.stopped", "Art-Net output is off.")
+        }
     }
 
     public func send(universe: UInt16, dmx: UnsafeBufferPointer<UInt8>) {
@@ -199,19 +235,48 @@ public final class ArtNetOutputDriver: OutputDriver, @unchecked Sendable {
         let packet = ArtNetPacket.artDmx(universe: artUniverse, sequence: current, dmx: dmx)
 
         connection.send(content: packet, completion: .contentProcessed { [weak self] error in
-            guard let self else { return }
-            self.lock.lock()
-            if let error {
-                self._lastError = error.localizedDescription
-                self._packetsDropped &+= 1
-                self._state = .degraded
-            } else {
-                self._packetsSent &+= 1
-                self._lastSuccessAt = Date()
-                if self._state == .degraded { self._state = .ready }
-            }
-            self.lock.unlock()
+            self?.handleSendCompletion(error)
         })
+    }
+
+    /// Kept internal so completion-state behavior can be tested without a live UDP failure.
+    func handleSendCompletion(_ error: NWError?) {
+        lock.lock()
+        guard _isRunning else {
+            lock.unlock()
+            return
+        }
+        if let error {
+            _lastError = PrismErrorReporting.userFacingMessage(for: error)
+            _packetsDropped &+= 1
+            _state = .degraded
+            lock.unlock()
+            PrismLog.error(
+                .outputArtnet,
+                "output.artnet.failed",
+                "Prism couldn't send an Art-Net frame.",
+                technical: String(reflecting: error),
+                ratePolicy: .oncePerSecond
+            )
+            return
+        }
+
+        _packetsSent &+= 1
+        _lastSuccessAt = Date()
+        let recovered = _state == .degraded
+        if recovered { _state = .ready }
+        lock.unlock()
+        if recovered {
+            PrismLog.info(.outputArtnet, "output.artnet.recovered", "Art-Net recovered.")
+        }
+        guard PrismLog.isEnabled(.debug, category: .outputArtnet),
+              let count = noteFrameSummary() else { return }
+        PrismLog.debug(
+            .outputArtnet,
+            "output.artnet.frame_summary",
+            "Art-Net frame summary.",
+            metadata: ["count": .count(count), "sampled": .flag(true)]
+        )
     }
 }
 

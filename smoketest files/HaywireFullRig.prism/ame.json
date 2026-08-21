@@ -1,0 +1,35 @@
+{
+  "mappingSets" : [
+
+  ],
+  "mappings" : [
+
+  ],
+  "musicalSettings" : {
+    "defaultMeter" : {
+      "beatGrouping" : [
+        1,
+        1,
+        1,
+        1
+      ],
+      "denominator" : 4,
+      "numerator" : 4
+    },
+    "defaultTempoBPM" : 120,
+    "freewheelSeconds" : 2,
+    "timingPolicy" : "internalOnly"
+  },
+  "sequences" : [
+
+  ],
+  "sourceBindings" : [
+
+  ],
+  "triggerGroups" : [
+
+  ],
+  "triggers" : [
+
+  ]
+}

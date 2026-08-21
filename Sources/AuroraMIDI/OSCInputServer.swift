@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import Foundation
 import Network
 
@@ -53,9 +54,16 @@ public final class OSCInputServer: @unchecked Sendable {
         listener.stateUpdateHandler = { [weak self] state in
             if case .failed(let err) = state {
                 self?.lock.lock()
-                self?._lastError = err.localizedDescription
+                self?._lastError = PrismErrorReporting.userFacingMessage(for: err)
                 self?._isRunning = false
                 self?.lock.unlock()
+                PrismLog.error(
+                    .controlOSC,
+                    "control.osc.failed",
+                    "Prism couldn't keep OSC running.",
+                    technical: String(reflecting: err),
+                    ratePolicy: .oncePerSecond
+                )
             }
         }
         listener.start(queue: queue)
@@ -64,16 +72,21 @@ public final class OSCInputServer: @unchecked Sendable {
         _isRunning = true
         _lastError = nil
         lock.unlock()
+        PrismLog.notice(.controlOSC, "control.osc.started", "OSC is listening.")
     }
 
     public func stop() {
         // Snapshot under lock; cancel outside so NW receive callbacks cannot re-enter deadlocked.
         lock.lock()
+        let wasRunning = _isRunning
         let listenerToCancel = listener
         listener = nil
         _isRunning = false
         lock.unlock()
         listenerToCancel?.cancel()
+        if wasRunning {
+            PrismLog.notice(.controlOSC, "control.osc.stopped", "OSC is off.")
+        }
     }
 
     private func accept(_ connection: NWConnection) {
@@ -110,4 +123,17 @@ public final class OSCInputServer: @unchecked Sendable {
 
 public enum OSCError: Error, Equatable, Sendable {
     case invalidPort(UInt16)
+}
+
+extension OSCError: LocalizedError, PrismDiagnosableError {
+    public var errorDescription: String? { userMessage }
+    public var prismErrorCode: String { "control.osc.invalid_port" }
+    public var userTitle: String { "Prism Couldn't Start OSC" }
+    public var userMessage: String { "Prism couldn’t start OSC on that port." }
+    public var recoverySuggestion: String? {
+        "Choose another port, or quit the other app that is using this one."
+    }
+    public var technicalDetails: String { String(reflecting: self) }
+    public var prismCategory: PrismLogCategory { .controlOSC }
+    public var prismSeverity: PrismLogLevel { .error }
 }

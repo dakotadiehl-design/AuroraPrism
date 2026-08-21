@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import SwiftUI
 
 /// Application toolbar matching render pack: wordmark, actions, title, health, mode.

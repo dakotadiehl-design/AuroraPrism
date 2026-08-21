@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import Foundation
 
 /// Rolling timing samples for engine frames (PR30 / P2-18).
@@ -78,6 +79,22 @@ public final class FrameMetricsRecorder: @unchecked Sendable {
         if ms > targetPeriodMs {
             overrunCount &+= 1
             consecutiveOverruns &+= 1
+            let over = consecutiveOverruns
+            let duration = ms
+            lock.unlock()
+            if over >= 3 {
+                PrismLog.warning(
+                    .enginePerformance,
+                    "engine.performance.budget_exceeded",
+                    "The show engine missed its frame budget.",
+                    metadata: [
+                        "durationMs": .double(duration, privacy: .public),
+                        "count": .count(Int(over)),
+                    ],
+                    ratePolicy: .oncePerSecond
+                )
+            }
+            return
         } else {
             consecutiveOverruns = 0
         }

@@ -2,6 +2,11 @@ import Foundation
 
 // MARK: - Fixture placement
 
+public enum StageBeamRenderMode: String, Codable, CaseIterable, Sendable, Hashable {
+    case directional
+    case softGlow
+}
+
 /// Persisted 2D stage placement (P0-A). Does **not** affect DMX patch or fixture existence.
 ///
 /// C4.1: physical Stage beam visualization is independent of DMX Pan/Tilt.
@@ -28,6 +33,8 @@ public struct StageFixturePlacement: Codable, Equatable, Sendable, Identifiable,
     public var beamLength: Double
     /// Whether the Stage beam visualization is drawn.
     public var beamVisible: Bool
+    /// Presentation used by linear fixtures. Other fixture forms always render directionally.
+    public var beamRenderMode: StageBeamRenderMode
 
     public init(
         id: UUID = UUID(),
@@ -43,7 +50,8 @@ public struct StageFixturePlacement: Codable, Equatable, Sendable, Identifiable,
         aimDirection: Double = -.pi / 2,
         beamSpread: Double = .pi / 6,
         beamLength: Double = 160,
-        beamVisible: Bool = true
+        beamVisible: Bool = true,
+        beamRenderMode: StageBeamRenderMode = .directional
     ) {
         self.id = id
         self.fixtureID = fixtureID
@@ -59,6 +67,7 @@ public struct StageFixturePlacement: Codable, Equatable, Sendable, Identifiable,
         self.beamSpread = max(0.02, beamSpread)
         self.beamLength = max(8, beamLength)
         self.beamVisible = beamVisible
+        self.beamRenderMode = beamRenderMode
     }
 
     public init(from decoder: Decoder) throws {
@@ -78,11 +87,12 @@ public struct StageFixturePlacement: Codable, Equatable, Sendable, Identifiable,
         beamSpread = try c.decodeIfPresent(Double.self, forKey: .beamSpread) ?? .pi / 6
         beamLength = try c.decodeIfPresent(Double.self, forKey: .beamLength) ?? 160
         beamVisible = try c.decodeIfPresent(Bool.self, forKey: .beamVisible) ?? true
+        beamRenderMode = try c.decodeIfPresent(StageBeamRenderMode.self, forKey: .beamRenderMode) ?? .directional
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, fixtureID, x, y, rotation, scale, labelVisible, zIndex, locked, hidden
-        case aimDirection, beamSpread, beamLength, beamVisible
+        case aimDirection, beamSpread, beamLength, beamVisible, beamRenderMode
     }
 
     /// Category-based visualization defaults for newly placed fixtures (C4.1 §8).

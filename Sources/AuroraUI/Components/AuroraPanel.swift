@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import SwiftUI
 
 public enum AuroraPanelEdgeStyle: Sendable {

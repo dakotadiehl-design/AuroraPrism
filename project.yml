@@ -44,6 +44,8 @@ settings:
 packages:
   AuroraPackage:
     path: .
+  AuroraDesignSystem:
+    path: ../AuroraDesignSystem
 
 targets:
   Aurora:
@@ -105,9 +107,11 @@ targets:
       - package: AuroraPackage
         product: AuroraMusical
       - package: AuroraPackage
-        product: AuroraRemote
-      - package: AuroraPackage
         product: AuroraDiagnostics
+      - package: AuroraPackage
+        product: PrismACP
+      - package: AuroraDesignSystem
+        product: AuroraDesignSystem
       - sdk: AppKit.framework
       - sdk: SwiftUI.framework
     scheme:

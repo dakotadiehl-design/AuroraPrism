@@ -4,6 +4,19 @@ import AuroraOutput
 import XCTest
 
 final class CompiledShowTests: XCTestCase {
+    func testLegacyDMXFunctionRangeDecodesWithSafeDefaults() throws {
+        let id = UUID()
+        let json = """
+        {"id":"\(id.uuidString)","name":"Open","dmxMin":0,"dmxMax":255}
+        """
+        let function = try JSONDecoder().decode(DMXFunctionRange.self, from: Data(json.utf8))
+        XCTAssertEqual(function.semantic, .generic)
+        XCTAssertNil(function.attribute)
+        XCTAssertNil(function.commandCategory)
+        XCTAssertFalse(function.requiresConfirmation)
+        XCTAssertFalse(function.isProtected)
+    }
+
     private func makeShow() -> (ShowProject, UUID, UUID) {
         var project = ShowProject.empty(name: "C")
         let universeID = UUID()
@@ -126,6 +139,96 @@ final class CompiledShowTests: XCTestCase {
         XCTAssertEqual(fromCompiled[1]?[0], expectedPan.coarse)
         XCTAssertEqual(fromCompiled[1]?[1], expectedPan.fine)
         XCTAssertEqual(fromCompiled[1]?[2], 255)
+    }
+
+    func testProtectedCommandOnlyChannelIsNotCompiledForOrdinaryPlayback() {
+        let command = DMXFunctionRange(
+            name: "Fixture Reset",
+            dmxMin: 240,
+            dmxMax: 255,
+            semantic: .protectedCommand,
+            commandCategory: .reset,
+            holdDurationMilliseconds: 1_000,
+            requiresConfirmation: true
+        )
+        let definition = FixtureDefinition(
+            manufacturer: "Safe",
+            model: "Command",
+            channels: [
+                ChannelDef(
+                    offset: 1,
+                    name: "Service",
+                    attribute: "command",
+                    semanticKind: .generic,
+                    dmxFunctions: [command]
+                )
+            ]
+        )
+
+        XCTAssertTrue(CompiledShow.compileAttributeWrites(definition: definition).isEmpty)
+    }
+
+    func testProtectedRangeIsAvoidedOnCompoundPlaybackChannel() {
+        let definition = FixtureDefinition(
+            manufacturer: "Safe",
+            model: "Compound",
+            channels: [
+                ChannelDef(
+                    offset: 1,
+                    name: "Macro and Reset",
+                    attribute: "macro",
+                    semanticKind: .generic,
+                    dmxFunctions: [
+                        DMXFunctionRange(name: "Macro", dmxMin: 0, dmxMax: 239, attribute: "macro", semantic: .attribute),
+                        DMXFunctionRange(
+                            name: "Reset",
+                            dmxMin: 240,
+                            dmxMax: 255,
+                            semantic: .protectedCommand,
+                            commandCategory: .reset,
+                            requiresConfirmation: true
+                        )
+                    ]
+                )
+            ]
+        )
+        let write = try! XCTUnwrap(CompiledShow.compileAttributeWrites(definition: definition).first)
+        XCTAssertEqual(write.safeEightBitValue(250), 239)
+        XCTAssertEqual(write.safeEightBitValue(128), 128)
+    }
+
+    func testCompoundChannelExposesRangeSpecificSemanticWrites() {
+        let definition = FixtureDefinition(
+            manufacturer: "Range",
+            model: "Compound",
+            channels: [
+                ChannelDef(
+                    offset: 1,
+                    name: "Angle / Rotation",
+                    attribute: "angle_rotation",
+                    semanticKind: .generic,
+                    dmxFunctions: [
+                        DMXFunctionRange(name: "Angle", dmxMin: 0, dmxMax: 127, attribute: "prismAngle", semantic: .attribute),
+                        DMXFunctionRange(name: "Rotation", dmxMin: 128, dmxMax: 239, attribute: "prismRotation", semantic: .attribute),
+                        DMXFunctionRange(
+                            name: "Reset",
+                            dmxMin: 240,
+                            dmxMax: 255,
+                            semantic: .protectedCommand,
+                            commandCategory: .reset,
+                            requiresConfirmation: true
+                        )
+                    ]
+                )
+            ]
+        )
+        let writes = CompiledShow.compileAttributeWrites(definition: definition)
+        let angle = try! XCTUnwrap(writes.first { $0.attribute == "prismAngle" })
+        let rotation = try! XCTUnwrap(writes.first { $0.attribute == "prismRotation" })
+        XCTAssertEqual(angle.eightBitValue(normalized: 1), 127)
+        XCTAssertEqual(rotation.eightBitValue(normalized: 0), 128)
+        XCTAssertEqual(rotation.eightBitValue(normalized: 1), 239)
+        XCTAssertFalse(angle.writesDefaultWhenUnowned)
     }
 
     func testEngineStoresCompiledOnLoad() {

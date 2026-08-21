@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import Foundation
 
 /// Persisted metrical structure for songs/projects (AuroraModel).
@@ -83,4 +84,15 @@ extension ShowMusicalMeter: Codable {
         try c.encode(denominator, forKey: .denominator)
         try c.encode(beatGrouping, forKey: .beatGrouping)
     }
+}
+
+extension ShowMusicalMeter.ValidationError: LocalizedError, PrismDiagnosableError {
+    public var errorDescription: String? { userMessage }
+    public var prismErrorCode: String { "music.song.invalid_meter" }
+    public var userTitle: String { "That Meter Isn’t Valid" }
+    public var userMessage: String { "That meter isn’t valid." }
+    public var recoverySuggestion: String? { "Choose a supported time signature and grouping that adds up to the numerator." }
+    public var technicalDetails: String { String(reflecting: self) }
+    public var prismCategory: PrismLogCategory { .musicSong }
+    public var prismSeverity: PrismLogLevel { .error }
 }

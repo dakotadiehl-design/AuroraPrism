@@ -1,5 +1,7 @@
+import AuroraDesignSystem
 import AppKit
 import AuroraCore
+import AuroraDiagnostics
 import AuroraModel
 import AuroraUI
 import SwiftUI
@@ -62,6 +64,8 @@ struct DesignStageSurface: View {
                 interactionMode: appModel.workspace.stageEditActive ? .editGeometry : .programSelect,
                 geometryEditingEnabled: appModel.workspace.stageEditActive,
                 selectedIDs: appModel.session.selection.snapshot.fixtureIDs,
+                selectedTargets: appModel.session.selection.snapshot.fixtureTargets,
+                orderedSelectedTargets: appModel.session.selection.snapshot.orderedFixtureTargets,
                 selectedObjectIDs: $designSelectedObjectIDs,
                 scale: scaleBinding,
                 pan: panBinding,
@@ -69,6 +73,12 @@ struct DesignStageSurface: View {
                     appModel.session.selectFixturesOrdered(ids, extending: false)
                     if !ids.isEmpty { designSelectedObjectIDs = [] }
                     appModel.workspace.noteExplicitFixtureInspect(count: ids.count)
+                    appModel.notifyUI()
+                },
+                onSelectFixtureTargets: { targets in
+                    appModel.session.selectFixtureTargetsOrdered(targets, extending: false)
+                    if !targets.isEmpty { designSelectedObjectIDs = [] }
+                    appModel.workspace.noteExplicitFixtureInspect(count: Set(targets.map(\.fixtureID)).count)
                     appModel.notifyUI()
                 },
                 onLayoutChanged: {
@@ -111,6 +121,7 @@ struct DesignStageSurface: View {
             }
         }
         .background(AuroraColor.surfacePanel)
+        .shortcutHelpHUD(.stage)
     }
 
     private var designStageChrome: some View {
@@ -399,7 +410,7 @@ struct DesignStageSurface: View {
             appModel.engine.updateProject(appModel.session.project)
             appModel.notifyUI()
         } catch {
-            designStageStatus = error.localizedDescription
+            designStageStatus = PrismErrorReporting.statusMessage(for: error, operation: "edit")
         }
     }
 
@@ -488,7 +499,7 @@ struct DesignStageSurface: View {
             appModel.engine.updateProject(appModel.session.project)
             appModel.notifyUI()
         } catch {
-            designStageStatus = error.localizedDescription
+            designStageStatus = PrismErrorReporting.statusMessage(for: error, operation: "edit")
         }
     }
 
@@ -499,7 +510,7 @@ struct DesignStageSurface: View {
             appModel.engine.updateProject(appModel.session.project)
             appModel.notifyUI()
         } catch {
-            designStageStatus = error.localizedDescription
+            designStageStatus = PrismErrorReporting.statusMessage(for: error, operation: "edit")
         }
     }
 
@@ -592,7 +603,7 @@ struct DesignStageSurface: View {
             appModel.engine.updateProject(appModel.session.project)
             appModel.notifyUI()
         } catch {
-            designStageStatus = error.localizedDescription
+            designStageStatus = PrismErrorReporting.statusMessage(for: error, operation: "edit")
         }
     }
 
@@ -812,7 +823,7 @@ struct DesignStageEditRail: View {
             onStatus(status)
             appModel.notifyUI()
         } catch {
-            onStatus(error.localizedDescription)
+            onStatus(PrismErrorReporting.statusMessage(for: error, operation: "edit"))
         }
     }
 
@@ -823,7 +834,7 @@ struct DesignStageEditRail: View {
             appModel.engine.updateProject(appModel.session.project)
             appModel.notifyUI()
         } catch {
-            onStatus(error.localizedDescription)
+            onStatus(PrismErrorReporting.statusMessage(for: error, operation: "edit"))
         }
     }
 
@@ -904,7 +915,7 @@ struct DesignStageEditRail: View {
             appModel.engine.updateProject(appModel.session.project)
             appModel.notifyUI()
         } catch {
-            onStatus(error.localizedDescription)
+            onStatus(PrismErrorReporting.statusMessage(for: error, operation: "edit"))
         }
     }
 }

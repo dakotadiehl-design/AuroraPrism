@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import AuroraModel
 import Foundation
 
@@ -72,12 +73,14 @@ public final class Programmer: @unchecked Sendable {
             state.values[id] = nil
         }
         lock.unlock()
+        PrismLog.info(.engineProgrammer, "engine.programmer.clear", "The programmer was cleared.")
     }
 
     public func clearAll() {
         lock.lock()
         state.values = [:]
         lock.unlock()
+        PrismLog.info(.engineProgrammer, "engine.programmer.clear", "The programmer was cleared.")
     }
 
     public func setBlind(_ blind: Bool) {

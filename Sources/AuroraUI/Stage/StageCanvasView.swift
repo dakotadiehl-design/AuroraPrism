@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import AuroraCore
 import AuroraEngine
 import AuroraModel
@@ -18,9 +19,12 @@ public struct StageCanvasView: View {
     public var interactionMode: StageInteractionMode
     public var geometryEditingEnabled: Bool
     public var selectedIDs: Set<UUID>
+    public var selectedTargets: Set<FixtureTarget>
+    public var orderedSelectedTargets: [FixtureTarget]
     /// Selected layout object IDs (stock/scenic/import) — C4.
     @Binding public var selectedObjectIDs: Set<UUID>
     public var onSelectFixtures: ([UUID]) -> Void
+    public var onSelectFixtureTargets: ([FixtureTarget]) -> Void
     public var onLayoutChanged: () -> Void
     public var revealFixtureID: UUID?
     public var statusNote: Binding<String?>?
@@ -38,7 +42,16 @@ public struct StageCanvasView: View {
     @State private var fixtureDrag: StageFixtureDragState?
     @State private var objectResize: StageObjectResizeState?
     @State private var objectRotate: StageObjectRotateState?
+    @State private var fixtureRotate: StageObjectRotateState?
     @State private var fixtureAim: StageFixtureAimState?
+    @State private var showExactRotationPrompt = false
+    @State private var exactRotationText = "0"
+    @State private var inspectedPhysicalElements: Set<String> = []
+    @State private var hoveredFixtureID: UUID?
+    @State private var hoverCardFixtureID: UUID?
+    /// Fixture and canvas gestures see the same pointer sequence. Content claims
+    /// the pointer on down so its up event cannot also clear selection as "blank".
+    @State private var pointerClaimedByFixture = false
     /// C4.2: exclusive owner of the current pointer drag.
     @State private var activeTransform: StageTransformInteraction = .none
     @ObservedObject private var keys = StageCanvasKeyState.shared
@@ -49,10 +62,13 @@ public struct StageCanvasView: View {
         interactionMode: StageInteractionMode = .programSelect,
         geometryEditingEnabled: Bool = false,
         selectedIDs: Set<UUID>,
+        selectedTargets: Set<FixtureTarget>? = nil,
+        orderedSelectedTargets: [FixtureTarget]? = nil,
         selectedObjectIDs: Binding<Set<UUID>> = .constant([]),
         scale: Binding<CGFloat>,
         pan: Binding<CGSize>,
         onSelectFixtures: @escaping ([UUID]) -> Void,
+        onSelectFixtureTargets: (([FixtureTarget]) -> Void)? = nil,
         onLayoutChanged: @escaping () -> Void = {},
         revealFixtureID: UUID? = nil,
         statusNote: Binding<String?>? = nil,
@@ -63,10 +79,18 @@ public struct StageCanvasView: View {
         self.interactionMode = interactionMode
         self.geometryEditingEnabled = geometryEditingEnabled
         self.selectedIDs = selectedIDs
+        self.selectedTargets = selectedTargets ?? Set(selectedIDs.map { FixtureTarget(fixtureID: $0) })
+        self.orderedSelectedTargets = orderedSelectedTargets ?? Array(self.selectedTargets).sorted {
+            if $0.fixtureID != $1.fixtureID { return $0.fixtureID.uuidString < $1.fixtureID.uuidString }
+            return ($0.elementID ?? "") < ($1.elementID ?? "")
+        }
         self._selectedObjectIDs = selectedObjectIDs
         self._scale = scale
         self._pan = pan
         self.onSelectFixtures = onSelectFixtures
+        self.onSelectFixtureTargets = onSelectFixtureTargets ?? { targets in
+            onSelectFixtures(Array(Set(targets.map(\.fixtureID))))
+        }
         self.onLayoutChanged = onLayoutChanged
         self.revealFixtureID = revealFixtureID
         self.statusNote = statusNote
@@ -81,12 +105,14 @@ public struct StageCanvasView: View {
 
     private var spaceHeld: Bool { keys.spaceHeld }
 
+    private var canMarqueeSelect: Bool { interactionMode != .panOnly }
+
     /// Space-pan wins over marquee/fixture geometry.
     private var shouldCameraPan: Bool {
         if spaceHeld { return true }
         switch interactionMode {
-        case .panOnly, .programSelect: return true
-        case .editGeometry: return false
+        case .panOnly: return true
+        case .programSelect, .editGeometry: return false
         }
     }
 
@@ -94,10 +120,18 @@ public struct StageCanvasView: View {
         GeometryReader { geo in
             ZStack {
                 backgroundLayer
+                viewportGridLayer
                 canvasContent
                     .scaleEffect(scale)
                     .offset(pan)
+                    .contentShape(Rectangle())
                     .gesture(canvasGesture)
+                #if canImport(AppKit)
+                StageScrollZoomMonitor { delta, location in
+                    zoomFromScroll(delta: delta, anchor: location)
+                }
+                .allowsHitTesting(false)
+                #endif
             }
             .clipShape(Rectangle())
             .background(AuroraColor.surfaceWorkspace)
@@ -124,15 +158,51 @@ public struct StageCanvasView: View {
             .onChange(of: interactionMode) { _, _ in
                 clearTransientInteraction()
             }
+            .task(id: hoveredFixtureID) {
+                hoverCardFixtureID = nil
+                guard let candidate = hoveredFixtureID else { return }
+                do {
+                    try await Task.sleep(nanoseconds: 1_000_000_000)
+                } catch {
+                    return
+                }
+                guard !Task.isCancelled, hoveredFixtureID == candidate, fixtureDrag == nil else { return }
+                hoverCardFixtureID = candidate
+            }
             .onChange(of: keys.escapeTick) { _, _ in
-                if fixtureDrag != nil || objectResize != nil || objectRotate != nil || fixtureAim != nil {
+                if fixtureDrag != nil || objectResize != nil || objectRotate != nil || fixtureRotate != nil || fixtureAim != nil {
                     fixtureDrag = nil
                     objectResize = nil
                     objectRotate = nil
+                    fixtureRotate = nil
                     fixtureAim = nil
                     activeTransform = .none
                     statusNote?.wrappedValue = "Transform cancelled"
+                } else {
+                    clearStageSelection()
                 }
+            }
+            .onChange(of: keys.rotateStepTick) { _, _ in
+                guard canEditGeometry, !selectedIDs.isEmpty else { return }
+                rotateSelectedFixtures(byDegrees: 90)
+            }
+            .onChange(of: keys.rotateExactTick) { _, _ in
+                guard canEditGeometry, !selectedIDs.isEmpty else { return }
+                exactRotationText = selectedFixtureRotationDegrees.map { String(format: "%.1f", $0) } ?? "0"
+                showExactRotationPrompt = true
+            }
+            .onChange(of: keys.zoomInTick) { _, _ in
+                zoom(by: 1.18, anchor: CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2))
+            }
+            .onChange(of: keys.zoomOutTick) { _, _ in
+                zoom(by: 1 / 1.18, anchor: CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2))
+            }
+            .alert("Rotate Fixtures", isPresented: $showExactRotationPrompt) {
+                TextField("Degrees", text: $exactRotationText)
+                Button("Cancel", role: .cancel) {}
+                Button("Rotate") { applyExactFixtureRotation() }
+            } message: {
+                Text("Enter an angle from −180° to 180°.")
             }
         }
     }
@@ -140,16 +210,68 @@ public struct StageCanvasView: View {
     // MARK: - Background
 
     private var backgroundLayer: some View {
-        (preview.blackout
-            ? Color.black
-            : Color(
-                red: preview.dominantColor.r,
-                green: preview.dominantColor.g,
-                blue: preview.dominantColor.b
-            )
-        )
-        .opacity(preview.blackout ? 1 : 0.18)
+        Color(red: 0.045, green: 0.047, blue: 0.058)
+            .overlay {
+                if preview.blackout {
+                    Color.black
+                } else {
+                    RadialGradient(
+                        colors: [dominantStageColor.opacity(0.10), .clear],
+                        center: .center,
+                        startRadius: 20,
+                        endRadius: max(canvasSize.width, canvasSize.height) * 0.7
+                    )
+                }
+            }
         .animation(.easeInOut(duration: 0.25), value: preview.dominantColor)
+    }
+
+    private var dominantStageColor: Color {
+        Color(
+            red: preview.dominantColor.r,
+            green: preview.dominantColor.g,
+            blue: preview.dominantColor.b
+        )
+    }
+
+    /// Screen-space grid derived from the camera. It fills the viewport instead
+    /// of ending at the document's original canvas rectangle.
+    private var viewportGridLayer: some View {
+        Canvas { context, size in
+            guard layout.gridSize > 0, scale > 0.01 else { return }
+            let step = CGFloat(layout.gridSize) * scale
+            guard step > 2 else { return }
+            let worldOrigin = CGPoint(
+                x: size.width / 2 + pan.width - CGFloat(layout.canvasWidth / 2) * scale,
+                y: size.height / 2 + pan.height - CGFloat(layout.canvasHeight / 2) * scale
+            )
+            let firstX = worldOrigin.x + floor(-worldOrigin.x / step) * step
+            let firstY = worldOrigin.y + floor(-worldOrigin.y / step) * step
+            var minor = Path()
+            var major = Path()
+            var x = firstX
+            while x <= size.width {
+                let worldIndex = Int(round((x - worldOrigin.x) / step))
+                var path = worldIndex.isMultiple(of: 5) ? major : minor
+                path.move(to: CGPoint(x: x, y: 0))
+                path.addLine(to: CGPoint(x: x, y: size.height))
+                if worldIndex.isMultiple(of: 5) { major = path } else { minor = path }
+                x += step
+            }
+            var y = firstY
+            while y <= size.height {
+                let worldIndex = Int(round((y - worldOrigin.y) / step))
+                var path = worldIndex.isMultiple(of: 5) ? major : minor
+                path.move(to: CGPoint(x: 0, y: y))
+                path.addLine(to: CGPoint(x: size.width, y: y))
+                if worldIndex.isMultiple(of: 5) { major = path } else { minor = path }
+                y += step
+            }
+            context.stroke(minor, with: .color(Color.white.opacity(0.025)), lineWidth: 0.5)
+            context.stroke(major, with: .color(Color.white.opacity(0.055)), lineWidth: 0.75)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     // MARK: - Transient target sets (C4.3 single-render)
@@ -178,11 +300,13 @@ public struct StageCanvasView: View {
                 moveIDs.insert(id)
             }
         }
-        return StageEditTransientTargets.fixtureIDs(
+        var ids = StageEditTransientTargets.fixtureIDs(
             activeTransform: activeTransform,
             moveDragFixtureIDs: moveIDs,
             aimFixtureID: fixtureAim?.fixtureID
         )
+        if let id = fixtureRotate?.objectID { ids.insert(id) }
+        return ids
     }
 
     private var hasActiveTransformPreview: Bool {
@@ -193,10 +317,18 @@ public struct StageCanvasView: View {
 
     private var canvasContent: some View {
         ZStack {
-            // Charcoal stage base (C4F — not brown checkpoint wash)
-            Color(red: 0.07, green: 0.07, blue: 0.085)
-            gridLayer
-
+            // The viewport supplies the charcoal base and unbounded grid. Keeping
+            // this layer transparent prevents a legacy canvas rectangle edge.
+            Color.clear
+            if !preview.blackout {
+                RadialGradient(
+                    colors: [dominantStageColor.opacity(0.07), .clear],
+                    center: .center,
+                    startRadius: 30,
+                    endRadius: min(layout.canvasWidth, layout.canvasHeight) * 0.62
+                )
+                .allowsHitTesting(false)
+            }
             // —— C4.4 committed layout-object layer ——
             // Artwork only when NOT in transient set. Gesture proxies always stay here so
             // SwiftUI gesture ownership is independent of the moving visual (Approach B).
@@ -223,7 +355,9 @@ public struct StageCanvasView: View {
             .transaction { $0.animation = nil }
             .allowsHitTesting(false) // gestures live on committed proxies only
 
-            // Fixtures/beams: omit active targets from committed path, render once in transient stack.
+            // Beams omit active targets from the committed path. Fixture gesture
+            // hosts always remain at committed geometry; only their artwork moves
+            // to the transient layer so SwiftUI cannot cancel the owning drag.
             ForEach(
                 displayPlacements.filter {
                     !$0.hidden
@@ -235,14 +369,17 @@ public struct StageCanvasView: View {
             ) { beamLayer(for: $0) }
 
             ForEach(
-                displayPlacements.filter {
-                    !$0.hidden
-                        && StageEditRenderEligibility.shouldRenderInCommittedLayer(
-                            elementID: $0.fixtureID,
-                            transientElementIDs: transientFixtureIDs
-                        )
-                }
-            ) { fixtureView($0) }
+                displayPlacements.filter { !$0.hidden }
+            ) { place in
+                fixtureView(
+                    place,
+                    rendersArtwork: StageEditRenderEligibility.shouldRenderInCommittedLayer(
+                        elementID: place.fixtureID,
+                        transientElementIDs: transientFixtureIDs
+                    ),
+                    usesTransientGeometry: false
+                )
+            }
 
             ZStack {
                 ForEach(
@@ -255,10 +392,11 @@ public struct StageCanvasView: View {
                     }
                 ) { place in
                     beamLayer(for: place)
-                    fixtureView(place)
+                    fixtureView(place, usesTransientGeometry: true)
                 }
             }
             .transaction { $0.animation = nil }
+            .allowsHitTesting(false) // fixture gestures stay on committed hosts
 
             // Aim handles above glyphs (C4.2); use transient geometry while aiming.
             if canEditGeometry {
@@ -268,9 +406,16 @@ public struct StageCanvasView: View {
                     }
                 ) { place in
                     aimHandleView(for: place)
+                    fixtureRotationHandle(for: place)
                 }
             }
-            if let s = marqueeStart, let c = marqueeCurrent, !spaceHeld {
+            if fixtureDrag == nil,
+               let hoverCardFixtureID,
+               hoveredFixtureID == hoverCardFixtureID,
+               let hoveredPlacement = displayPlacements.first(where: { $0.fixtureID == hoverCardFixtureID && !$0.hidden }) {
+                fixtureHoverCard(for: hoveredPlacement)
+            }
+            if let s = marqueeStart, let c = marqueeCurrent, !spaceHeld, canMarqueeSelect {
                 Rectangle()
                     .strokeBorder(AuroraColor.accent, style: StrokeStyle(lineWidth: 1, dash: [4, 2]))
                     .background(AuroraColor.accent.opacity(0.08))
@@ -281,6 +426,19 @@ public struct StageCanvasView: View {
         .frame(width: layout.canvasWidth, height: layout.canvasHeight)
         .transaction { txn in
             if hasActiveTransformPreview { txn.animation = nil }
+        }
+        .onContinuousHover(coordinateSpace: .local) { phase in
+            switch phase {
+            case .active(let location):
+                let next = fixtureDrag == nil ? fixtureID(atStagePoint: location) : nil
+                if hoveredFixtureID != next {
+                    hoverCardFixtureID = nil
+                    hoveredFixtureID = next
+                }
+            case .ended:
+                hoverCardFixtureID = nil
+                hoveredFixtureID = nil
+            }
         }
         // C4.4: do NOT drawingGroup the live transform path — offscreen compositing worsened trails.
         .onDrop(of: [.text], isTargeted: nil) { providers in
@@ -713,21 +871,36 @@ public struct StageCanvasView: View {
     private func shapeBody(_ obj: StageLayoutObject, selected: Bool) -> some View {
         let sk = obj.shapeKind ?? .rectangle
         let stroke = selected ? AuroraColor.accentBright : Color.white.opacity(0.35)
-        Group {
+        ZStack {
             switch sk {
             case .stageArea:
-                RoundedRectangle(cornerRadius: 2)
-                    .strokeBorder(AuroraColor.accent.opacity(0.45), style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
-                    .background(AuroraColor.accent.opacity(0.06))
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.white.opacity(0.025))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(Color.white.opacity(selected ? 0.62 : 0.28), lineWidth: selected ? 2 : 1.25)
+                    )
                     .frame(width: obj.width, height: obj.height)
-            case .truss, .line:
+            case .truss:
+                StageTrussShape()
+                    .stroke(stroke, style: StrokeStyle(lineWidth: selected ? 2 : 1.35, lineCap: .round, lineJoin: .round))
+                    .frame(width: obj.width, height: obj.height)
+            case .line:
                 Rectangle()
                     .fill(Color.white.opacity(0.4))
                     .frame(width: max(obj.width, 4), height: max(obj.height, 4))
-            case .ellipse, .region:
+            case .ellipse:
                 Ellipse()
                     .strokeBorder(stroke, lineWidth: selected ? 2 : 1)
                     .background(Ellipse().fill(Color.white.opacity(0.04)))
+                    .frame(width: obj.width, height: obj.height)
+            case .region:
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.white.opacity(0.025))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(stroke, lineWidth: selected ? 2 : 1)
+                    )
                     .frame(width: obj.width, height: obj.height)
             case .triangle:
                 TriangleShape()
@@ -745,16 +918,53 @@ public struct StageCanvasView: View {
                     .background(Color.white.opacity(0.04))
                     .frame(width: obj.width, height: obj.height)
             }
+            shapeLabel(obj.name.isEmpty ? sk.rawValue : obj.name, edgeAligned: sk == .stageArea || sk == .region)
         }
-        .overlay(
-            Text(obj.name.isEmpty ? sk.rawValue : obj.name)
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
-        )
         .overlay(alignment: .topTrailing) {
             if obj.locked {
                 Image(systemName: "lock.fill").font(.system(size: 9)).foregroundStyle(AuroraColor.warning)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func shapeLabel(_ text: String, edgeAligned: Bool) -> some View {
+        Text(text)
+            .font(.system(size: edgeAligned ? 10 : 9, weight: edgeAligned ? .semibold : .medium))
+            .foregroundStyle(Color.white.opacity(0.82))
+            .lineLimit(1)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(.black.opacity(0.52), in: Capsule())
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: edgeAligned ? .topLeading : .center)
+            .padding(edgeAligned ? 7 : 0)
+            .allowsHitTesting(false)
+    }
+
+    /// Lightweight procedural truss for scalable rigging runs. Detailed stock
+    /// truss assets remain available from the Stage Objects palette.
+    private struct StageTrussShape: Shape {
+        func path(in rect: CGRect) -> Path {
+            var path = Path()
+            let inset = min(max(rect.height * 0.18, 2), 8)
+            let top = rect.minY + inset
+            let bottom = rect.maxY - inset
+            path.move(to: CGPoint(x: rect.minX, y: top))
+            path.addLine(to: CGPoint(x: rect.maxX, y: top))
+            path.move(to: CGPoint(x: rect.minX, y: bottom))
+            path.addLine(to: CGPoint(x: rect.maxX, y: bottom))
+
+            let bayWidth = max(rect.height * 0.9, 18)
+            var x = rect.minX
+            var rises = true
+            while x < rect.maxX {
+                let next = min(x + bayWidth, rect.maxX)
+                path.move(to: CGPoint(x: x, y: rises ? bottom : top))
+                path.addLine(to: CGPoint(x: next, y: rises ? top : bottom))
+                rises.toggle()
+                x = next
+            }
+            return path
         }
     }
 
@@ -821,7 +1031,8 @@ public struct StageCanvasView: View {
                 path.addLine(to: CGPoint(x: layout.canvasWidth, y: y))
                 y += step
             }
-            ctx.stroke(path, with: .color(Color.white.opacity(0.06)), lineWidth: 1)
+            let opacity = interactionMode == .editGeometry ? 0.075 : 0.026
+            ctx.stroke(path, with: .color(Color.white.opacity(opacity)), lineWidth: 1)
         }
         .frame(width: layout.canvasWidth, height: layout.canvasHeight)
         .allowsHitTesting(false)
@@ -846,23 +1057,28 @@ public struct StageCanvasView: View {
                 // Never steal an in-progress object/fixture transform.
                 if !activeTransform.isNone, activeTransform != .pan { return }
                 if shouldCameraPan {
+                    guard hypot(value.translation.width, value.translation.height) >= 4 else { return }
                     activeTransform = .pan
                     beginOrUpdatePan(translation: value.translation)
                     return
                 }
-                // Edit Stage empty-space marquee (not while Space-panning)
-                guard canEditGeometry, !spaceHeld else { return }
+                // Empty-space drag selects; Space-drag is the sole camera-pan gesture.
+                guard canMarqueeSelect, !spaceHeld else { return }
                 if marqueeStart == nil {
                     marqueeStart = value.startLocation
                 }
                 marqueeCurrent = value.location
             }
-            .onEnded { _ in
+            .onEnded { value in
+                let moved = hypot(value.translation.width, value.translation.height)
+                let performedPan = isPanning || panAtDragStart != nil
+                let wasClaimedByFixture = pointerClaimedByFixture
+                pointerClaimedByFixture = false
                 if isPanning || panAtDragStart != nil {
                     endPan()
                 }
                 if case .pan = activeTransform { activeTransform = .none }
-                if canEditGeometry, !spaceHeld, let s = marqueeStart, let c = marqueeCurrent {
+                if canMarqueeSelect, !spaceHeld, let s = marqueeStart, let c = marqueeCurrent {
                     let rect = CGRect(
                         x: min(s.x, c.x), y: min(s.y, c.y),
                         width: abs(c.x - s.x), height: abs(c.y - s.y)
@@ -870,6 +1086,16 @@ public struct StageCanvasView: View {
                     if rect.width > 4 || rect.height > 4 {
                         applyMarquee(rect)
                     }
+                }
+                let performedMarquee = canMarqueeSelect && marqueeStart != nil && marqueeCurrent != nil
+                    && hypot((marqueeCurrent?.x ?? 0) - (marqueeStart?.x ?? 0), (marqueeCurrent?.y ?? 0) - (marqueeStart?.y ?? 0)) >= 4
+                if StagePointerArbitration.shouldClearSelection(
+                    contentClaimed: wasClaimedByFixture,
+                    performedPan: performedPan,
+                    movement: moved,
+                    performedMarquee: performedMarquee
+                ) {
+                    clearStageSelection()
                 }
                 marqueeStart = nil
                 marqueeCurrent = nil
@@ -902,10 +1128,14 @@ public struct StageCanvasView: View {
 
     /// Effective physical aim during live drag (C4.2).
     private func effectivePlacement(_ place: StageFixturePlacement) -> StageFixturePlacement {
-        guard let aim = fixtureAim, aim.fixtureID == place.fixtureID else { return place }
         var p = place
-        p.aimDirection = aim.currentDirection
-        p.beamLength = aim.currentLength
+        if let aim = fixtureAim, aim.fixtureID == place.fixtureID {
+            p.aimDirection = aim.currentDirection
+            p.beamLength = aim.currentLength
+        }
+        if let rotate = fixtureRotate, rotate.objectID == place.fixtureID {
+            p.rotation = rotate.currentRotation
+        }
         return p
     }
 
@@ -915,14 +1145,73 @@ public struct StageCanvasView: View {
         let fx = context.project.fixtures.first { $0.id == place.fixtureID }
         let def = fx.flatMap { context.project.definition(id: $0.definitionId) }
         let state = preview.fixtures.first { $0.fixtureID == place.fixtureID }
-        let intensity = state?.intensity ?? 0
+        let descriptor = def.map { context.project.visualizationDescriptor(for: $0) }
+        let emitsBeam = descriptor?.form != .atmospheric && descriptor?.componentGroups.contains(where: { $0.topology == .noBeam }) != true
         let selected = selectedIDs.contains(place.fixtureID)
         let beamDetail = beamDetailLevel(selected: selected)
         let pos = displayPoint(for: place)
         // Show faint beam when aiming in Edit Stage even at low intensity
         let aiming = fixtureAim?.fixtureID == place.fixtureID
-        let show = place.beamVisible && beamDetail > 0 && (intensity > 0.01 || aiming)
-        if show {
+        let show = place.beamVisible && beamDetail > 0 && ((state?.intensity ?? 0) > 0.01 || aiming)
+        let renderedEmitters = descriptor.flatMap { descriptor in
+            def.map { physicalLiveEmitters(state: state, descriptor: descriptor, definition: $0) }
+        } ?? state.map { $0.physicalEmitters.isEmpty ? $0.elements : $0.physicalEmitters } ?? []
+        if show, emitsBeam, let state, !renderedEmitters.isEmpty {
+            let aim = StageBeamDirectionResolver.renderedAimRadians(
+                placement: place,
+                livePan: aiming ? nil : state.pan,
+                liveTilt: aiming ? nil : state.tilt,
+                panRangeRadians: nil,
+                hasPanTilt: !aiming && (def?.hasPanTilt == true || state.pan != nil)
+            )
+            let lengthScale = aiming ? 1.0 : StageBeamDirectionResolver.lengthScale(liveTilt: state.tilt)
+            let spreadScale = aiming ? 1.0 : StageBeamDirectionResolver.spreadScale(liveTilt: state.tilt)
+            let length = place.beamLength * lengthScale * (beamDetail >= 2 ? 1 : 0.75)
+            let spread = place.beamSpread * spreadScale
+            // A compound fixture's placement spread describes the assembly; each
+            // independently emitting element needs a distinct optical cone.
+            let elementSpread = min(spread, .pi / 9)
+            let size: CGFloat = 28 * place.scale
+            let glyphGeometry = descriptor.map {
+                FixtureGlyphGeometryBuilder.build(descriptor: $0, baseHeight: Double(max(20, size + 8)), detailLevel: beamDetail)
+            }
+            let emitterOrigins = Array(renderedEmitters.enumerated()).map { index, element in
+                glyphGeometry?.opticalOrigins[element.elementID].map {
+                    glyphGeometry!.stagePoint(localPoint: $0, fixtureOrigin: pos, rotation: place.rotation)
+                } ?? StageMultiElementGeometry.elementOrigin(
+                    fixtureOrigin: pos,
+                    fixtureRotation: place.rotation,
+                    index: index,
+                    count: renderedEmitters.count,
+                    podDiameter: 14,
+                    spacing: 3,
+                    horizontal: true
+                )
+            }
+            let linearForm = descriptor.map { $0.form == .linearBar || $0.form == .strip || $0.form == .multiHeadBar } ?? false
+            if linearForm && place.beamRenderMode == .softGlow && !aiming {
+                StageLinearGlowView(
+                    origins: emitterOrigins,
+                    colors: renderedEmitters.map { $0.color.map { Color(red: $0.r, green: $0.g, blue: $0.b) } ?? .white },
+                    intensities: renderedEmitters.map(\.intensity)
+                )
+            } else {
+                ForEach(Array(renderedEmitters.enumerated()), id: \.element.id) { index, element in
+                    let origin = emitterOrigins[index]
+                    if element.intensity > 0.01 || aiming {
+                        StageBeamView(
+                            origin: origin,
+                            directionRadians: aim,
+                            length: length,
+                            spreadRadians: elementSpread,
+                            color: element.color.map { Color(red: $0.r, green: $0.g, blue: $0.b) } ?? .white,
+                            intensity: aiming ? max(element.intensity, 0.45) : element.intensity,
+                            detailLevel: beamDetail
+                        )
+                    }
+                }
+            }
+        } else if show, emitsBeam {
             let aim = StageBeamDirectionResolver.renderedAimRadians(
                 placement: place,
                 livePan: aiming ? nil : state?.pan,
@@ -932,18 +1221,13 @@ public struct StageCanvasView: View {
             )
             let lengthScale = aiming ? 1.0 : StageBeamDirectionResolver.lengthScale(liveTilt: state?.tilt)
             let spreadScale = aiming ? 1.0 : StageBeamDirectionResolver.spreadScale(liveTilt: state?.tilt)
-            let length = place.beamLength * lengthScale * (beamDetail >= 2 ? 1 : 0.75)
-            let spread = place.beamSpread * spreadScale
-            let color = state?.color.map { Color(red: $0.r, green: $0.g, blue: $0.b) }
-                ?? Color.white
-            let visIntensity = aiming ? max(intensity, 0.45) : intensity
             StageBeamView(
                 origin: pos,
                 directionRadians: aim,
-                length: length,
-                spreadRadians: spread,
-                color: color,
-                intensity: visIntensity,
+                length: place.beamLength * lengthScale * (beamDetail >= 2 ? 1 : 0.75),
+                spreadRadians: place.beamSpread * spreadScale,
+                color: state?.color.map { Color(red: $0.r, green: $0.g, blue: $0.b) } ?? .white,
+                intensity: aiming ? max(state?.intensity ?? 0, 0.45) : state?.intensity ?? 0,
                 detailLevel: beamDetail
             )
         }
@@ -1022,36 +1306,122 @@ public struct StageCanvasView: View {
         .accessibilityLabel("Aim beam")
     }
 
-    private func fixtureView(_ place: StageFixturePlacement) -> some View {
+    private func fixtureView(
+        _ originalPlace: StageFixturePlacement,
+        rendersArtwork: Bool = true,
+        usesTransientGeometry: Bool = true
+    ) -> some View {
+        let place = usesTransientGeometry ? effectivePlacement(originalPlace) : originalPlace
         let fx = context.project.fixtures.first { $0.id == place.fixtureID }
         let def = fx.flatMap { context.project.definition(id: $0.definitionId) }
         let state = preview.fixtures.first { $0.fixtureID == place.fixtureID }
         let intensity = state?.intensity ?? 0
         let color = state?.color.map { Color(red: $0.r, green: $0.g, blue: $0.b) } ?? Color.white
         let selected = selectedIDs.contains(place.fixtureID)
-        let category = def?.category ?? "generic"
+            || fixtureDrag?.movableIDs.contains(place.fixtureID) == true
         let size: CGFloat = 28 * place.scale
-        let pos = displayPoint(for: place)
+        let pos = usesTransientGeometry
+            ? displayPoint(for: place)
+            : CGPoint(x: originalPlace.x, y: originalPlace.y)
+
+        let descriptor = def.map { context.project.visualizationDescriptor(for: $0) }
+        let detail = descriptor.map {
+            FixtureGlyphLevelOfDetail.detailLevel(screenExtent: Double(max(20, size + 8) * scale * CGFloat(FixtureGlyphGeometryBuilder.canonicalAspect(form: $0.form, descriptorAspect: $0.aspectRatio))))
+        } ?? 1
+        let glyphGeometry = descriptor.map {
+            FixtureGlyphGeometryBuilder.build(descriptor: $0, baseHeight: Double(max(20, size + 8)), detailLevel: detail)
+        }
 
         return ZStack {
-            categoryShape(category, color: color, intensity: intensity, size: size, selected: selected)
-            if place.labelVisible {
+            if rendersArtwork, let descriptor, let def, let glyphGeometry {
+                let affectedPhysicalIDs = Set(descriptor.emitters.compactMap { emitter in
+                    let resolution = FixturePhysicalControlMapper.resolve(physicalEmitterID: emitter.id, descriptor: descriptor, definition: def)
+                    let selectedByControl: Bool
+                    switch resolution.disposition {
+                    case .controls(let controls):
+                        selectedByControl = controls.contains { selectedTargets.contains(FixtureTarget(fixtureID: place.fixtureID, elementID: $0)) }
+                    case .wholeFixture:
+                        selectedByControl = selectedTargets.contains(FixtureTarget(fixtureID: place.fixtureID))
+                    case .inspectionOnly:
+                        selectedByControl = false
+                    }
+                    return selectedByControl ? emitter.id : nil
+                })
+                // Selection chrome follows the resolved control target, not the one
+                // physical aperture that happened to initiate it. A 4-pixel control
+                // group must highlight all four pixels and clear as one unit.
+                let selectedPhysicalIDs = affectedPhysicalIDs
+                let atmosphericIndicator = descriptor.indicators.first { $0.kind == .atmosphereCloud }
+                let atmosphericLevel = atmosphericIndicator.flatMap { state?.environmental[$0.attribute] } ?? 0
+                FixtureGlyphRenderer(
+                    descriptor: descriptor,
+                    geometry: glyphGeometry,
+                    liveEmitters: physicalLiveEmitters(state: state, descriptor: descriptor, definition: def),
+                    selectedEmitterIDs: selectedPhysicalIDs,
+                    affectedEmitterIDs: affectedPhysicalIDs.subtracting(selectedPhysicalIDs),
+                    wholeSelected: selectedTargets.contains(FixtureTarget(fixtureID: place.fixtureID))
+                        || fixtureDrag?.movableIDs.contains(place.fixtureID) == true,
+                    atmosphericLevel: atmosphericLevel
+                )
+                // This recognizer is intentionally attached before fixture padding,
+                // rotation, position, camera zoom, and camera pan. Its location is
+                // therefore expressed in the exact coordinate system used to build
+                // `glyphGeometry`.
+                .highPriorityGesture(
+                    SpatialTapGesture()
+                        .onEnded { value in
+                            guard !spaceHeld else { return }
+                            pointerClaimedByFixture = true
+                            if stageShiftModifierActive,
+                               let aperture = glyphGeometry.interactionApertures.min(by: {
+                                   hypot($0.center.x - value.location.x, $0.center.y - value.location.y)
+                                       < hypot($1.center.x - value.location.x, $1.center.y - value.location.y)
+                               }) {
+                                applyPhysicalEmitterClickSelection(
+                                    emitterID: aperture.id,
+                                    fixtureID: place.fixtureID,
+                                    descriptor: descriptor,
+                                    definition: def,
+                                    modifiers: [.shift]
+                                )
+                            } else {
+                                applyPhysicalTargets([FixtureTarget(fixtureID: place.fixtureID)])
+                            }
+                            DispatchQueue.main.async { pointerClaimedByFixture = false }
+                        }
+                )
+            } else if rendersArtwork {
+                categoryShape(def?.category ?? "generic", color: color, intensity: intensity, size: size, selected: selected)
+                    .highPriorityGesture(
+                        TapGesture().onEnded {
+                            pointerClaimedByFixture = true
+                            applyPhysicalTargets([FixtureTarget(fixtureID: place.fixtureID)])
+                            DispatchQueue.main.async { pointerClaimedByFixture = false }
+                        }
+                    )
+            }
+            if rendersArtwork, place.labelVisible {
                 Text(fx?.name ?? "?")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.white.opacity(0.9))
-                    .offset(y: size * 0.7)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.94))
+                    .lineLimit(1)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(.black.opacity(0.62), in: Capsule())
+                    .offset(y: size * 0.78)
             }
         }
-        .frame(width: size + 24, height: size + 24)
+        .frame(width: (glyphGeometry?.bodyBounds.width ?? size) + 24, height: (glyphGeometry?.bodyBounds.height ?? size) + 24)
         .contentShape(Rectangle())
         // Rotate around glyph center, then place; live drag uses offset only (no ghosting).
         .rotationEffect(.radians(place.rotation), anchor: .center)
         .position(x: pos.x, y: pos.y)
         .opacity(place.locked ? 0.85 : 1)
         .transaction { $0.animation = nil }
-        .highPriorityGesture(
-            DragGesture(minimumDistance: 2)
+        .gesture(
+            DragGesture(minimumDistance: 0)
                 .onChanged { value in
+                    pointerClaimedByFixture = true
                     if activeTransform.blocksMove { return }
                     if case .aim = activeTransform { return }
                     if case .resize = activeTransform { return }
@@ -1061,6 +1431,7 @@ public struct StageCanvasView: View {
                         return
                     }
                     guard canEditGeometry, !place.locked else { return }
+                    guard hypot(value.translation.width, value.translation.height) >= 6 else { return }
                     if activeTransform.isNone {
                         activeTransform = .move(objectID: place.fixtureID)
                     }
@@ -1068,6 +1439,11 @@ public struct StageCanvasView: View {
                     updateFixtureDrag(anchor: place, viewTranslation: value.translation)
                 }
                 .onEnded { value in
+                    // Parent and child gesture callbacks finish in the same event
+                    // turn. Clear on the next turn so the canvas can observe the
+                    // claim regardless of callback ordering, while avoiding a stale
+                    // claim if SwiftUI suppresses the parent callback.
+                    DispatchQueue.main.async { pointerClaimedByFixture = false }
                     if case .pan = activeTransform {
                         endPan()
                         activeTransform = .none
@@ -1081,14 +1457,15 @@ public struct StageCanvasView: View {
                     activeTransform = .none
                 }
         )
-        .onTapGesture {
-            guard interactionMode != .panOnly, !spaceHeld else { return }
-            guard activeTransform.isNone else { return }
-            applyClickSelection(place.fixtureID)
-        }
         .contextMenu {
             Button("Locate") {
                 onSelectFixtures([place.fixtureID])
+            }
+            Button("Show DMX Output") {
+                NotificationCenter.default.post(
+                    name: Notification.Name("aurora.openDMXMonitor"),
+                    object: place.fixtureID
+                )
             }
             if canEditGeometry {
                 Button("Remove From Stage", role: .destructive) {
@@ -1101,6 +1478,156 @@ public struct StageCanvasView: View {
                 }
             }
         }
+    }
+
+    private func fixtureHoverText(
+        fixture: PatchedFixture?,
+        definition: FixtureDefinition?,
+        placement: StageFixturePlacement
+    ) -> String {
+        guard let fixture else { return "Unknown fixture" }
+        let project = context.project
+        return StageFixtureHoverInfo.text(
+            fixture: fixture,
+            definition: definition,
+            universe: project.universe(id: fixture.universeId),
+            footprint: project.channelCount(for: fixture),
+            groupNames: project.groups
+                .filter { $0.fixtureIds.contains(fixture.id) }
+                .map(\.name),
+            locked: placement.locked
+        )
+    }
+
+    /// Canvas-level hover arbitration avoids stale per-view enter/exit events when
+    /// SwiftUI swaps committed fixture artwork into the transient render layer.
+    private func fixtureID(atStagePoint point: CGPoint) -> UUID? {
+        for placement in displayPlacements.reversed() where !placement.hidden {
+            let fixture = context.project.fixtures.first { $0.id == placement.fixtureID }
+            let definition = fixture.flatMap { context.project.definition(id: $0.definitionId) }
+            let descriptor = definition.map { context.project.visualizationDescriptor(for: $0) }
+            let baseHeight = CGFloat(max(20, 28 * placement.scale + 8))
+            let aspect = CGFloat(descriptor.map {
+                FixtureGlyphGeometryBuilder.canonicalAspect(form: $0.form, descriptorAspect: $0.aspectRatio)
+            } ?? 1)
+            let halfWidth = (baseHeight * aspect + 24) / 2
+            let halfHeight = (baseHeight + 24) / 2
+            let dx = point.x - CGFloat(placement.x)
+            let dy = point.y - CGFloat(placement.y)
+            let c = CGFloat(cos(placement.rotation))
+            let s = CGFloat(sin(placement.rotation))
+            let localX = dx * c + dy * s
+            let localY = -dx * s + dy * c
+            if abs(localX) <= halfWidth, abs(localY) <= halfHeight {
+                return placement.fixtureID
+            }
+        }
+        return nil
+    }
+
+    private func fixtureHoverCard(for placement: StageFixturePlacement) -> some View {
+        let fixture = context.project.fixtures.first { $0.id == placement.fixtureID }
+        let definition = fixture.flatMap { context.project.definition(id: $0.definitionId) }
+        let text = fixtureHoverText(fixture: fixture, definition: definition, placement: placement)
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        let cardWidth: CGFloat = 270
+        let placementX = CGFloat(placement.x)
+        let placementY = CGFloat(placement.y)
+        let xOffset: CGFloat = placementX > CGFloat(layout.canvasWidth) - cardWidth - 36
+            ? -(cardWidth / 2 + 34)
+            : (cardWidth / 2 + 34)
+        let yOffset: CGFloat = placementY < 120 ? 72 : -72
+
+        return VStack(alignment: .leading, spacing: 5) {
+            if let title = lines.first {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.white)
+                    .lineLimit(2)
+            }
+            ForEach(Array(lines.dropFirst().enumerated()), id: \.offset) { _, line in
+                Text(line)
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundStyle(Color.white.opacity(0.82))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(width: cardWidth, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(red: 0.055, green: 0.058, blue: 0.072).opacity(0.97))
+                .shadow(color: .black.opacity(0.5), radius: 10, y: 4)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
+        )
+        .position(x: placementX + xOffset, y: placementY + yOffset)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .zIndex(10_000)
+    }
+
+    private func fixtureRotationHandle(for originalPlace: StageFixturePlacement) -> some View {
+        let place = effectivePlacement(originalPlace)
+        let center = displayPoint(for: place)
+        let size: CGFloat = 28 * place.scale
+        let offset = StageRotateMath.handleOffset(objectHeight: size + 24, margin: 12)
+        let handle = CGPoint(
+            x: center.x + offset.x * cos(place.rotation) - offset.y * sin(place.rotation),
+            y: center.y + offset.x * sin(place.rotation) + offset.y * cos(place.rotation)
+        )
+        return ZStack {
+            Path { p in
+                p.move(to: center)
+                p.addLine(to: handle)
+            }
+            .stroke(AuroraColor.accentBright.opacity(0.65), lineWidth: 1)
+            Circle()
+                .strokeBorder(AuroraColor.accentBright, lineWidth: 1.5)
+                .background(Circle().fill(AuroraColor.surfaceRaised))
+                .frame(width: 11, height: 11)
+                .position(handle)
+        }
+        .contentShape(Circle().path(in: CGRect(x: handle.x - 10, y: handle.y - 10, width: 20, height: 20)))
+        .highPriorityGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    guard !spaceHeld, canEditGeometry, !place.locked else { return }
+                    if activeTransform.blocksRotate,
+                       case .rotate(let id) = activeTransform,
+                       id != place.fixtureID { return }
+                    if activeTransform.blocksRotate && fixtureRotate == nil { return }
+                    let world = StageWorldDragMath.worldDelta(viewTranslation: value.translation, scale: scale)
+                    if fixtureRotate == nil {
+                        let angle0 = atan2(Double(handle.y - center.y), Double(handle.x - center.x))
+                        fixtureRotate = StageObjectRotateState(
+                            objectID: place.fixtureID,
+                            originalRotation: originalPlace.rotation,
+                            orientationOffset: originalPlace.rotation - angle0
+                        )
+                        fixtureAim = nil
+                        fixtureDrag = nil
+                        activeTransform = .rotate(objectID: place.fixtureID)
+                    }
+                    let pointer = CGPoint(x: handle.x + world.width, y: handle.y + world.height)
+                    guard var rotate = fixtureRotate, rotate.objectID == place.fixtureID else { return }
+                    rotate.currentRotation = StageRotateMath.rotationFromPointer(
+                        center: center,
+                        pointer: pointer,
+                        orientationOffset: rotate.orientationOffset
+                    )
+                    fixtureRotate = rotate
+                }
+                .onEnded { _ in
+                    commitFixtureRotate()
+                    activeTransform = .none
+                }
+        )
+        .help("Rotate fixture")
+        .accessibilityLabel("Rotate fixture")
     }
 
     // MARK: - Live multi-fixture drag
@@ -1120,13 +1647,13 @@ public struct StageCanvasView: View {
     }
 
     private func beginFixtureDrag(anchor: StageFixturePlacement) {
-        // Selection semantics: if anchor not selected, select it (replace).
-        var workingSelection = selectedIDs
-        if !workingSelection.contains(anchor.fixtureID) {
-            workingSelection = [anchor.fixtureID]
-            onSelectFixtures([anchor.fixtureID])
-            selectedObjectIDs = []
-        }
+        // Keep first-drag selection local. Publishing an external selection here
+        // rebuilds the fixture subtree while SwiftUI is delivering this gesture,
+        // which can truncate the first move. Mouse-up publishes the selection.
+        let workingSelection = StageFixtureDragSelection.workingSelection(
+            current: selectedIDs,
+            anchorID: anchor.fixtureID
+        )
         if anchor.locked {
             fixtureDrag = nil
             return
@@ -1149,19 +1676,28 @@ public struct StageCanvasView: View {
 
     private func commitFixtureDrag(viewTranslation: CGSize) {
         guard let drag = fixtureDrag else { return }
+        let publishAnchorSelection = StageFixtureDragSelection.shouldPublishAfterDrag(
+            current: selectedIDs,
+            anchorID: drag.anchorID
+        )
         fixtureDrag = nil
         // Production finalization path — same pure function as unit tests.
-        guard let next = StageLayoutDragFinalizer.finalizedLayout(
+        if let next = StageLayoutDragFinalizer.finalizedLayout(
             layout: context.project.stageLayout,
             drag: drag,
             viewTranslation: viewTranslation,
             scale: scale
-        ) else { return }
-        commitLayout(next, notify: true)
-        let count = drag.originalPositions.count
-        statusNote?.wrappedValue = count > 1
-            ? "Moved \(count) items"
-            : "Moved item"
+        ) {
+            commitLayout(next, notify: true)
+            let count = drag.originalPositions.count
+            statusNote?.wrappedValue = count > 1
+                ? "Moved \(count) items"
+                : "Moved item"
+        }
+        if publishAnchorSelection {
+            selectedObjectIDs = []
+            onSelectFixtureTargets([FixtureTarget(fixtureID: drag.anchorID)])
+        }
     }
 
     private func updateObjectDrag(anchor: StageLayoutObject, viewTranslation: CGSize) {
@@ -1273,6 +1809,61 @@ public struct StageCanvasView: View {
         statusNote?.wrappedValue = "Rotated object"
     }
 
+    private func commitFixtureRotate() {
+        guard let rotate = fixtureRotate else { return }
+        fixtureRotate = nil
+        var next = context.project.stageLayout
+        guard let i = next.fixtures.firstIndex(where: { $0.fixtureID == rotate.objectID }),
+              !next.fixtures[i].locked
+        else { return }
+        guard abs(next.fixtures[i].rotation - rotate.currentRotation) >= 0.0005 else { return }
+        next.fixtures[i].rotation = rotate.currentRotation
+        commitLayout(next, notify: true)
+        statusNote?.wrappedValue = "Rotated fixture"
+    }
+
+    private var selectedFixtureRotationDegrees: Double? {
+        guard let firstID = selectedIDs.first,
+              let place = layout.fixtures.first(where: { $0.fixtureID == firstID })
+        else { return nil }
+        return place.rotation * 180 / .pi
+    }
+
+    private func rotateSelectedFixtures(byDegrees degrees: Double) {
+        var next = context.project.stageLayout
+        var changed = 0
+        let delta = degrees * .pi / 180
+        for i in next.fixtures.indices
+        where selectedIDs.contains(next.fixtures[i].fixtureID) && !next.fixtures[i].locked {
+            next.fixtures[i].rotation = StageRotateMath.normalizedRadians(next.fixtures[i].rotation + delta)
+            changed += 1
+        }
+        guard changed > 0 else { return }
+        commitLayout(next, notify: true)
+        statusNote?.wrappedValue = "Rotated \(changed) fixture\(changed == 1 ? "" : "s") 90°"
+    }
+
+    private func applyExactFixtureRotation() {
+        let normalized = exactRotationText.replacingOccurrences(of: "°", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let degrees = Double(normalized), degrees.isFinite else {
+            statusNote?.wrappedValue = "Enter a valid rotation in degrees"
+            return
+        }
+        var next = context.project.stageLayout
+        var changed = 0
+        let clamped = min(180, max(-180, degrees))
+        let radians = StageRotateMath.normalizedRadians(clamped * .pi / 180)
+        for i in next.fixtures.indices
+        where selectedIDs.contains(next.fixtures[i].fixtureID) && !next.fixtures[i].locked {
+            next.fixtures[i].rotation = radians
+            changed += 1
+        }
+        guard changed > 0 else { return }
+        commitLayout(next, notify: true)
+        statusNote?.wrappedValue = "Set fixture rotation to \(Int(clamped.rounded()))°"
+    }
+
     private func commitFixtureAim() {
         guard let aim = fixtureAim else { return }
         fixtureAim = nil
@@ -1382,6 +1973,7 @@ public struct StageCanvasView: View {
         fixtureDrag = nil
         objectResize = nil
         objectRotate = nil
+        fixtureRotate = nil
         fixtureAim = nil
         activeTransform = .none
         marqueeStart = nil
@@ -1495,6 +2087,139 @@ public struct StageCanvasView: View {
         }
     }
 
+    private func applyElementClickSelection(_ target: FixtureTarget) {
+        guard interactionMode == .programSelect, !spaceHeld, activeTransform.isNone else { return }
+        let flags = NSEvent.modifierFlags
+        var next = orderedSelectedTargets
+        if flags.contains(.command) {
+            if target.elementID == nil {
+                next.removeAll { $0.fixtureID == target.fixtureID }
+            } else {
+                next.removeAll { $0 == FixtureTarget(fixtureID: target.fixtureID) }
+            }
+            if let index = next.firstIndex(of: target) { next.remove(at: index) } else { next.append(target) }
+        } else if flags.contains(.shift) {
+            if target.elementID == nil {
+                next.removeAll { $0.fixtureID == target.fixtureID }
+            } else {
+                next.removeAll { $0 == FixtureTarget(fixtureID: target.fixtureID) }
+            }
+            if !next.contains(target) { next.append(target) }
+        } else {
+            next = [target]
+            selectedObjectIDs = []
+        }
+        onSelectFixtureTargets(next)
+    }
+
+    private func applyPhysicalEmitterClickSelection(
+        emitterID: String,
+        fixtureID: UUID,
+        descriptor: FixtureVisualizationDescriptor,
+        definition: FixtureDefinition,
+        modifiers: NSEvent.ModifierFlags? = nil
+    ) {
+        guard interactionMode != .panOnly, !spaceHeld, activeTransform.isNone else { return }
+        let key = physicalInspectionKey(fixtureID: fixtureID, emitterID: emitterID)
+        let flags = modifiers ?? NSEvent.modifierFlags
+        if flags.contains(.shift) {
+            if inspectedPhysicalElements.contains(key) { inspectedPhysicalElements.remove(key) }
+            else { inspectedPhysicalElements.insert(key) }
+        } else {
+            inspectedPhysicalElements = [key]
+        }
+        let resolution = FixturePhysicalControlMapper.resolve(physicalEmitterID: emitterID, descriptor: descriptor, definition: definition)
+        switch resolution.disposition {
+        case .inspectionOnly:
+            statusNote?.wrappedValue = "Physical element has no programmer control in this personality"
+            return
+        case .wholeFixture:
+            applyPhysicalTargets([FixtureTarget(fixtureID: fixtureID)], modifiers: flags)
+            statusNote?.wrappedValue = "This personality controls all physical emitters together"
+        case .controls(let controls):
+            applyPhysicalTargets(
+                controls.map { FixtureTarget(fixtureID: fixtureID, elementID: $0) },
+                modifiers: flags
+            )
+            statusNote?.wrappedValue = controls.count == 1
+                ? "Selected sub-fixture \(controls.first ?? "")"
+                : "Selected \(controls.count) linked sub-fixtures"
+        }
+    }
+
+    /// SwiftUI's tap value does not carry modifiers. Combine the Stage monitor with
+    /// the session-wide hardware state so Shift remains authoritative even when the
+    /// key was pressed before the pointer entered this particular Stage view.
+    private var stageShiftModifierActive: Bool {
+        if keys.shiftHeld { return true }
+        #if canImport(AppKit)
+        if NSEvent.modifierFlags.contains(.shift) { return true }
+        return CGEventSource.flagsState(.combinedSessionState).contains(.maskShift)
+        #else
+        return false
+        #endif
+    }
+
+    private func applyPhysicalTargets(
+        _ targets: [FixtureTarget],
+        modifiers: NSEvent.ModifierFlags? = nil
+    ) {
+        guard !targets.isEmpty else { return }
+        let flags = modifiers ?? NSEvent.modifierFlags
+        var next = orderedSelectedTargets
+        if flags.contains(.command) || flags.contains(.shift) {
+            for target in targets {
+                if target.elementID == nil {
+                    next.removeAll { $0.fixtureID == target.fixtureID }
+                } else {
+                    next.removeAll { $0 == FixtureTarget(fixtureID: target.fixtureID) }
+                }
+                if let index = next.firstIndex(of: target) { next.remove(at: index) } else { next.append(target) }
+            }
+        } else {
+            next = targets
+            selectedObjectIDs = []
+        }
+        onSelectFixtureTargets(next)
+        if targets.allSatisfy({ $0.elementID == nil }) {
+            statusNote?.wrappedValue = targets.count == 1 ? "Selected fixture" : "Selected \(targets.count) fixtures"
+        }
+    }
+
+    private func physicalInspectionKey(fixtureID: UUID, emitterID: String) -> String {
+        "\(fixtureID.uuidString)#\(emitterID)"
+    }
+
+    private func clearStageSelection() {
+        inspectedPhysicalElements.removeAll()
+        selectedObjectIDs.removeAll()
+        onSelectFixtureTargets([])
+        statusNote?.wrappedValue = "Selection cleared"
+    }
+
+    /// Projects authoritative personality state onto physical identities for legacy
+    /// definitions which predate explicit mappings. Policy remains in the mapper;
+    /// the glyph and beam renderer only consume physical live state.
+    private func physicalLiveEmitters(state: FixturePreviewState?, descriptor: FixtureVisualizationDescriptor, definition: FixtureDefinition) -> [FixtureElementPreviewState] {
+        guard let state else { return [] }
+        let source = state.physicalEmitters.isEmpty ? state.elements : state.physicalEmitters
+        return descriptor.emitters.map { emitter in
+            if let exact = source.first(where: { $0.elementID == emitter.id }) { return exact }
+            let mapping = FixturePhysicalControlMapper.resolve(physicalEmitterID: emitter.id, descriptor: descriptor, definition: definition)
+            switch mapping.disposition {
+            case .controls(let controls):
+                if let mapped = source.first(where: { controls.contains($0.elementID) }) {
+                    return FixtureElementPreviewState(elementID: emitter.id, intensity: mapped.intensity, color: mapped.color)
+                }
+            case .wholeFixture:
+                return FixtureElementPreviewState(elementID: emitter.id, intensity: state.intensity, color: state.color)
+            case .inspectionOnly:
+                break
+            }
+            return FixtureElementPreviewState(elementID: emitter.id)
+        }
+    }
+
     private func applyMarquee(_ rect: CGRect) {
         let flags = NSEvent.modifierFlags
         let hitFixtures = displayPlacements.filter { place in
@@ -1533,7 +2258,7 @@ public struct StageCanvasView: View {
             statusNote?.wrappedValue = "Removed from Stage (still patched)"
             onLayoutChanged()
         } catch {
-            statusNote?.wrappedValue = error.localizedDescription
+            statusNote?.wrappedValue = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -1551,7 +2276,7 @@ public struct StageCanvasView: View {
                         onLayoutChanged()
                         statusNote?.wrappedValue = "Placed on Stage"
                     } catch {
-                        statusNote?.wrappedValue = error.localizedDescription
+                        statusNote?.wrappedValue = prismReportCommandFailure(error, operation: "edit")
                     }
                 }
             }
@@ -1577,23 +2302,38 @@ public struct StageCanvasView: View {
             if notify { onLayoutChanged() }
         } catch {
             // Never silently discard Stage document mutations (Post-C6 audit).
-            let message = error.localizedDescription
-            statusNote?.wrappedValue = message
-            // Best-effort diagnostic surface when available via layout callback chain.
-            #if DEBUG
-            print("Stage layout commit failed: \(message)")
-            #endif
+            statusNote?.wrappedValue = prismReportCommandFailure(
+                error,
+                operation: "commit stage layout",
+                category: .uiStage
+            )
         }
     }
 
     // MARK: - Camera
 
     public func fitStage(in size: CGSize) {
-        guard size.width > 1, size.height > 1 else { return }
-        let sx = size.width / layout.canvasWidth
-        let sy = size.height / layout.canvasHeight
-        scale = min(sx, sy, 1.5) * 0.92
-        pan = .zero
+        let camera = StageCanvasCamera.fitStage(layout: layout, in: size)
+        scale = camera.scale
+        pan = camera.pan
+        panAtDragStart = nil
+    }
+
+    private func zoomFromScroll(delta: CGFloat, anchor: CGPoint) {
+        guard delta != 0 else { return }
+        zoom(by: pow(1.008, delta), anchor: anchor)
+    }
+
+    private func zoom(by factor: CGFloat, anchor: CGPoint) {
+        let result = StageCanvasCamera.zoom(
+            scale: scale,
+            pan: pan,
+            factor: factor,
+            anchor: anchor,
+            viewportSize: canvasSize
+        )
+        scale = result.scale
+        pan = result.pan
         panAtDragStart = nil
     }
 
@@ -1613,6 +2353,71 @@ public struct StageCanvasView: View {
     }
 }
 
+#if canImport(AppKit)
+/// Passive AppKit bridge for modifier-scroll. The view never claims hit testing;
+/// its local monitor only consumes Command-scroll events over this Stage surface.
+private struct StageScrollZoomMonitor: NSViewRepresentable {
+    var onScroll: (CGFloat, CGPoint) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(onScroll: onScroll) }
+
+    func makeNSView(context: Context) -> MonitorView {
+        let view = MonitorView()
+        context.coordinator.view = view
+        context.coordinator.install()
+        return view
+    }
+
+    func updateNSView(_ nsView: MonitorView, context: Context) {
+        context.coordinator.view = nsView
+        context.coordinator.onScroll = onScroll
+    }
+
+    static func dismantleNSView(_ nsView: MonitorView, coordinator: Coordinator) {
+        coordinator.uninstall()
+    }
+
+    final class MonitorView: NSView {
+        override var isFlipped: Bool { true }
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
+
+    @MainActor
+    final class Coordinator {
+        weak var view: MonitorView?
+        var onScroll: (CGFloat, CGPoint) -> Void
+        private var monitor: Any?
+
+        init(onScroll: @escaping (CGFloat, CGPoint) -> Void) {
+            self.onScroll = onScroll
+        }
+
+        func install() {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+                guard let self, let view, event.window === view.window,
+                      event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.command)
+                else { return event }
+                let location = view.convert(event.locationInWindow, from: nil)
+                guard view.bounds.contains(location) else { return event }
+                let delta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.deltaY * 8
+                self.onScroll(delta, location)
+                return nil
+            }
+        }
+
+        func uninstall() {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = nil
+        }
+
+        deinit {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+        }
+    }
+}
+#endif
+
 // MARK: - Space / Escape tracking (scoped to active Stage surface)
 
 /// Tracks Space for Stage pan **only** when the pointer is over a Stage canvas
@@ -1622,8 +2427,13 @@ final class StageCanvasKeyState: ObservableObject {
     static let shared = StageCanvasKeyState()
 
     @Published private(set) var spaceHeld = false
+    @Published private(set) var shiftHeld = false
     /// Escape press generation — canvas can observe to cancel drag.
     @Published private(set) var escapeTick: UInt64 = 0
+    @Published private(set) var rotateStepTick: UInt64 = 0
+    @Published private(set) var rotateExactTick: UInt64 = 0
+    @Published private(set) var zoomInTick: UInt64 = 0
+    @Published private(set) var zoomOutTick: UInt64 = 0
 
     private var retainCount = 0
     private var hoverCount = 0
@@ -1649,6 +2459,7 @@ final class StageCanvasKeyState: ObservableObject {
             hoverCount = 0
             tearDownMonitor()
             clearSpaceHeld(restoreCursor: true)
+            shiftHeld = false
         }
     }
 
@@ -1668,8 +2479,12 @@ final class StageCanvasKeyState: ObservableObject {
     private func installMonitor() {
         #if canImport(AppKit)
         guard keyMonitor == nil else { return }
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp, .flagsChanged]) { [weak self] event in
             guard let self else { return event }
+            let shift = event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.shift)
+            if self.shiftHeld != shift {
+                Task { @MainActor in self.shiftHeld = shift }
+            }
             // 49 = Space, 53 = Escape
             if event.keyCode == 49 {
                 return self.handleSpaceEvent(event)
@@ -1679,6 +2494,33 @@ final class StageCanvasKeyState: ObservableObject {
                 if !AuroraKeyboardGate.isTextEditingActive, self.retainCount > 0 {
                     Task { @MainActor in
                         self.escapeTick &+= 1
+                    }
+                }
+            }
+            if event.type == .keyDown,
+               !event.isARepeat,
+               event.charactersIgnoringModifiers?.lowercased() == "r",
+               self.stageOwnsNavigationKeys {
+                let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                if flags.contains(.shift), !flags.contains(.command) {
+                    Task { @MainActor in self.rotateExactTick &+= 1 }
+                    return nil
+                }
+                if flags.contains(.command) {
+                    Task { @MainActor in self.rotateStepTick &+= 1 }
+                    return nil
+                }
+            }
+            if event.type == .keyDown, !event.isARepeat, self.stageOwnsNavigationKeys {
+                let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                if flags.contains([.command, .shift]) {
+                    if event.keyCode == 24 { // + / =
+                        Task { @MainActor in self.zoomInTick &+= 1 }
+                        return nil
+                    }
+                    if event.keyCode == 27 { // - / _
+                        Task { @MainActor in self.zoomOutTick &+= 1 }
+                        return nil
                     }
                 }
             }
@@ -1748,12 +2590,76 @@ final class StageCanvasKeyState: ObservableObject {
 // MARK: - Camera helpers for hosts
 
 public enum StageCanvasCamera {
+    public static let minimumScale: CGFloat = 0.08
+    public static let maximumScale: CGFloat = 6
+
+    /// Changes zoom while preserving the world coordinate beneath `anchor`.
+    public static func zoom(
+        scale oldScale: CGFloat,
+        pan oldPan: CGSize,
+        factor: CGFloat,
+        anchor: CGPoint,
+        viewportSize: CGSize
+    ) -> (scale: CGFloat, pan: CGSize) {
+        let safeOld = max(minimumScale, oldScale)
+        let newScale = min(maximumScale, max(minimumScale, safeOld * factor))
+        let ratio = newScale / safeOld
+        let offset = CGPoint(x: anchor.x - viewportSize.width / 2, y: anchor.y - viewportSize.height / 2)
+        return (
+            newScale,
+            CGSize(
+                width: offset.x - (offset.x - oldPan.width) * ratio,
+                height: offset.y - (offset.y - oldPan.height) * ratio
+            )
+        )
+    }
+
     public static func fitStage(layout: StageLayout, in size: CGSize) -> (scale: CGFloat, pan: CGSize) {
         guard size.width > 1, size.height > 1 else { return (1, .zero) }
-        let sx = size.width / layout.canvasWidth
-        let sy = size.height / layout.canvasHeight
-        let scale = min(sx, sy, 1.5) * 0.92
-        return (scale, .zero)
+        let bounds = contentBounds(layout: layout)
+        let padding = max(50, min(120, max(bounds.width, bounds.height) * 0.10))
+        let fittedWidth = bounds.width + padding * 2
+        let fittedHeight = bounds.height + padding * 2
+        let sx = size.width / max(fittedWidth, 1)
+        let sy = size.height / max(fittedHeight, 1)
+        let scale = min(sx, sy, 1.5) * 0.94
+        let pan = CGSize(
+            width: (layout.canvasWidth / 2 - bounds.midX) * scale,
+            height: (layout.canvasHeight / 2 - bounds.midY) * scale
+        )
+        return (scale, pan)
+    }
+
+    /// Visible fixture and scenic bounds used by explicit Fit Stage actions.
+    /// Falls back to the full canvas for a genuinely empty layout.
+    public static func contentBounds(layout: StageLayout) -> CGRect {
+        var bounds: CGRect?
+        for fixture in layout.fixtures where !fixture.hidden {
+            let extent = max(28 * fixture.scale, 20) + 18
+            let rect = CGRect(
+                x: fixture.x - extent / 2,
+                y: fixture.y - extent / 2,
+                width: extent,
+                height: extent
+            )
+            bounds = bounds.map { $0.union(rect) } ?? rect
+        }
+        for object in layout.objects where !object.hidden {
+            let halfW = object.width / 2
+            let halfH = object.height / 2
+            let c = abs(cos(object.rotation))
+            let s = abs(sin(object.rotation))
+            let rotatedHalfW = halfW * c + halfH * s
+            let rotatedHalfH = halfW * s + halfH * c
+            let rect = CGRect(
+                x: object.x - rotatedHalfW,
+                y: object.y - rotatedHalfH,
+                width: rotatedHalfW * 2,
+                height: rotatedHalfH * 2
+            )
+            bounds = bounds.map { $0.union(rect) } ?? rect
+        }
+        return bounds ?? CGRect(x: 0, y: 0, width: layout.canvasWidth, height: layout.canvasHeight)
     }
 
     public static func fitSelection(

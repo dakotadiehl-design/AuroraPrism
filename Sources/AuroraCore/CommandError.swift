@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import Foundation
 
 /// Failures from command validation or apply. Failed perform must leave the project unchanged.
@@ -19,7 +20,32 @@ public enum CommandError: Error, Equatable, Sendable {
 }
 
 extension CommandError: LocalizedError {
-    public var errorDescription: String? {
+    public var errorDescription: String? { userMessage }
+}
+
+extension CommandError: PrismDiagnosableError {
+    public var prismErrorCode: String {
+        switch self {
+        case .universeNotFound: return "command.universe_not_found"
+        case .fixtureNotFound: return "command.fixture_not_found"
+        case .definitionNotFound: return "command.definition_not_found"
+        case .patchOverlap: return "command.patch_overlap"
+        case .invalidAddress: return "command.invalid_address"
+        case .addressOutOfRange: return "command.address_out_of_range"
+        case .noFreeAddress: return "command.no_free_address"
+        case .universeHasFixtures: return "command.universe_has_fixtures"
+        case .notGrouping: return "command.not_grouping"
+        case .alreadyGrouping: return "command.already_grouping"
+        case .emptyGroup: return "command.empty_group"
+        case .nothingToUndo: return "command.nothing_to_undo"
+        case .nothingToRedo: return "command.nothing_to_redo"
+        case .message: return "command.message"
+        }
+    }
+
+    public var userTitle: String { "Prism Couldn't Complete That Action" }
+
+    public var userMessage: String {
         switch self {
         case .universeNotFound:
             return "The selected universe could not be found."
@@ -51,4 +77,12 @@ extension CommandError: LocalizedError {
             return message
         }
     }
+
+    public var recoverySuggestion: String? {
+        "Undo if needed, then try the action again."
+    }
+
+    public var technicalDetails: String { String(reflecting: self) }
+    public var prismCategory: PrismLogCategory { .projectDocument }
+    public var prismSeverity: PrismLogLevel { .error }
 }

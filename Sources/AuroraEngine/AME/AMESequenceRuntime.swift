@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import AuroraModel
 import Foundation
 
@@ -152,6 +153,25 @@ enum AMESequenceTriggerError: Error, Equatable, Sendable {
     case invalidState
     case noContext
     case exhausted
+}
+
+extension AMESequenceTriggerError: LocalizedError, PrismDiagnosableError {
+    var errorDescription: String? { userMessage }
+    var prismErrorCode: String {
+        switch self {
+        case .missingSequence: return "ame.sequence.missing"
+        case .emptySequence: return "ame.sequence.empty"
+        case .invalidState: return "ame.sequence.invalid_step"
+        case .noContext: return "ame.sequence.no_context"
+        case .exhausted: return "ame.sequence.exhausted"
+        }
+    }
+    var userTitle: String { "AME Sequence Couldn't Run" }
+    var userMessage: String { "That AME sequence couldn't run." }
+    var recoverySuggestion: String? { "Check the sequence steps and try arming AME again." }
+    var technicalDetails: String { String(reflecting: self) }
+    var prismCategory: PrismLogCategory { .ameSequence }
+    var prismSeverity: PrismLogLevel { .warning }
 }
 
 // MARK: - Instance seed derivation

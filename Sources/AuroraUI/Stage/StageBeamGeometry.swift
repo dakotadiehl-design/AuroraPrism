@@ -65,6 +65,78 @@ public enum StageBeamGeometry {
     }
 }
 
+/// Maps a compound fixture's child glyph centers into Stage world coordinates.
+public enum StageMultiElementGeometry {
+    public static func elementOrigin(
+        fixtureOrigin: CGPoint,
+        fixtureRotation: Double,
+        normalizedX: Double,
+        normalizedY: Double,
+        bodyWidth: Double,
+        bodyHeight: Double
+    ) -> CGPoint {
+        let localX = (normalizedX - 0.5) * bodyWidth
+        let localY = (normalizedY - 0.5) * bodyHeight
+        let c = cos(fixtureRotation), s = sin(fixtureRotation)
+        return CGPoint(
+            x: fixtureOrigin.x + CGFloat(localX * c - localY * s),
+            y: fixtureOrigin.y + CGFloat(localX * s + localY * c)
+        )
+    }
+
+    public static func elementOrigin(
+        fixtureOrigin: CGPoint,
+        fixtureRotation: Double,
+        index: Int,
+        count: Int,
+        podDiameter: Double,
+        spacing: Double,
+        horizontal: Bool
+    ) -> CGPoint {
+        guard count > 0, index >= 0, index < count else { return fixtureOrigin }
+        let displacement = (Double(index) - Double(count - 1) / 2) * (podDiameter + spacing)
+        let localX = horizontal ? displacement : 0
+        let localY = horizontal ? 0 : displacement
+        let c = cos(fixtureRotation)
+        let s = sin(fixtureRotation)
+        return CGPoint(
+            x: fixtureOrigin.x + CGFloat(localX * c - localY * s),
+            y: fixtureOrigin.y + CGFloat(localX * s + localY * c)
+        )
+    }
+}
+
+/// Pure presentation math for level-driven atmospheric glyphs.
+public enum StageAtmosphereVisualStyle {
+    public static func normalizedLevel(_ value: Double, minimum: Double = 0, maximum: Double = 1) -> Double {
+        let span = max(0.0001, maximum - minimum)
+        return min(1, max(0, (value - minimum) / span))
+    }
+
+    public static func cloudScale(_ level: Double) -> Double {
+        0.42 + 0.58 * min(1, max(0, level))
+    }
+
+    public static func cloudOpacity(_ level: Double) -> Double {
+        0.25 + 0.75 * min(1, max(0, level))
+    }
+}
+
+public enum FixtureGlyphLevelOfDetail {
+    public static func detailLevel(screenExtent: Double) -> Int {
+        if screenExtent < 22 { return 0 }
+        if screenExtent < 54 { return 1 }
+        return 2
+    }
+
+    public static func visibleEmitterIndices(count: Int, detailLevel: Int) -> [Int] {
+        guard count > 0 else { return [] }
+        let limit = detailLevel <= 0 ? 8 : (detailLevel == 1 ? 24 : count)
+        guard count > limit else { return Array(0..<count) }
+        return (0..<limit).map { min(count - 1, Int((Double($0) + 0.5) * Double(count) / Double(limit))) }
+    }
+}
+
 /// SwiftUI shape for a Stage beam wedge.
 public struct StageBeamWedgeShape: Shape {
     public var origin: CGPoint
@@ -216,6 +288,44 @@ public struct StageBeamView: View {
             startPoint: start,
             endPoint: end
         )
+    }
+}
+
+/// Localized wash for linear battens. This is deliberately separate from
+/// `StageBeamView`, preserving the directional renderer for conventional beams.
+public struct StageLinearGlowView: View {
+    public var origins: [CGPoint]
+    public var colors: [Color]
+    public var intensities: [Double]
+
+    public init(origins: [CGPoint], colors: [Color], intensities: [Double]) {
+        self.origins = origins
+        self.colors = colors
+        self.intensities = intensities
+    }
+
+    public var body: some View {
+        Canvas { context, _ in
+            for index in origins.indices {
+                let level = StageBeamRenderStyle.clampedIntensity(intensities.indices.contains(index) ? intensities[index] : 0)
+                guard level > 0.001 else { continue }
+                let color = colors.indices.contains(index) ? colors[index] : .white
+                let origin = origins[index]
+                let halo = Path(ellipseIn: CGRect(x: origin.x - 24, y: origin.y - 18, width: 48, height: 36))
+                context.blendMode = .plusLighter
+                context.drawLayer { layer in
+                    layer.addFilter(.blur(radius: 12))
+                    layer.fill(halo, with: .color(color.opacity(0.42 * pow(level, 0.72))))
+                }
+                let core = Path(ellipseIn: CGRect(x: origin.x - 9, y: origin.y - 6, width: 18, height: 12))
+                context.drawLayer { layer in
+                    layer.addFilter(.blur(radius: 4))
+                    layer.fill(core, with: .color(color.opacity(0.70 * level)))
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

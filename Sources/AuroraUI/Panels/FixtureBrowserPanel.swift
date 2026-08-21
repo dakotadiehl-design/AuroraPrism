@@ -1,5 +1,7 @@
+import AuroraDesignSystem
 import AppKit
 import AuroraCore
+import AuroraDiagnostics
 import AuroraModel
 import SwiftUI
 
@@ -19,7 +21,7 @@ public struct FixtureBrowserPanel: View {
     @State private var showLibrary = false
     @State private var renameFixtureID: UUID?
     @State private var renameDraft = ""
-    @State private var renameErrorMessage: String?
+    @State private var renameError: PrismErrorReport?
 
     public init(
         context: WorkspacePanelContext,
@@ -150,14 +152,7 @@ public struct FixtureBrowserPanel: View {
         } message: {
             Text("Use a descriptive physical name, such as Dance Floor PAR 1.")
         }
-        .alert("Unable to Rename Fixture", isPresented: Binding(
-            get: { renameErrorMessage != nil },
-            set: { if !$0 { renameErrorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { renameErrorMessage = nil }
-        } message: {
-            Text(renameErrorMessage ?? "The fixture could not be renamed.")
-        }
+        .prismErrorAlert(item: $renameError)
     }
 
     private func fixtureRow(_ fixture: PatchedFixture) -> some View {
@@ -211,8 +206,11 @@ public struct FixtureBrowserPanel: View {
             renameFixtureID = nil
         } catch {
             renameFixtureID = nil
-            let message = error.localizedDescription
-            DispatchQueue.main.async { renameErrorMessage = message }
+            let report = PrismErrorReporting.report(
+                error: error,
+                context: .command(operation: "rename fixture", category: .uiPatch)
+            )
+            DispatchQueue.main.async { renameError = report }
         }
     }
 
@@ -282,7 +280,11 @@ public struct FixtureBrowserPanel: View {
         do {
             try context.session.perform(PatchFixtureCommand(definition: embed, fixture: fixture))
         } catch {
-            errorText = error.localizedDescription
+            let report = PrismErrorReporting.report(
+                error: error,
+                context: .command(operation: "patch fixture", category: .uiPatch)
+            )
+            DispatchQueue.main.async { renameError = report }
         }
     }
 }

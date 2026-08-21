@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import AuroraCore
 import AuroraEngine
 import AuroraFixtureLib
@@ -95,6 +96,7 @@ public struct FixtureProfileEditorPanel: View {
                             get: { draft ?? def },
                             set: { draft = $0 }
                         ))
+                        visualizationSection
                         channelTable
                         cellBlockSection
                         validationSection
@@ -114,6 +116,243 @@ public struct FixtureProfileEditorPanel: View {
                     systemImage: "lightbulb"
                 )
             }
+        }
+    }
+
+    private var visualizationSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("VISUALIZATION")
+                .font(AuroraTypography.controlLabel)
+                .foregroundStyle(AuroraColor.textTertiary)
+            if let def = draft {
+                let physical = context.project.physicalFixture(for: def)
+                let descriptor = def.resolvedVisualization(physical: physical)
+                HStack {
+                    Text(def.visual?.provenance == .manuallyAuthored ? "Override" : "Automatic")
+                        .font(.caption)
+                    Spacer()
+                    Text(descriptor.confidence.rawValue.capitalized)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                if def.visual?.provenance == .manuallyAuthored {
+                    Picker("Form", selection: Binding(
+                        get: { def.visual?.form ?? descriptor.form },
+                        set: { form in mutateVisual(descriptor) { $0.form = form; $0.role = legacyRole(for: form) } }
+                    )) {
+                        ForEach(FixturePhysicalForm.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    }
+                    Picker("Topology", selection: Binding(
+                        get: { def.visual?.topology ?? descriptor.componentGroups.first?.topology ?? .unknown },
+                        set: { topology in mutateVisual(descriptor) { $0.topology = topology } }
+                    )) {
+                        ForEach(FixturePhysicalTopologyKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    }
+                    HStack {
+                        Stepper("Emitters: \(def.visual?.elements.count ?? 0)", value: Binding(
+                            get: { def.visual?.elements.count ?? 0 },
+                            set: { setOverrideEmitterCount($0, descriptor: descriptor) }
+                        ), in: 0...512)
+                        Stepper("Rows: \(def.visual?.rows ?? 1)", value: Binding(
+                            get: { def.visual?.rows ?? 1 },
+                            set: { value in mutateVisual(descriptor) { $0.rows = value } }
+                        ), in: 1...64)
+                        Stepper("Columns: \(def.visual?.columns ?? max(1, def.visual?.elements.count ?? 1))", value: Binding(
+                            get: { def.visual?.columns ?? max(1, def.visual?.elements.count ?? 1) },
+                            set: { value in mutateVisual(descriptor) { $0.columns = value } }
+                        ), in: 1...64)
+                    }
+                    Picker("Movement", selection: Binding(
+                        get: { def.visual?.movement ?? descriptor.movement },
+                        set: { value in mutateVisual(descriptor) { $0.movement = value } }
+                    )) {
+                        ForEach(FixtureMovementKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    }
+                    HStack {
+                        Text("Aspect")
+                        Slider(value: Binding(
+                            get: { def.visual?.bodyAspectRatio ?? descriptor.aspectRatio },
+                            set: { value in
+                                guard var current = draft else { return }
+                                var visual = current.visual ?? legacyVisual(from: descriptor)
+                                visual.bodyAspectRatio = value
+                                visual.provenance = .manuallyAuthored
+                                current.visual = visual
+                                draft = current
+                            }
+                        ), in: 0.2...12)
+                        Text(String(format: "%.1f", def.visual?.bodyAspectRatio ?? descriptor.aspectRatio))
+                            .font(.caption.monospacedDigit())
+                    }
+                    Text("OPTICAL BEHAVIOR").font(.caption2).foregroundStyle(.secondary)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 90))], alignment: .leading) {
+                        ForEach(FixtureOpticalBehavior.allCases, id: \.self) { behavior in
+                            Toggle(behavior.rawValue, isOn: Binding(
+                                get: { (def.visual?.opticalBehaviors ?? descriptor.opticalBehaviors).contains(behavior) },
+                                set: { enabled in
+                                    mutateVisual(descriptor) { visual in
+                                        var optics = visual.opticalBehaviors ?? descriptor.opticalBehaviors
+                                        if enabled { optics.insert(behavior) } else { optics.remove(behavior) }
+                                        visual.opticalBehaviors = optics
+                                    }
+                                }
+                            )).toggleStyle(.checkbox).controlSize(.mini)
+                        }
+                    }
+                    DisclosureGroup("Physical component groups (\(def.visual?.componentGroups?.count ?? 0))") {
+                        ForEach(Array((def.visual?.componentGroups ?? []).indices), id: \.self) { index in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text((def.visual?.componentGroups?[index].id ?? "Group \(index + 1)"))
+                                    .font(.caption.monospaced())
+                                HStack {
+                                    Picker("Role", selection: groupBinding(index, descriptor: descriptor, keyPath: \.role)) {
+                                        ForEach(FixturePhysicalComponentRole.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                                    }
+                                    Picker("Topology", selection: groupBinding(index, descriptor: descriptor, keyPath: \.topology)) {
+                                        ForEach(FixturePhysicalTopologyKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                                    }
+                                    Picker("Movement", selection: groupBinding(index, descriptor: descriptor, keyPath: \.movement)) {
+                                        ForEach(FixtureMovementKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                                    }
+                                }
+                                HStack {
+                                    groupSlider("X", index: index, descriptor: descriptor, keyPath: \.x)
+                                    groupSlider("Y", index: index, descriptor: descriptor, keyPath: \.y)
+                                    groupSlider("W", index: index, descriptor: descriptor, keyPath: \.width)
+                                    groupSlider("H", index: index, descriptor: descriptor, keyPath: \.height)
+                                }
+                            }
+                        }
+                        HStack {
+                            Button("Add Group") {
+                                mutateVisual(descriptor) { visual in
+                                    var groups = visual.componentGroups ?? []
+                                    groups.append(.init(id: "group-\(groups.count + 1)", role: .emitterArray, topology: .custom, emitterIDs: visual.elements.map(\.id)))
+                                    visual.componentGroups = groups
+                                }
+                            }
+                            Button("Remove Last") {
+                                mutateVisual(descriptor) { visual in
+                                    guard var groups = visual.componentGroups, !groups.isEmpty else { return }
+                                    groups.removeLast(); visual.componentGroups = groups
+                                }
+                            }.disabled((def.visual?.componentGroups ?? []).isEmpty)
+                        }.controlSize(.small)
+                    }
+                    Button("Reset to Automatic") {
+                        draft?.visual = nil
+                    }
+                    .controlSize(.small)
+                } else {
+                    Button("Override Automatic Visualization") {
+                        guard var current = draft else { return }
+                        current.visual = legacyVisual(from: descriptor)
+                        draft = current
+                    }
+                    .controlSize(.small)
+                }
+                visualizationPreview(descriptor: descriptor)
+                    .frame(height: 64)
+                ForEach(descriptor.evidence) { item in
+                    Text("✓ \(item.message)").font(.caption2).foregroundStyle(.secondary)
+                }
+                ForEach(descriptor.warnings) { item in
+                    Text("⚠ \(item.message)").font(.caption2).foregroundStyle(.orange)
+                }
+            }
+        }
+    }
+
+    private func legacyVisual(from descriptor: FixtureVisualizationDescriptor) -> FixtureVisualDefinition {
+        FixtureVisualDefinition(
+            role: descriptor.legacyRole,
+            bodyAspectRatio: descriptor.aspectRatio,
+            layout: descriptor.legacyLayout,
+            elements: descriptor.emitters.map {
+                FixtureVisualElement(id: $0.id, name: $0.name, x: $0.x, y: $0.y, width: $0.width, height: $0.height, shape: $0.shape)
+            },
+            indicators: descriptor.indicators,
+            provenance: .manuallyAuthored,
+            form: descriptor.form,
+            topology: descriptor.componentGroups.first?.topology,
+            rows: descriptor.componentGroups.first?.rows,
+            columns: descriptor.componentGroups.first?.columns,
+            opticalBehaviors: descriptor.opticalBehaviors,
+            movement: descriptor.movement,
+            componentGroups: descriptor.componentGroups
+        )
+    }
+
+    private func mutateVisual(_ descriptor: FixtureVisualizationDescriptor, _ mutate: (inout FixtureVisualDefinition) -> Void) {
+        guard var current = draft else { return }
+        var visual = current.visual ?? legacyVisual(from: descriptor)
+        mutate(&visual)
+        visual.provenance = .manuallyAuthored
+        current.visual = visual
+        draft = current
+    }
+
+    private func setOverrideEmitterCount(_ count: Int, descriptor: FixtureVisualizationDescriptor) {
+        mutateVisual(descriptor) { visual in
+            let ids = (0..<count).map { "override-emitter-\($0)" }
+            let layout: FixtureElementLayout = visual.topology == .grid || visual.topology == .variableRows ? .grid : .row
+            if layout == .grid {
+                let columns = max(1, visual.columns ?? Int(ceil(sqrt(Double(max(count, 1))))))
+                let rows = max(1, Int(ceil(Double(max(count, 1)) / Double(columns))))
+                visual.rows = rows; visual.columns = columns
+                visual.elements = ids.enumerated().map { index, id in
+                    FixtureVisualElement(id: id, name: "Emitter \(index + 1)", x: (Double(index % columns) + 0.5) / Double(columns), y: (Double(index / columns) + 0.5) / Double(rows), width: min(0.7, 0.72 / Double(columns)), height: min(0.7, 0.72 / Double(rows)))
+                }
+            } else {
+                visual.elements = FixtureVisualInference.makeElements(ids: ids, layout: layout)
+            }
+            if visual.componentGroups?.count == 1 {
+                visual.componentGroups?[0].emitterIDs = ids
+            }
+        }
+    }
+
+    private func groupBinding<Value>(_ index: Int, descriptor: FixtureVisualizationDescriptor, keyPath: WritableKeyPath<FixturePhysicalComponentGroup, Value>) -> Binding<Value> {
+        Binding(
+            get: { (draft?.visual?.componentGroups ?? descriptor.componentGroups)[index][keyPath: keyPath] },
+            set: { value in
+                mutateVisual(descriptor) { visual in
+                    guard visual.componentGroups?.indices.contains(index) == true else { return }
+                    visual.componentGroups?[index][keyPath: keyPath] = value
+                }
+            }
+        )
+    }
+
+    private func groupSlider(_ label: String, index: Int, descriptor: FixtureVisualizationDescriptor, keyPath: WritableKeyPath<FixturePhysicalComponentGroup, Double>) -> some View {
+        HStack(spacing: 3) {
+            Text(label).font(.caption2)
+            Slider(value: groupBinding(index, descriptor: descriptor, keyPath: keyPath), in: 0...1)
+        }
+    }
+
+    private func legacyRole(for form: FixturePhysicalForm) -> FixtureVisualRole {
+        switch form {
+        case .par, .fresnel, .profile: return .pointLight
+        case .linearBar, .strip, .multiHeadBar: return .linearLight
+        case .panel: return .matrixLight
+        case .movingHead, .scanner: return .movingLight
+        case .atmospheric: return .atmospheric
+        case .strobe: return .strobe
+        case .blinder: return .blinder
+        case .practical, .effect: return .practical
+        default: return .generic
+        }
+    }
+
+    private func visualizationPreview(descriptor: FixtureVisualizationDescriptor) -> some View {
+        GeometryReader { proxy in
+            let height = min(proxy.size.height, 54.0)
+            let width = min(proxy.size.width, height * descriptor.aspectRatio)
+            let geometry = FixtureGlyphGeometryBuilder.build(descriptor: descriptor, baseHeight: Double(height), detailLevel: 2)
+            FixtureGlyphRenderer(descriptor: descriptor, geometry: geometry)
+            .frame(width: width, height: height)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -367,7 +606,7 @@ public struct FixtureProfileEditorPanel: View {
         do {
             try FixtureDefinitionValidation.validate(def)
         } catch {
-            errors.append(error.localizedDescription)
+            errors.append(prismReportCommandFailure(error, operation: "save fixture profile", category: .fixtureLibrary))
         }
         // Extra overlap/gap checks
         var seen = Set<UInt16>()
@@ -406,7 +645,7 @@ public struct FixtureProfileEditorPanel: View {
             status = "Saved \(def.displayName) to show"
             onChanged()
         } catch {
-            status = error.localizedDescription
+            status = prismReportCommandFailure(error, operation: "save fixture profile", category: .fixtureLibrary)
         }
     }
 
@@ -425,7 +664,7 @@ public struct FixtureProfileEditorPanel: View {
             status = "Saved to user library: \(url.lastPathComponent)"
             onChanged()
         } catch {
-            status = error.localizedDescription
+            status = prismReportCommandFailure(error, operation: "save fixture profile", category: .fixtureLibrary)
         }
     }
 
@@ -452,13 +691,41 @@ public struct FixtureProfileEditorPanel: View {
                 semanticKind: attr.hasPrefix("generic") ? .generic : .semantic
             ))
         }
+        let categoryKey = newCategory.lowercased()
+        let form: FixturePhysicalForm = categoryKey.contains("bar") ? .linearBar
+            : categoryKey.contains("moving") ? .movingHead
+            : categoryKey.contains("haze") || categoryKey.contains("fog") ? .atmospheric
+            : categoryKey.contains("laser") ? .laser
+            : categoryKey.contains("strobe") ? .strobe
+            : categoryKey.contains("blinder") ? .blinder
+            : categoryKey.contains("panel") ? .panel
+            : categoryKey.contains("par") ? .par
+            : .generic
+        let physicalID = UUID()
+        let emitsLight = form != .atmospheric
+        let physicalEmitter = FixturePhysicalEmitter(id: "physical-emitter-0", name: "Emitter 1", x: 0.5, y: 0.5, width: 0.58, height: 0.58)
+        let physical = FixturePhysicalDefinition(
+            id: physicalID,
+            manufacturer: newManufacturer,
+            model: newModel,
+            form: form,
+            emitters: emitsLight ? [physicalEmitter] : [],
+            componentGroups: emitsLight ? [.init(id: "primary", role: .primaryOptic, topology: .single, emitterIDs: [physicalEmitter.id])] : [],
+            opticalBehaviors: emitsLight ? [.wash] : [],
+            movement: form == .movingHead ? .panTilt : .static,
+            source: .explicit
+        )
         let def = FixtureDefinition(
             manufacturer: newManufacturer,
             model: newModel,
             modeName: newMode,
             channels: channels,
             colorModel: newChannelCount >= 3 ? .rgb : .singleColor,
-            category: newCategory
+            category: newCategory,
+            physicalFixtureID: physicalID,
+            portablePhysicalDefinition: physical,
+            controlElements: emitsLight ? [.init(id: "fixture-output", name: "Fixture Output")] : [],
+            emitterMappings: emitsLight ? [.init(id: "fixture-output-map", controlElementIDs: ["fixture-output"], physicalEmitterIDs: [physicalEmitter.id])] : []
         )
         do {
             try context.session.perform(EmbedFixtureDefinitionCommand(definition: def))
@@ -467,7 +734,7 @@ public struct FixtureProfileEditorPanel: View {
             status = "Created \(def.displayName)"
             onChanged()
         } catch {
-            status = error.localizedDescription
+            status = prismReportCommandFailure(error, operation: "save fixture profile", category: .fixtureLibrary)
         }
     }
 

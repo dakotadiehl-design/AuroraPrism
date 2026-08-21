@@ -78,6 +78,43 @@ final class ProgrammerMixedInteractionTests: XCTestCase {
         XCTAssertEqual(prog.snapshot().values[fB]!["intensity"]!, 0.60, accuracy: 1e-9)
     }
 
+    func testGroupIntensityAverageAndEqualOffsetShift() {
+        let values = [fA: 0.25, fB: 0.75]
+        XCTAssertEqual(ProgrammerIntensityGroup.average(values)!, 0.5, accuracy: 1e-9)
+
+        let shifted = ProgrammerIntensityGroup.shiftedValues(values, toAverage: 0.25)
+        XCTAssertEqual(shifted[fA]!, 0, accuracy: 1e-9)
+        XCTAssertEqual(shifted[fB]!, 0.5, accuracy: 1e-9)
+    }
+
+    func testAllDarkGroupRaisesUniformly() {
+        let shifted = ProgrammerIntensityGroup.shiftedValues([fA: 0, fB: 0], toAverage: 0.4)
+        XCTAssertEqual(shifted[fA]!, 0.4, accuracy: 1e-9)
+        XCTAssertEqual(shifted[fB]!, 0.4, accuracy: 1e-9)
+    }
+
+    func testDarkFixtureRisesBySamePointsAsLitFixture() {
+        let shifted = ProgrammerIntensityGroup.shiftedValues(
+            [fA: 0, fB: 0.5],
+            toAverage: 0.58
+        )
+        // Starting average is 25%; targeting 58% moves both fixtures by 33 points.
+        XCTAssertEqual(shifted[fA]!, 0.33, accuracy: 1e-9)
+        XCTAssertEqual(shifted[fB]!, 0.83, accuracy: 1e-9)
+    }
+
+    func testEffectiveIntensityUsesResolvedFixtureLevels() {
+        let values = ProgrammerIntensityGroup.effectiveValues(
+            fixtureIDs: [fA, fB],
+            project: dimProject(),
+            resolvedValues: [
+                fA: ["intensity": 0.2],
+                fB: ["intensity": 0.6],
+            ]
+        )
+        XCTAssertEqual(ProgrammerIntensityGroup.average(values)!, 0.4, accuracy: 1e-9)
+    }
+
     func testMixedRGBBatchedInteractionBecomesCommon() {
         let project = rgbProject()
         let prog = Programmer()

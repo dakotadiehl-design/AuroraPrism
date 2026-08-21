@@ -10,6 +10,9 @@ public struct SelectionSnapshot: Equatable, Sendable, Hashable {
     public var orderedFixtureIDs: [UUID]
     /// Membership set — always matches `Set(orderedFixtureIDs)`.
     public var fixtureIDs: Set<UUID>
+    /// Ordered programming targets. Whole-fixture selections use `elementID == nil`.
+    public var orderedFixtureTargets: [FixtureTarget]
+    public var fixtureTargets: Set<FixtureTarget>
     public var cueIDs: Set<UUID>
     public var cueListIDs: Set<UUID>
     public var songIDs: Set<UUID>
@@ -26,6 +29,8 @@ public struct SelectionSnapshot: Equatable, Sendable, Hashable {
         let ordered = Self.dedupePreservingOrder(orderedFixtureIDs)
         self.orderedFixtureIDs = ordered
         self.fixtureIDs = fixtureIDs ?? Set(ordered)
+        self.orderedFixtureTargets = ordered.map { FixtureTarget(fixtureID: $0) }
+        self.fixtureTargets = Set(orderedFixtureTargets)
         // Keep membership in sync if caller passed both inconsistently.
         if self.fixtureIDs != Set(ordered) {
             self.orderedFixtureIDs = ordered
@@ -48,6 +53,8 @@ public struct SelectionSnapshot: Equatable, Sendable, Hashable {
         let ordered = fixtureIDs.sorted { $0.uuidString < $1.uuidString }
         self.orderedFixtureIDs = ordered
         self.fixtureIDs = fixtureIDs
+        self.orderedFixtureTargets = ordered.map { FixtureTarget(fixtureID: $0) }
+        self.fixtureTargets = Set(orderedFixtureTargets)
         self.cueIDs = cueIDs
         self.cueListIDs = cueListIDs
         self.songIDs = songIDs
@@ -101,6 +108,31 @@ public final class SelectionManager {
             snapshot.orderedFixtureIDs = ordered
             snapshot.fixtureIDs = Set(ordered)
         }
+        snapshot.orderedFixtureTargets = snapshot.orderedFixtureIDs.map { FixtureTarget(fixtureID: $0) }
+        snapshot.fixtureTargets = Set(snapshot.orderedFixtureTargets)
+    }
+
+    /// Select whole fixtures and/or independently programmable fixture elements.
+    public func selectFixtureTargetsOrdered(_ targets: [FixtureTarget], extending: Bool = false) {
+        var ordered = extending ? snapshot.orderedFixtureTargets : []
+        var membership = extending ? snapshot.fixtureTargets : []
+        for target in targets {
+            // Whole-fixture and element targets for one fixture are mutually exclusive.
+            // Keeping both makes a scoped programmer edit expand back to every element.
+            if target.elementID == nil {
+                ordered.removeAll { $0.fixtureID == target.fixtureID }
+                membership = Set(ordered)
+            } else {
+                let whole = FixtureTarget(fixtureID: target.fixtureID)
+                ordered.removeAll { $0 == whole }
+                membership.remove(whole)
+            }
+            if membership.insert(target).inserted { ordered.append(target) }
+        }
+        snapshot.orderedFixtureTargets = ordered
+        snapshot.fixtureTargets = membership
+        snapshot.orderedFixtureIDs = SelectionSnapshot.dedupePreservingOrder(ordered.map(\.fixtureID))
+        snapshot.fixtureIDs = Set(snapshot.orderedFixtureIDs)
     }
 
     /// Select fixtures from a set. New members append in stable UUID order when extending;
@@ -117,6 +149,8 @@ public final class SelectionManager {
     public func deselectFixtures(_ ids: Set<UUID>) {
         snapshot.orderedFixtureIDs.removeAll { ids.contains($0) }
         snapshot.fixtureIDs.subtract(ids)
+        snapshot.orderedFixtureTargets.removeAll { ids.contains($0.fixtureID) }
+        snapshot.fixtureTargets = Set(snapshot.orderedFixtureTargets)
     }
 
     public func toggleFixture(_ id: UUID) {
@@ -127,6 +161,8 @@ public final class SelectionManager {
             snapshot.fixtureIDs.insert(id)
             snapshot.orderedFixtureIDs.append(id)
         }
+        snapshot.orderedFixtureTargets = snapshot.orderedFixtureIDs.map { FixtureTarget(fixtureID: $0) }
+        snapshot.fixtureTargets = Set(snapshot.orderedFixtureTargets)
     }
 
     public func selectCues(_ ids: Set<UUID>, extending: Bool = false) {
@@ -176,6 +212,8 @@ public final class SelectionManager {
         let before = snapshot
         snapshot.orderedFixtureIDs = snapshot.orderedFixtureIDs.filter { validFixtures.contains($0) }
         snapshot.fixtureIDs = Set(snapshot.orderedFixtureIDs)
+        snapshot.orderedFixtureTargets = snapshot.orderedFixtureTargets.filter { validFixtures.contains($0.fixtureID) }
+        snapshot.fixtureTargets = Set(snapshot.orderedFixtureTargets)
         snapshot.groupIDs = snapshot.groupIDs.intersection(validGroups)
         snapshot.cueListIDs = snapshot.cueListIDs.intersection(validCueLists)
         snapshot.cueIDs = snapshot.cueIDs.intersection(validCues)

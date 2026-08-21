@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import AuroraUI
 import SwiftUI
 
@@ -50,6 +51,7 @@ struct BrowserWorkspaceSurface: View {
                     .controlSize(.small)
             }
         })
+        .shortcutHelpHUD(appModel.workspace.leftTool == .groups ? .groups : .fixtures)
     }
 
     private var title: String {
@@ -125,6 +127,17 @@ struct CreativeShelfWorkspaceSurface: View {
                     .controlSize(.small)
             }
         })
+        .shortcutHelpHUD(shortcutContext)
+    }
+
+    private var shortcutContext: ShortcutHelpContext {
+        switch appModel.workspace.lowerTool {
+        case .cueBlocks: return .cueBlocks
+        case .palettes: return .palettes
+        case .cues: return .cues
+        case .song: return .song
+        case .diagnostics: return .diagnostics
+        }
     }
 
     private var toolTabBar: some View {
@@ -294,6 +307,7 @@ struct ProgrammerWorkspaceSurface: View {
 
     var body: some View {
         PanelRegistry.view(id: .programmer, context: appModel.panelContext, appModel: appModel)
+            .shortcutHelpHUD(.programmer, items: appModel.programmerShortcutHelpItems)
     }
 }
 
@@ -302,6 +316,7 @@ struct InspectorWorkspaceSurface: View {
 
     var body: some View {
         PanelRegistry.view(id: .inspector, context: appModel.panelContext, appModel: appModel)
+            .shortcutHelpHUD(.inspector)
     }
 }
 
@@ -310,6 +325,7 @@ struct DiagnosticsWorkspaceSurface: View {
 
     var body: some View {
         PanelRegistry.view(id: .console, context: appModel.panelContext, appModel: appModel)
+            .shortcutHelpHUD(.diagnostics)
     }
 }
 

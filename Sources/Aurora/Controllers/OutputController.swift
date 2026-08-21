@@ -1,4 +1,5 @@
 import AppKit
+import AuroraDiagnostics
 import AuroraModel
 import AuroraOutput
 import Foundation
@@ -129,19 +130,17 @@ final class OutputController: ObservableObject {
         return nil
     }
 
-    func selectLocalDMXDevice(id: String?, engineRunning: Bool, log: (String) -> Void) {
+    func selectLocalDMXDevice(id: String?, engineRunning: Bool) {
         if id == nil || id?.isEmpty == true {
             selectedLocalDMXDeviceID = nil
             persistLocalDMXSelection(device: nil, requestedEnabled: false)
             disableLocalDMX(persistRequested: false)
             localDMXStatus = "Local DMX: no device selected"
-            log(localDMXStatus)
             refreshOutputStatus()
             return
         }
         guard let device = availableLocalDMXDevices.first(where: { $0.id == id }) else {
             localDMXStatus = "Local DMX: selection not in scan list"
-            log(localDMXStatus)
             return
         }
         selectedLocalDMXDeviceID = device.id
@@ -149,18 +148,17 @@ final class OutputController: ObservableObject {
         persistLocalDMXSelection(device: device, requestedEnabled: localDMXRequestedEnabled)
         localDMXStatus = "Local DMX: \(device.displayName) selected"
         if localDMXRequestedEnabled {
-            enableLocalDMX(engineRunning: engineRunning, log: log)
+            enableLocalDMX(engineRunning: engineRunning)
         }
         refreshOutputStatus()
     }
 
-    func setLocalDMXEnabled(_ enabled: Bool, engineRunning: Bool, log: (String) -> Void) {
+    func setLocalDMXEnabled(_ enabled: Bool, engineRunning: Bool) {
         localDMXRequestedEnabled = enabled
         if enabled {
-            enableLocalDMX(engineRunning: engineRunning, log: log)
+            enableLocalDMX(engineRunning: engineRunning)
         } else {
             disableLocalDMX(persistRequested: false)
-            log("Local DMX disabled")
         }
         // Persist requested flag + current device identity if any.
         let device = availableLocalDMXDevices.first(where: { $0.id == selectedLocalDMXDeviceID })
@@ -180,7 +178,7 @@ final class OutputController: ObservableObject {
     }
 
     /// HW-02: driver owns transport open/close. Controller does not pre-open.
-    private func enableLocalDMX(engineRunning: Bool, log: (String) -> Void) {
+    private func enableLocalDMX(engineRunning: Bool) {
         rescanLocalDMXDevices()
         guard localDMXConfiguredDeviceAvailable,
               let id = selectedLocalDMXDeviceID,
@@ -191,7 +189,6 @@ final class OutputController: ObservableObject {
             localDMXStatus = localDMXRequestedEnabled
                 ? "Local DMX: configured device unavailable"
                 : "Local DMX: no device selected"
-            log(localDMXStatus)
             return
         }
         disableLocalDMX(persistRequested: localDMXRequestedEnabled)
@@ -209,7 +206,6 @@ final class OutputController: ObservableObject {
             localDMXDriver = driver
             localDMXEnabled = true
             persistLocalDMXSelection(device: device, requestedEnabled: true)
-            log(localDMXStatus)
         } catch {
             outputManager.unregister(id: driver.id)
             driver.stop()
@@ -217,8 +213,7 @@ final class OutputController: ObservableObject {
             localDMXTransport = nil
             localDMXDriver = nil
             localDMXEnabled = false
-            localDMXStatus = "Local DMX: open/start failed — \(error.localizedDescription)"
-            log(localDMXStatus)
+            localDMXStatus = "Local DMX: open/start failed — \(PrismErrorReporting.userFacingMessage(for: error))"
         }
     }
 
@@ -252,7 +247,7 @@ final class OutputController: ObservableObject {
             refreshOutputStatus()
         } catch {
             localDMXEnabled = false
-            localDMXStatus = "Local DMX: start failed — \(error.localizedDescription)"
+            localDMXStatus = "Local DMX: start failed — \(PrismErrorReporting.userFacingMessage(for: error))"
             outputManager.unregister(id: driver.id)
             driver.stop()
             localDMXTransport?.close()
@@ -262,12 +257,11 @@ final class OutputController: ObservableObject {
         }
     }
 
-    func setArtNetEnabled(_ enabled: Bool, engineRunning: Bool, log: (String) -> Void) {
+    func setArtNetEnabled(_ enabled: Bool, engineRunning: Bool) {
         artNetConfig.enabled = enabled
         artNetConfig.save()
         applyArtNetRegistration(engineRunning: engineRunning)
         refreshOutputStatus()
-        log(enabled ? "Art-Net enabled → \(artNetConfig.destinationHost)" : "Art-Net disabled")
     }
 
     func setArtNetDestination(_ host: String, engineRunning: Bool) {
@@ -278,12 +272,11 @@ final class OutputController: ObservableObject {
         refreshOutputStatus()
     }
 
-    func setSACNEnabled(_ enabled: Bool, engineRunning: Bool, log: (String) -> Void) {
+    func setSACNEnabled(_ enabled: Bool, engineRunning: Bool) {
         sacnConfig.enabled = enabled
         sacnConfig.save()
         applySACNRegistration(engineRunning: engineRunning)
         refreshOutputStatus()
-        log(enabled ? "sACN enabled" : "sACN disabled")
     }
 
     func setSACNUnicastHost(_ host: String?) {

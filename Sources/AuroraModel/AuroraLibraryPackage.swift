@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import Foundation
 
 /// Portable cross-show Aurora Library package (P0-E / Post-C6 integrity).
@@ -33,6 +34,7 @@ public enum AuroraLibraryPackage {
     public struct Contents: Equatable, Sendable {
         public var manifest: Manifest
         public var fixtureDefinitions: [FixtureDefinition]
+        public var physicalFixtureDefinitions: [FixturePhysicalDefinition]
         public var palettes: [Palette]
         public var presets: [Preset]
         public var effects: [EffectDefinition]
@@ -45,6 +47,7 @@ public enum AuroraLibraryPackage {
         public init(
             manifest: Manifest,
             fixtureDefinitions: [FixtureDefinition] = [],
+            physicalFixtureDefinitions: [FixturePhysicalDefinition] = [],
             palettes: [Palette] = [],
             presets: [Preset] = [],
             effects: [EffectDefinition] = [],
@@ -56,6 +59,7 @@ public enum AuroraLibraryPackage {
         ) {
             self.manifest = manifest
             self.fixtureDefinitions = fixtureDefinitions
+            self.physicalFixtureDefinitions = physicalFixtureDefinitions
             self.palettes = palettes
             self.presets = presets
             self.effects = effects
@@ -71,6 +75,7 @@ public enum AuroraLibraryPackage {
             Contents(
                 manifest: Manifest(name: name),
                 fixtureDefinitions: project.fixtureDefinitions,
+                physicalFixtureDefinitions: project.physicalFixtureDefinitions ?? [],
                 palettes: project.palettes,
                 presets: project.presets,
                 effects: project.effects,
@@ -126,6 +131,7 @@ public enum AuroraLibraryPackage {
         do {
             try writeJSON(contents.manifest, to: tmp.appendingPathComponent("manifest.json"))
             try writeJSON(contents.fixtureDefinitions, to: tmp.appendingPathComponent("definitions.json"))
+            try writeJSON(contents.physicalFixtureDefinitions, to: tmp.appendingPathComponent("physical-fixtures.json"))
             try writeJSON(contents.palettes, to: tmp.appendingPathComponent("palettes.json"))
             try writeJSON(contents.presets, to: tmp.appendingPathComponent("presets.json"))
             try writeJSON(contents.effects, to: tmp.appendingPathComponent("effects.json"))
@@ -173,6 +179,7 @@ public enum AuroraLibraryPackage {
         return Contents(
             manifest: manifest,
             fixtureDefinitions: try readJSON(url.appendingPathComponent("definitions.json"), name: "definitions.json"),
+            physicalFixtureDefinitions: (try? readJSON(url.appendingPathComponent("physical-fixtures.json"), name: "physical-fixtures.json")) ?? [],
             palettes: try readJSON(url.appendingPathComponent("palettes.json"), name: "palettes.json"),
             presets: try readJSON(url.appendingPathComponent("presets.json"), name: "presets.json"),
             effects: try readJSON(url.appendingPathComponent("effects.json"), name: "effects.json"),
@@ -196,6 +203,9 @@ public enum AuroraLibraryPackage {
             }
         }
         upsert(contents.fixtureDefinitions, into: &project.fixtureDefinitions)
+        var physical = project.physicalFixtureDefinitions ?? []
+        upsert(contents.physicalFixtureDefinitions, into: &physical)
+        project.physicalFixtureDefinitions = physical
         upsert(contents.palettes, into: &project.palettes)
         upsert(contents.presets, into: &project.presets)
         upsert(contents.effects, into: &project.effects)
@@ -231,4 +241,23 @@ public enum AuroraLibraryPackage {
             throw LibraryError.decodingFailed("\(name): \(error.localizedDescription)")
         }
     }
+}
+
+extension AuroraLibraryPackage.LibraryError: LocalizedError, PrismDiagnosableError {
+    public var errorDescription: String? { userMessage }
+    public var prismErrorCode: String {
+        switch self {
+        case .notADirectory: return "fixture.library.not_a_package"
+        case .unsupportedSchema: return "fixture.library.unsupported_schema"
+        case .missingFile: return "fixture.library.missing_file"
+        case .decodingFailed: return "fixture.library.decode_failed"
+        case .io: return "fixture.library.io_failed"
+        }
+    }
+    public var userTitle: String { "Prism Couldn't Open That Library" }
+    public var userMessage: String { "Prism couldn’t open that fixture library package." }
+    public var recoverySuggestion: String? { "Choose another library file, or export a new library from Prism." }
+    public var technicalDetails: String { String(reflecting: self) }
+    public var prismCategory: PrismLogCategory { .fixtureLibrary }
+    public var prismSeverity: PrismLogLevel { .error }
 }

@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import Foundation
 
 /// Errors thrown while reading or writing a Prism document package.
@@ -9,22 +10,75 @@ public enum ProjectPackageError: Error, Equatable, Sendable, LocalizedError {
     case decodingFailed(String)
     case writeFailed(String)
 
-    public var errorDescription: String? {
+    public var errorDescription: String? { userMessage }
+}
+
+extension ProjectPackageError: PrismDiagnosableError {
+    public var prismErrorCode: String {
         switch self {
-        case .notADirectory(let url):
-            return "The selected Prism project is not a package directory: \(url.lastPathComponent)"
-        case .missingFile(let name):
-            return "The Prism project is missing the required file \(name)."
-        case .unsupportedSchemaVersion(let found, let supportedMaximum):
-            return "This project uses schema version \(found), but this version of Prism supports up to version \(supportedMaximum)."
-        case .encodingFailed(let detail):
-            return "Prism could not encode the project: \(detail)"
-        case .decodingFailed(let detail):
-            return "Prism could not read the project: \(detail)"
-        case .writeFailed(let detail):
-            return "Prism could not save the project: \(detail)"
+        case .notADirectory: return "project.open.not_a_package"
+        case .missingFile: return "project.open.missing_file"
+        case .unsupportedSchemaVersion: return "project.open.unsupported_schema"
+        case .encodingFailed: return "project.save.encode_failed"
+        case .decodingFailed: return "project.open.decode_failed"
+        case .writeFailed: return "project.save.write_failed"
         }
     }
+
+    public var userTitle: String {
+        switch self {
+        case .encodingFailed, .writeFailed:
+            return "Prism Couldn't Save the Show"
+        default:
+            return "Prism Couldn't Open the Show"
+        }
+    }
+
+    public var userMessage: String {
+        switch self {
+        case .notADirectory:
+            return "The selected item isn’t a Prism show package."
+        case .missingFile:
+            return "This show package is missing a required file."
+        case .unsupportedSchemaVersion:
+            return "This show was saved with a newer version of Prism."
+        case .encodingFailed, .writeFailed:
+            return "Prism couldn’t save the show."
+        case .decodingFailed:
+            return "Prism couldn’t read this show because part of the file is damaged."
+        }
+    }
+
+    public var recoverySuggestion: String? {
+        switch self {
+        case .encodingFailed, .writeFailed:
+            return "Try saving to another location, or contact support with the reference ID."
+        case .unsupportedSchemaVersion:
+            return "Open this show in a newer version of Prism."
+        default:
+            return "Choose another file, or contact support with the reference ID."
+        }
+    }
+
+    public var technicalDetails: String {
+        switch self {
+        case .notADirectory(let url):
+            return "notADirectory lastPathComponent=\(url.lastPathComponent)"
+        case .missingFile(let name):
+            return "missingFile \(name)"
+        case .unsupportedSchemaVersion(let found, let supportedMaximum):
+            return "unsupportedSchemaVersion found=\(found) max=\(supportedMaximum)"
+        case .encodingFailed(let detail):
+            return "encodingFailed \(detail)"
+        case .decodingFailed(let detail):
+            return "decodingFailed \(detail)"
+        case .writeFailed(let detail):
+            return "writeFailed \(detail)"
+        }
+    }
+
+    public var prismCategory: PrismLogCategory { .projectDocument }
+    public var prismSeverity: PrismLogLevel { .error }
 }
 
 /// On-disk Prism package (directory bundle) load/save for `ShowProject`.
@@ -77,6 +131,7 @@ public enum ProjectPackage {
     private static let universesFileName = "universes.json"
     private static let fixturesFileName = "fixtures.json"
     private static let definitionsFileName = "definitions.json"
+    private static let physicalFixturesFileName = "physical-fixtures.json"
     private static let groupsFileName = "groups.json"
     private static let palettesFileName = "palettes.json"
     private static let presetsFileName = "presets.json"
@@ -139,11 +194,13 @@ public enum ProjectPackage {
         let stageRoot = fm.temporaryDirectory
             .appendingPathComponent("AuroraSave-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: stageRoot, withIntermediateDirectories: true)
+        let signpost = PrismSignposts.begin(PrismSignposts.projectSave)
         // Keep the same last path component so package layout mirrors the destination name.
         let tmpURL = stageRoot.appendingPathComponent(url.lastPathComponent, isDirectory: true)
 
         defer {
             try? fm.removeItem(at: stageRoot)
+            PrismSignposts.end(PrismSignposts.projectSave, id: signpost)
         }
 
         do {
@@ -151,7 +208,7 @@ public enum ProjectPackage {
             var stamped = project
             stamped.metadata.modifiedAt = writtenAt
             try writePackageContents(stamped, to: tmpURL, preservingBinariesFrom: binariesFrom)
-            _ = try load(from: tmpURL)
+            _ = try loadPackage(from: tmpURL, emitOperationalEvent: false)
 
             if fm.fileExists(atPath: url.path) {
                 // Replace existing package atomically without sibling .bak in the user folder
@@ -175,6 +232,12 @@ public enum ProjectPackage {
                     throw ProjectPackageError.writeFailed("create failed: \(error.localizedDescription)")
                 }
             }
+            PrismLog.notice(
+                .projectDocument,
+                "project.document.saved",
+                "Prism saved the show.",
+                metadata: ["schemaVersion": .int(ProjectPackage.currentSchemaVersion, privacy: .public)]
+            )
             return writtenAt
         } catch let error as ProjectPackageError {
             throw error
@@ -285,6 +348,7 @@ public enum ProjectPackage {
         try writeJSON(projectToWrite.universes, to: destination.appendingPathComponent(universesFileName), encoder: encoder)
         try writeJSON(projectToWrite.fixtures, to: destination.appendingPathComponent(fixturesFileName), encoder: encoder)
         try writeJSON(projectToWrite.fixtureDefinitions, to: destination.appendingPathComponent(definitionsFileName), encoder: encoder)
+        try writeJSON(projectToWrite.physicalFixtureDefinitions ?? [], to: destination.appendingPathComponent(physicalFixturesFileName), encoder: encoder)
         try writeJSON(projectToWrite.groups, to: destination.appendingPathComponent(groupsFileName), encoder: encoder)
         try writeJSON(projectToWrite.palettes, to: destination.appendingPathComponent(palettesFileName), encoder: encoder)
         try writeJSON(projectToWrite.presets, to: destination.appendingPathComponent(presetsFileName), encoder: encoder)
@@ -326,10 +390,17 @@ public enum ProjectPackage {
 
     /// Loads a `ShowProject` from an `.aurora` package directory.
     public static func load(from url: URL) throws -> ShowProject {
+        try loadPackage(from: url, emitOperationalEvent: true)
+    }
+
+    /// Shared decoder used by public opens and silent staged-save validation.
+    private static func loadPackage(from url: URL, emitOperationalEvent: Bool) throws -> ShowProject {
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
             throw ProjectPackageError.notADirectory(url)
         }
+        let signpost = PrismSignposts.begin(PrismSignposts.projectOpen)
+        defer { PrismSignposts.end(PrismSignposts.projectOpen, id: signpost) }
 
         let decoder = makeDecoder()
 
@@ -358,6 +429,9 @@ public enum ProjectPackage {
         )
         let definitions: [FixtureDefinition] = try readJSONArray(
             url.appendingPathComponent(definitionsFileName), decoder: decoder, name: definitionsFileName, required: true
+        )
+        let physicalFixtures: [FixturePhysicalDefinition] = try readJSONArray(
+            url.appendingPathComponent(physicalFixturesFileName), decoder: decoder, name: physicalFixturesFileName, required: false
         )
         let groups: [Group] = try readJSONArray(
             url.appendingPathComponent(groupsFileName), decoder: decoder, name: groupsFileName, required: true
@@ -452,6 +526,7 @@ public enum ProjectPackage {
             metadata: root.metadata,
             preferences: root.preferences,
             fixtureDefinitions: definitions,
+            physicalFixtureDefinitions: physicalFixtures,
             universes: universes,
             fixtures: fixtures,
             groups: groups,
@@ -472,7 +547,16 @@ public enum ProjectPackage {
             stageLayout: stageLayout,
             ame: ame
         )
-        return try SchemaMigration.migrate(loaded)
+        let migrated = try SchemaMigration.migrate(loaded)
+        if emitOperationalEvent {
+            PrismLog.notice(
+                .projectDocument,
+                "project.document.opened",
+                "Prism opened the show.",
+                metadata: ["schemaVersion": .int(migrated.schemaVersion, privacy: .public)]
+            )
+        }
+        return migrated
     }
 
     // MARK: - Helpers

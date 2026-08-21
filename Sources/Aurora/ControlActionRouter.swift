@@ -19,6 +19,29 @@ struct ControlEventObserverToken: Hashable, Sendable {
     let id: UUID
 }
 
+enum ControlActionSourceType: String, Sendable {
+    case localUI = "local_ui"
+    case remote
+    case conductor
+    case midi
+    case musicEngine = "music_engine"
+    case automation
+    case bridge
+    case system
+}
+
+struct ControlActionOrigin: Sendable, Equatable {
+    var sourceType: ControlActionSourceType
+    var nodeID: String?
+    var instanceID: String?
+    var sessionID: String?
+    var principalID: String?
+    var commandID: String?
+    var displayName: String?
+
+    static let localUI = ControlActionOrigin(sourceType: .localUI)
+}
+
 /// Unified show-control dispatcher for MIDI / OSC / UI / remote (P1-9 / UI-GATE-1).
 ///
 /// Live paths avoid MainActor. `fireCueIndex` targets the **active** playback list,
@@ -55,6 +78,7 @@ final class ControlActionRouter: @unchecked Sendable {
     private let monitorCapacity = 200
     /// Live MIDI inventory for Learn binding durability (names, not ephemeral ep: IDs).
     private var sourceInventory: [MIDISourceIdentity.InventorySource] = []
+    private var lastControlOrigin: ControlActionOrigin = .localUI
 
     init(engine: LightingEngine) {
         self.engine = engine
@@ -871,9 +895,11 @@ final class ControlActionRouter: @unchecked Sendable {
         _ action: ShowAction,
         control: MIDIControlValue? = nil,
         midiValue: UInt8? = nil,
-        notifySummary: String? = nil
+        notifySummary: String? = nil,
+        origin: ControlActionOrigin = .localUI
     ) {
         lock.lock()
+        lastControlOrigin = origin
         let eng = engine
         let proj = project
         let selection = selectedFixtureIDs
@@ -905,6 +931,12 @@ final class ControlActionRouter: @unchecked Sendable {
                 notify(action, summary)
             }
         }
+    }
+
+    func controlOriginSnapshot() -> ControlActionOrigin {
+        lock.lock()
+        defer { lock.unlock() }
+        return lastControlOrigin
     }
 
     /// Live actions that must not require MainActor.

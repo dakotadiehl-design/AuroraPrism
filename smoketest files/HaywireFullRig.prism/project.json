@@ -1,0 +1,19 @@
+{
+  "cueListIds" : [
+    "A4143326-9A1D-48CF-BB86-620A5D53E574"
+  ],
+  "metadata" : {
+    "author" : "",
+    "createdAt" : "2026-08-19T21:31:17Z",
+    "modifiedAt" : "2026-08-20T13:59:51Z",
+    "name" : "HaywireFullRig",
+    "notes" : ""
+  },
+  "preferences" : {
+    "defaultFadeIn" : 0,
+    "defaultFadeOut" : 0,
+    "defaultTracking" : "track",
+    "preferredFrameRateHz" : 40
+  },
+  "schemaVersion" : 5
+}

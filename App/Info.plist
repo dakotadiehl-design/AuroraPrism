@@ -125,11 +125,12 @@
 	<false/>
 	<!-- Local network: Art-Net, sACN, remote companion, OSC, RTP-MIDI -->
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Prism uses the local network for Art-Net and sACN lighting output, OSC control, RTP-MIDI, and the stage web remote companion.</string>
+	<string>Prism uses the local network for Art-Net and sACN lighting output, OSC control, RTP-MIDI, and ACP remote access.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_osc._udp</string>
 		<string>_apple-midi._udp</string>
+		<string>_acp._tcp</string>
 	</array>
 </dict>
 </plist>

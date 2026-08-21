@@ -1,4 +1,6 @@
+import AuroraDesignSystem
 import AppKit
+import AuroraDiagnostics
 import AuroraModel
 import AuroraUI
 import SwiftUI
@@ -7,7 +9,7 @@ struct UserFixtureLibraryWindow: View {
     @EnvironmentObject private var appModel: AppModel
     @State private var searchText = ""
     @State private var pendingRemoval: [FixtureDefinition] = []
-    @State private var errorMessage: String?
+    @State private var errorReport: PrismErrorReport?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -17,6 +19,9 @@ struct UserFixtureLibraryWindow: View {
                 Text("\(appModel.document.userFixtureDefinitions.count) modes")
                     .foregroundStyle(.secondary)
                 Spacer()
+                Button("Create Fixture…") {
+                    NotificationCenter.default.post(name: .openFixtureCreator, object: nil)
+                }
                 Button("Import…") { appModel.importFixtureDefinition() }
                 Button("Reveal in Finder") {
                     NSWorkspace.shared.activateFileViewerSelecting([appModel.document.userFixtureLibraryDirectory])
@@ -88,14 +93,7 @@ struct UserFixtureLibraryWindow: View {
         } message: {
             Text("This removes the selected item from your User Library. Existing projects retain their embedded fixture definitions.")
         }
-        .alert("Fixture Library Error", isPresented: Binding(
-            get: { errorMessage != nil },
-            set: { if !$0 { errorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { errorMessage = nil }
-        } message: {
-            Text(errorMessage ?? "The User Library could not be updated.")
-        }
+        .prismErrorAlert(item: $errorReport)
     }
 
     private var families: [UserFixtureFamily] {
@@ -168,7 +166,15 @@ struct UserFixtureLibraryWindow: View {
             try appModel.document.reloadUserFixtureLibrary()
             appModel.notifyUI()
         } catch {
-            errorMessage = error.localizedDescription
+            errorReport = PrismErrorReporting.report(
+                error: error,
+                context: PrismErrorContext(
+                    operation: "reload fixture library",
+                    category: .fixtureLibrary,
+                    fallbackTitle: "Prism Couldn't Update the Fixture Library",
+                    fallbackMessage: "The Fixture Library could not be updated."
+                )
+            )
         }
     }
 
@@ -179,7 +185,15 @@ struct UserFixtureLibraryWindow: View {
             try appModel.document.removeUserFixtureDefinitions(ids)
             appModel.notifyUI()
         } catch {
-            errorMessage = error.localizedDescription
+            errorReport = PrismErrorReporting.report(
+                error: error,
+                context: PrismErrorContext(
+                    operation: "remove user fixture",
+                    category: .fixtureLibrary,
+                    fallbackTitle: "Prism Couldn't Update the Fixture Library",
+                    fallbackMessage: "The Fixture Library could not be updated."
+                )
+            )
         }
     }
 }

@@ -8,7 +8,13 @@ import Foundation
 public final class EffectRunner: @unchecked Sendable {
     private let lock = NSLock()
     private var effects: [UUID: EffectInstance] = [:]
+    /// Compiled in control/edit paths, never rebuilt by the engine frame loop.
+    private var compiledEffects: [UUID: CompiledPrismEffect] = [:]
+    /// Atomically replaced, pre-sorted, enabled-only evaluator input.
+    private var compiledStack: [CompiledPrismEffect] = []
+    private var lastResult: EffectEvaluationResult?
     private var nextOrder: Int = 0
+    private var compilationContext = EffectDistributionContext()
 
     public init() {}
 
@@ -23,18 +29,23 @@ public final class EffectRunner: @unchecked Sendable {
             nextOrder = max(nextOrder, effect.order + 1)
         }
         effects[effect.id] = effect
+        recompileAllLocked()
         lock.unlock()
     }
 
     public func remove(id: UUID) {
         lock.lock()
         effects[id] = nil
+        recompileAllLocked()
         lock.unlock()
     }
 
     public func clear() {
         lock.lock()
         effects.removeAll()
+        compiledEffects.removeAll()
+        compiledStack.removeAll()
+        lastResult = nil
         nextOrder = 0
         lock.unlock()
     }
@@ -44,6 +55,7 @@ public final class EffectRunner: @unchecked Sendable {
         if var effect = effects[id] {
             effect.enabled = enabled
             effects[id] = effect
+            recompileAllLocked()
         }
         lock.unlock()
     }
@@ -60,7 +72,64 @@ public final class EffectRunner: @unchecked Sendable {
             }
         }
         effects = map
+        recompileAllLocked()
         nextOrder = (effects.values.map(\.order).max() ?? -1) + 1
+        lock.unlock()
+    }
+
+    /// Updates stage/patch ordering inputs and recompiles the immutable stack.
+    /// Spatial orders remain dynamic across Stage edits unless explicitly frozen.
+    public func setCompilationContext(_ context: EffectDistributionContext) {
+        lock.lock()
+        compilationContext = context
+        recompileAllLocked()
+        lock.unlock()
+    }
+
+    /// Moves one effect in the explicit stack and normalizes durable order values.
+    public func move(id: UUID, to destination: Int) {
+        lock.lock()
+        var ordered = effects.values.sorted { $0.order == $1.order ? $0.id.uuidString < $1.id.uuidString : $0.order < $1.order }
+        guard let source = ordered.firstIndex(where: { $0.id == id }) else { lock.unlock(); return }
+        let item = ordered.remove(at: source)
+        ordered.insert(item, at: min(max(0, destination), ordered.count))
+        for index in ordered.indices { ordered[index].order = index; effects[ordered[index].id] = ordered[index] }
+        nextOrder = ordered.count
+        recompileAllLocked()
+        lock.unlock()
+    }
+
+    /// Creates a reusable linked instance. Creative edits to `templateID`
+    /// propagate on the next compilation while target and stack state remain local.
+    @discardableResult
+    public func createLinkedInstance(templateID: UUID, fixtureIDs: [UUID], name: String? = nil) -> UUID? {
+        lock.lock()
+        guard let template = effects[templateID] else { lock.unlock(); return nil }
+        var instance = template
+        instance.id = UUID()
+        instance.name = name ?? "\(template.name) Linked"
+        instance.fixtureIDs = fixtureIDs
+        instance.order = nextOrder
+        instance.templateEffectID = templateID
+        instance.templateLinkMode = .linked
+        nextOrder += 1
+        effects[instance.id] = instance
+        recompileAllLocked()
+        lock.unlock()
+        return instance.id
+    }
+
+    /// Copies the currently resolved template values into an independent instance.
+    public func detachTemplate(id: UUID) {
+        lock.lock()
+        guard let instance = effects[id] else { lock.unlock(); return }
+        var context = compilationContext
+        context.templateEffects = effects
+        var detached = PrismEffectCompiler.compile(instance, context: context).source
+        detached.templateEffectID = nil
+        detached.templateLinkMode = .detached
+        effects[id] = detached
+        recompileAllLocked()
         lock.unlock()
     }
 
@@ -87,9 +156,61 @@ public final class EffectRunner: @unchecked Sendable {
 
     /// Applies all enabled effects to `look` at engine time `time` (seconds).
     public func apply(on look: ActiveLook, time: TimeInterval) -> ActiveLook {
-        let instances = snapshot().filter(\.enabled)
-        guard !instances.isEmpty else { return look }
-        return Self.apply(look: look, time: time, effects: instances)
+        let compiled = compiledSnapshot()
+        let result = PrismEffectEvaluator.evaluateOrdered(baseLook: look, time: time, effects: compiled)
+        lock.lock()
+        lastResult = result
+        lock.unlock()
+        return result.semanticLook
+    }
+
+    /// Applies an FX-2 timing frame. Callers obtain samples from
+    /// `EffectTimingCoordinator`; legacy effects still use `legacyTime`.
+    public func apply(on look: ActiveLook, context: EffectEvaluationContext) -> ActiveLook {
+        let compiled = compiledSnapshot()
+        return apply(on: look, context: context, compiledEffects: compiled)
+    }
+
+    /// Evaluates the exact immutable stack used to produce this frame's timing
+    /// samples, preventing edit races between timing and semantic evaluation.
+    public func apply(
+        on look: ActiveLook,
+        context: EffectEvaluationContext,
+        compiledEffects: [CompiledPrismEffect]
+    ) -> ActiveLook {
+        let result = PrismEffectEvaluator.evaluateOrdered(baseLook: look, context: context, effects: compiledEffects)
+        lock.lock()
+        lastResult = result
+        lock.unlock()
+        return result.semanticLook
+    }
+
+    /// Immutable ordered evaluator input. Compilation occurs only when definitions change.
+    public func compiledSnapshot() -> [CompiledPrismEffect] {
+        lock.lock()
+        defer { lock.unlock() }
+        return compiledStack
+    }
+
+    /// Latest authoritative live evaluation, including evaluator-owned visual metadata.
+    public func latestEvaluationResult() -> EffectEvaluationResult? {
+        lock.lock()
+        defer { lock.unlock() }
+        return lastResult
+    }
+
+    private func rebuildCompiledStackLocked() {
+        compiledStack = compiledEffects.values.filter(\.source.enabled).sorted {
+            if $0.source.order != $1.source.order { return $0.source.order < $1.source.order }
+            return $0.id.uuidString < $1.id.uuidString
+        }
+    }
+
+    private func recompileAllLocked() {
+        var context = compilationContext
+        context.templateEffects = effects
+        compiledEffects = effects.mapValues { PrismEffectCompiler.compile($0, context: context) }
+        rebuildCompiledStackLocked()
     }
 
     /// Pure apply for tests and deterministic evaluation.
@@ -98,152 +219,7 @@ public final class EffectRunner: @unchecked Sendable {
         time: TimeInterval,
         effects: [EffectInstance]
     ) -> ActiveLook {
-        var result = look
-        let ordered = effects.sorted {
-            if $0.order != $1.order { return $0.order < $1.order }
-            return $0.id.uuidString < $1.id.uuidString
-        }
-        for effect in ordered where effect.enabled {
-            guard !effect.fixtureIDs.isEmpty else { continue }
-            result = applyOne(look: result, time: time, effect: effect)
-        }
-        return result
-    }
-
-    // MARK: - Generators
-
-    private static func applyOne(look: ActiveLook, time: TimeInterval, effect: EffectInstance) -> ActiveLook {
-        switch effect.kind {
-        case .pulse, .wave, .beamPulse:
-            return applySine(look: look, time: time, effect: effect)
-        case .chase:
-            return applyChase(look: look, time: time, effect: effect)
-        case .rainbow:
-            return applyRainbow(look: look, time: time, effect: effect)
-        case .positionCircle:
-            return applyPositionCircle(look: look, time: time, effect: effect)
-        case .colorStep:
-            return applyColorStep(look: look, time: time, effect: effect)
-        case .cellChase:
-            return applyCellChase(look: look, time: time, effect: effect)
-        }
-    }
-
-    private static func phaseForFixture(effect: EffectInstance, index: Int) -> Double {
-        let n = effect.fixtureIDs.count
-        let span = max(n - 1, 1)
-        let orderedIndex = effect.direction < 0 ? (n - 1 - index) : index
-        return effect.phase + effect.spread * (Double(orderedIndex) / Double(span))
-    }
-
-    private static func applySine(look: ActiveLook, time: TimeInterval, effect: EffectInstance) -> ActiveLook {
-        var result = look
-        let attr = effect.kind == .beamPulse
-            ? (effect.attribute.isEmpty || effect.attribute == "intensity" ? "zoom" : effect.attribute)
-            : effect.attribute
-        for (index, fixtureID) in effect.fixtureIDs.enumerated() {
-            let phase = phaseForFixture(effect: effect, index: index)
-            let angle = 2 * Double.pi * (effect.rateHz * time * effect.direction + phase)
-            let offset = effect.size * sin(angle)
-            let base = result.fixtureAttributes[fixtureID]?[attr] ?? 0
-            var attrs = result.fixtureAttributes[fixtureID] ?? [:]
-            attrs[attr] = clamp01(base + offset)
-            result.fixtureAttributes[fixtureID] = attrs
-        }
-        return result
-    }
-
-    private static func applyChase(look: ActiveLook, time: TimeInterval, effect: EffectInstance) -> ActiveLook {
-        var result = look
-        let n = effect.fixtureIDs.count
-        guard n > 0 else { return result }
-        let attr = effect.attribute
-        let step = effect.rateHz * time * effect.direction + effect.phase
-        let active = Int(floor(step * Double(n)).truncatingRemainder(dividingBy: Double(n)))
-        let activeIndex = ((active % n) + n) % n
-
-        for (index, fixtureID) in effect.fixtureIDs.enumerated() {
-            var attrs = result.fixtureAttributes[fixtureID] ?? [:]
-            attrs[attr] = index == activeIndex ? effect.size : 0
-            result.fixtureAttributes[fixtureID] = attrs
-        }
-        return result
-    }
-
-    private static func applyRainbow(look: ActiveLook, time: TimeInterval, effect: EffectInstance) -> ActiveLook {
-        var result = look
-        let value = max(0.5, effect.size)
-        for (index, fixtureID) in effect.fixtureIDs.enumerated() {
-            let phase = phaseForFixture(effect: effect, index: index)
-            let hueFrac = fract(effect.rateHz * time * effect.direction + phase)
-            let rgb = ColorMath.rgb(from: HSVColor(h: hueFrac * 360, s: 1, v: value))
-            var attrs = result.fixtureAttributes[fixtureID] ?? [:]
-            attrs["colorR"] = rgb.r
-            attrs["colorG"] = rgb.g
-            attrs["colorB"] = rgb.b
-            result.fixtureAttributes[fixtureID] = attrs
-        }
-        return result
-    }
-
-    private static func applyPositionCircle(look: ActiveLook, time: TimeInterval, effect: EffectInstance) -> ActiveLook {
-        var result = look
-        let radius = effect.size * 0.5
-        for (index, fixtureID) in effect.fixtureIDs.enumerated() {
-            let phase = phaseForFixture(effect: effect, index: index)
-            let angle = 2 * Double.pi * (effect.rateHz * time * effect.direction + phase)
-            var attrs = result.fixtureAttributes[fixtureID] ?? [:]
-            attrs["pan"] = clamp01(0.5 + radius * cos(angle))
-            attrs["tilt"] = clamp01(0.5 + radius * sin(angle))
-            result.fixtureAttributes[fixtureID] = attrs
-        }
-        return result
-    }
-
-    private static func applyColorStep(look: ActiveLook, time: TimeInterval, effect: EffectInstance) -> ActiveLook {
-        var result = look
-        let colors: [(Double, Double, Double)] = [
-            (1, 0, 0), (1, 1, 0), (0, 1, 0), (0, 1, 1), (0, 0, 1), (1, 0, 1),
-        ]
-        let step = Int(floor(effect.rateHz * time * effect.direction + effect.phase * Double(colors.count)))
-        for (index, fixtureID) in effect.fixtureIDs.enumerated() {
-            let ci = ((step + index) % colors.count + colors.count) % colors.count
-            let c = colors[ci]
-            var attrs = result.fixtureAttributes[fixtureID] ?? [:]
-            attrs["colorR"] = c.0 * effect.size
-            attrs["colorG"] = c.1 * effect.size
-            attrs["colorB"] = c.2 * effect.size
-            result.fixtureAttributes[fixtureID] = attrs
-        }
-        return result
-    }
-
-    /// Chases `attribute@cellN` (default colorR) across cells on each fixture.
-    private static func applyCellChase(look: ActiveLook, time: TimeInterval, effect: EffectInstance) -> ActiveLook {
-        var result = look
-        let baseAttr = effect.attribute.contains("@")
-            ? String(effect.attribute.split(separator: "@").first ?? "colorR")
-            : (effect.attribute.isEmpty ? "colorR" : effect.attribute)
-        let cells = max(1, effect.cellCount > 0 ? effect.cellCount : 8)
-        let step = effect.rateHz * time * effect.direction + effect.phase
-        let activeCell = Int(floor(step * Double(cells)).truncatingRemainder(dividingBy: Double(cells)))
-        let active = ((activeCell % cells) + cells) % cells
-        for fixtureID in effect.fixtureIDs {
-            var attrs = result.fixtureAttributes[fixtureID] ?? [:]
-            for c in 0..<cells {
-                attrs["\(baseAttr)@\(c)"] = c == active ? effect.size : 0
-            }
-            result.fixtureAttributes[fixtureID] = attrs
-        }
-        return result
-    }
-
-    private static func clamp01(_ x: Double) -> Double {
-        min(1, max(0, x))
-    }
-
-    private static func fract(_ x: Double) -> Double {
-        let f = x - floor(x)
-        return f < 0 ? f + 1 : f
+        let compiled = effects.map { PrismEffectCompiler.compile($0) }
+        return PrismEffectEvaluator.evaluate(baseLook: look, time: time, effects: compiled).semanticLook
     }
 }

@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import AuroraUI
 import SwiftUI
 
@@ -141,7 +142,7 @@ struct PerformWorkspaceShell: View {
             // Global show control (P0-I) — functional chrome only.
             HStack(spacing: AuroraSpacing.md) {
                 globalToggle(
-                    title: "B/O",
+                    title: "Toggle Blackout",
                     active: appModel.performance.blackout,
                     critical: true
                 ) { appModel.toggleBlackout() }

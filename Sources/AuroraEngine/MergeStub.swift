@@ -76,9 +76,11 @@ public enum MergeStub {
             case .eightBit(let offset, let defaultValue):
                 let value: UInt8
                 if let normalized {
-                    value = dmxValue(normalized: normalized)
+                    value = write.eightBitValue(normalized: normalized)
+                } else if !write.writesDefaultWhenUnowned {
+                    continue
                 } else {
-                    value = defaultValue
+                    value = write.safeEightBitValue(defaultValue)
                 }
                 writeByte(value, baseAddress: base, offset: offset, into: &buffer)
 

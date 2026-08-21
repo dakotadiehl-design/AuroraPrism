@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import Foundation
 
 /// Boundary used for quantized scheduling (Phase B implements firing).
@@ -45,6 +46,17 @@ public enum ScheduledCommand: Codable, Equatable, Sendable, Hashable {
 
 public enum ScheduledMusicalActionError: Error, Equatable, Sendable {
     case safetyMustBeImmediate
+}
+
+extension ScheduledMusicalActionError: LocalizedError, PrismDiagnosableError {
+    public var errorDescription: String? { userMessage }
+    public var prismErrorCode: String { "music.scheduler.safety_must_be_immediate" }
+    public var userTitle: String { "That Safety Action Can’t Wait" }
+    public var userMessage: String { "This safety action can’t wait for the next beat." }
+    public var recoverySuggestion: String? { "Keep panic and other safety actions set to happen immediately." }
+    public var technicalDetails: String { String(reflecting: self) }
+    public var prismCategory: PrismLogCategory { .musicScheduler }
+    public var prismSeverity: PrismLogLevel { .error }
 }
 
 /// Typed scheduled work — no closures, no string action storage.

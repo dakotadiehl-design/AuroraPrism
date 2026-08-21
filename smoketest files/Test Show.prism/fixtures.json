@@ -27,19 +27,250 @@
     "groupIds" : [
 
     ],
-    "id" : "8A84EC4F-BED6-445C-A60D-B08A9392949E",
-    "name" : "Stage Left 4 Bar",
+    "id" : "FEEA92FF-44FE-4772-A8E0-3BF88D10580A",
+    "name" : "4 Bar Hex",
     "notes" : "",
     "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
   },
   {
     "address" : 52,
+    "definitionId" : "0162C9D0-F0EC-5439-8A02-7ED9FB899EE0",
+    "groupIds" : [
+
+    ],
+    "id" : "67A037A1-9F57-44FB-811D-698EA59365B6",
+    "name" : "Hazer",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 70,
+    "definitionId" : "FB523036-7080-503F-8CB6-C532FA64EFD3",
+    "groupIds" : [
+
+    ],
+    "id" : "1D59580D-89DD-440B-8B9E-2C257D692165",
+    "name" : "Jolt30 1",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 82,
+    "definitionId" : "7914C850-ED06-5693-ACB6-491AB90A023C",
+    "groupIds" : [
+
+    ],
+    "id" : "AEFBD326-3654-41C3-9BD9-C33D42C5DB50",
+    "name" : "JoltBa 1",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 88,
+    "definitionId" : "37E52C7E-B6BC-5F12-AC0A-E2D13A6CC75A",
+    "groupIds" : [
+
+    ],
+    "id" : "51E9280D-42D8-4928-8EC4-946C7447C30E",
+    "name" : "BTF100 1",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 90,
+    "definitionId" : "88FD75EA-ACF0-5226-91FA-61ACB0F3890F",
+    "groupIds" : [
+
+    ],
+    "id" : "8422FF10-AC5B-41BD-B338-C6F129A2DC69",
+    "name" : "4BarFl 1",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 94,
+    "definitionId" : "10C2DE64-842A-5303-AC62-7BA67D17DDF3",
+    "groupIds" : [
+
+    ],
+    "id" : "CF5B34C8-2005-4DF6-839F-BE86C67CC654",
+    "name" : "4BarHe 1",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 106,
+    "definitionId" : "91939436-9FBD-5FA6-B80E-DC78C1C9ADBC",
+    "groupIds" : [
+
+    ],
+    "id" : "5831C29D-E710-4E67-8B14-65720AAB6E6F",
+    "name" : "COLORa 1",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 179,
+    "definitionId" : "8A4EFB68-C3CD-5D04-8506-86647A669F6D",
+    "groupIds" : [
+
+    ],
+    "id" : "7B00A5F4-76EB-4BE0-8BB8-40E3093C9B4A",
+    "name" : "Intimi 1",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 187,
+    "definitionId" : "D2CF1051-7665-511D-A3D0-6C6BE080D459",
+    "groupIds" : [
+
+    ],
+    "id" : "A63A9F63-E075-485A-B8B1-4B1E9D34D304",
+    "name" : "Intimi 2",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 195,
+    "definitionId" : "27CBD024-2BD6-56AB-A961-EEA1EAB9046E",
+    "groupIds" : [
+
+    ],
+    "id" : "63627FFC-2B7B-444C-BD47-BBA5C4E59582",
+    "name" : "Ovatio 1",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 198,
+    "definitionId" : "BB4EEA68-8EDF-5B53-9F97-C6C4A780340B",
+    "groupIds" : [
+
+    ],
+    "id" : "2F46F9F8-377F-4479-9C88-9C5A00774395",
+    "name" : "RogueR 1",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 213,
+    "definitionId" : "112B22CD-9B5D-5BA7-B0BB-0E263F6EFF4F",
+    "groupIds" : [
+
+    ],
+    "id" : "0B3195EB-B8F7-49C3-B4D5-1066FD8E4886",
+    "name" : "RogueR 2",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 227,
+    "definitionId" : "C36747F5-AEB0-558F-838B-43F223591432",
+    "groupIds" : [
+
+    ],
+    "id" : "756801C4-0C15-4EFD-A088-FBB558D1BD6B",
+    "name" : "RogueR 3",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 274,
+    "definitionId" : "C703448C-2967-58CC-A9E7-09E3E5A39E07",
+    "groupIds" : [
+
+    ],
+    "id" : "7AF5C3BA-6B69-4C86-B02C-BBB511393CF3",
+    "name" : "RogueR 4",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 294,
+    "definitionId" : "FC9E363C-A182-58E3-B93E-BFD523666E7A",
+    "groupIds" : [
+
+    ],
+    "id" : "ECE1026D-C12B-4DFE-9C3C-3BD95D1D95C4",
+    "name" : "RogueR 5",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 310,
+    "definitionId" : "1C5AFE67-792F-5282-9167-1D25E1FC7998",
+    "groupIds" : [
+
+    ],
+    "id" : "BF99959C-27B2-4AD6-B82C-952624264F7D",
+    "name" : "RogueR 6",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 324,
+    "definitionId" : "BD8CFBBF-453B-50F5-B262-EDCEC5C76612",
+    "groupIds" : [
+
+    ],
+    "id" : "63E03229-DADA-4E4C-98D4-F1BE78F324C9",
+    "name" : "Scorpi 1",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 334,
+    "definitionId" : "EBA61865-7061-5418-905F-AA6B6CB5F286",
+    "groupIds" : [
+
+    ],
+    "id" : "9C71AA8D-CDBF-4680-88CD-4C7AA8CA3079",
+    "name" : "Shocke 1",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 342,
+    "definitionId" : "4191437F-D57D-5800-8BE0-2EE3738D6672",
+    "groupIds" : [
+
+    ],
+    "id" : "A878800D-2CEF-4AE2-A8D5-BD81B589E130",
+    "name" : "SlimPA 1",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 385,
     "definitionId" : "62BAE228-93A0-5A3F-A2E5-1E8C11FC3BC8",
     "groupIds" : [
 
     ],
-    "id" : "5F79F0CF-E964-4C81-9059-99474BA5297F",
-    "name" : "Stage Right 4Bar",
+    "id" : "494818DB-92EE-4401-B383-0117A2E9155A",
+    "name" : "4BarHe 2",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 420,
+    "definitionId" : "D9FACC0D-3DFB-54A4-914E-7A1E8EB2A8ED",
+    "groupIds" : [
+
+    ],
+    "id" : "DB14DB6C-EC7F-4472-84C3-D35EBFE46F56",
+    "name" : "COLORa 2",
+    "notes" : "",
+    "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
+  },
+  {
+    "address" : 161,
+    "definitionId" : "C5556768-CA5D-52ED-92A8-8E5267CD0C11",
+    "groupIds" : [
+
+    ],
+    "id" : "58C1D351-784F-4F9C-A3AB-7ADA4D3D6083",
+    "name" : "COLORb 1",
     "notes" : "",
     "universeId" : "EB1BA416-5B8E-480C-B997-B801BF98C8F6"
   }

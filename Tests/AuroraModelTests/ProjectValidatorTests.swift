@@ -83,4 +83,17 @@ final class ProjectValidatorTests: XCTestCase {
         let issues = ProjectValidator.validate(project).issues
         XCTAssertTrue(issues.contains { $0.message.contains("Duplicate effect order") })
     }
+
+    func testBrokenAndCyclicEffectTemplateReferencesAreDetected() {
+        var project = ShowProject.empty()
+        var missing = EffectDefinition(name: "Missing", templateEffectID: UUID(), templateLinkMode: .linked)
+        var cyclic = EffectDefinition(name: "Cyclic")
+        cyclic.templateEffectID = cyclic.id
+        cyclic.templateLinkMode = .linked
+        missing.order = 0; cyclic.order = 1
+        project.effects = [missing, cyclic]
+        let messages = ProjectValidator.validate(project).issues.map(\.message)
+        XCTAssertTrue(messages.contains { $0.contains("missing template") })
+        XCTAssertTrue(messages.contains { $0.contains("cyclic template") })
+    }
 }

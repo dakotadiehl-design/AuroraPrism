@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import AuroraModel
 import AuroraOutput
 import Foundation
@@ -12,6 +13,7 @@ import Foundation
 /// - After `stop()` returns, no prior frame may still flush (barrier on `frameQueue`).
 /// - Playback / Programmer / EffectRunner own their internal locks; they are not whole-frame atomic alone.
 public final class LightingEngine: @unchecked Sendable {
+    public typealias EffectClockSnapshotProvider = @Sendable (TimeInterval) -> [EffectClockSource: EffectClockSnapshot]
     private let output: OutputManager
     private let clock: EngineClock
     private let scheduler = EngineScheduler()
@@ -46,6 +48,9 @@ public final class LightingEngine: @unchecked Sendable {
     public let programmer = Programmer()
     /// Live effects between playback and programmer (PR22).
     public let effects = EffectRunner()
+    private let effectTiming = EffectTimingCoordinator()
+    private let effectPreviewTiming = EffectTimingCoordinator()
+    private var effectClockSnapshotProvider: EffectClockSnapshotProvider?
     /// MIDI behavior envelopes (after effects, before programmer) — P0-J.
     public let midiBehaviors = MIDIBehaviorRuntime()
     /// Frame timing samples (PR30).
@@ -78,6 +83,35 @@ public final class LightingEngine: @unchecked Sendable {
     public var globalShowControl: GlobalShowControlState {
         lock.lock(); defer { lock.unlock() }
         return globalControl
+    }
+
+    public func setEffectClockSnapshotProvider(_ provider: EffectClockSnapshotProvider?) {
+        lock.lock()
+        effectClockSnapshotProvider = provider
+        lock.unlock()
+    }
+
+    /// Private, non-output evaluation through the same timing and semantic path
+    /// as live frames. This method never mutates the live Effects stack.
+    public func evaluateEffectPreview(
+        _ effect: EffectInstance,
+        time: TimeInterval,
+        baseLook: ActiveLook = .empty
+    ) -> EffectEvaluationResult {
+        lock.lock()
+        let distributionContext = effectDistributionContext(for: project)
+        lock.unlock()
+        let compiled = PrismEffectCompiler.compile(effect, context: distributionContext)
+        lock.lock()
+        let provider = effectClockSnapshotProvider
+        lock.unlock()
+        let clocks = provider?(time) ?? [:]
+        let samples = effectPreviewTiming.samples(for: [compiled], clocks: clocks, monotonicTime: time)
+        return PrismEffectEvaluator.evaluateOrdered(
+            baseLook: baseLook,
+            context: .init(legacyTime: time, timingSamples: samples),
+            effects: [compiled]
+        )
     }
 
     public func setMasterIntensity(_ value: Double) {
@@ -235,6 +269,7 @@ public final class LightingEngine: @unchecked Sendable {
 
         midiBehaviors.load(definitions: project.midiBehaviors, drums: project.drumProfiles)
         midiBehaviors.clear()
+        effects.setCompilationContext(effectDistributionContext(for: project))
         effects.load(definitions: project.effects)
 
         // Destructive: always reset runtime playback for a full show replacement.
@@ -257,8 +292,37 @@ public final class LightingEngine: @unchecked Sendable {
         lock.unlock()
 
         midiBehaviors.load(definitions: project.midiBehaviors, drums: project.drumProfiles)
+        effects.setCompilationContext(effectDistributionContext(for: project))
         reconcileOutputUniverses(for: project)
         playback.updateProject(project)
+    }
+
+    private func effectDistributionContext(for project: ShowProject) -> EffectDistributionContext {
+        let fixtureNumbers = Dictionary(uniqueKeysWithValues: project.fixtures.enumerated().map { ($0.element.id, $0.offset + 1) })
+        let universeOrder = Dictionary(uniqueKeysWithValues: project.universes.enumerated().map { ($0.element.id, $0.offset) })
+        let addresses = Dictionary(uniqueKeysWithValues: project.fixtures.map { fixture in
+            let universe = universeOrder[fixture.universeId] ?? Int.max / 1024
+            return (fixture.id, universe * 513 + Int(fixture.address))
+        })
+        let paletteColors = Dictionary(uniqueKeysWithValues: project.palettes.compactMap { palette -> (UUID, EffectColor)? in
+            guard palette.type == .color || palette.type == .general else { return nil }
+            let red = palette.values["colorR"] ?? palette.values["red"] ?? 0
+            let green = palette.values["colorG"] ?? palette.values["green"] ?? 0
+            let blue = palette.values["colorB"] ?? palette.values["blue"] ?? 0
+            return (palette.id, EffectColor(red: red, green: green, blue: blue))
+        })
+        let definitions = Dictionary(uniqueKeysWithValues: project.fixtureDefinitions.map { ($0.id, $0) })
+        let elementIDs = Dictionary(uniqueKeysWithValues: project.fixtures.map { fixture in
+            (fixture.id, definitions[fixture.definitionId]?.elements.map(\.id) ?? [])
+        })
+        return EffectDistributionContext(
+            stagePlacements: project.stageLayout.fixtures,
+            fixtureNumbers: fixtureNumbers,
+            dmxAddresses: addresses,
+            paletteColors: paletteColors,
+            fixtureElementIDs: elementIDs,
+            fixtureGroups: Dictionary(uniqueKeysWithValues: project.groups.map { ($0.id, Set($0.fixtureIds)) })
+        )
     }
 
     /// Last validation snapshot from load/update (not frame-rate revalidated).
@@ -286,6 +350,7 @@ public final class LightingEngine: @unchecked Sendable {
 
     public func go() {
         playback.go(at: clock.now())
+        PrismLog.notice(.engineCues, "engine.cues.go", "Prism fired GO.")
     }
 
     public func back() {
@@ -419,6 +484,7 @@ public final class LightingEngine: @unchecked Sendable {
         let index = frameIndex
         let time = clock.now()
         let running = scheduler.isRunning
+        let effectClockProvider = effectClockSnapshotProvider
         lock.unlock()
 
         lock.lock()
@@ -432,7 +498,14 @@ public final class LightingEngine: @unchecked Sendable {
             playbackLook = playback.look(at: time)
         }
         // Layer order: playback → effects → MIDI behaviors → programmer → global (P0-I / P0-J).
-        let effectedLook = effects.apply(on: playbackLook, time: time)
+        let compiledEffects = effects.compiledSnapshot()
+        let effectClocks = effectClockProvider?(time) ?? [:]
+        let timingSamples = effectTiming.samples(for: compiledEffects, clocks: effectClocks, monotonicTime: time)
+        let effectedLook = effects.apply(
+            on: playbackLook,
+            context: EffectEvaluationContext(legacyTime: time, timingSamples: timingSamples),
+            compiledEffects: compiledEffects
+        )
         let midiLook = midiBehaviors.apply(on: effectedLook, time: time)
         // Blind: also force programmer blind when global blind is on.
         if gctrl.blind {
@@ -510,6 +583,7 @@ public final class LightingEngine: @unchecked Sendable {
                 frameIndex: index,
                 timestamp: time,
                 look: look,
+                programmerLook: programmed,
                 presentationLook: presentationLook,
                 playback: playbackSnap,
                 global: gctrl,

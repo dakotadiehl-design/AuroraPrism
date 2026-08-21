@@ -48,7 +48,7 @@ enum PanelRegistry {
                         appModel.notifyUI()
                     },
                     onProjectChanged: { appModel.notifyUI() },
-                    onError: { msg in appModel.diagnostics.log(msg) },
+                    onError: { _ in },
                     documentEpoch: appModel.workspace.documentEpoch,
                     documentGeneration: appModel.session.documentGeneration
                 )
@@ -85,6 +85,7 @@ enum PanelRegistry {
                     project: appModel.session.project,
                     presentation: appModel.programmerPresentation.presentation,
                     presentationRevision: appModel.programmerPresentation.revision,
+                    resolvedLook: appModel.engine.currentResolvedSnapshot().programmerLook,
                     onChanged: { appModel.noteProgrammerUIChanged() }
                 )
             )
@@ -193,6 +194,7 @@ enum PanelRegistry {
                 EffectsPanel(
                     orderedSelectionFixtureIDs: appModel.session.selection.snapshot.orderedFixtureIDs,
                     effects: appModel.engine.effects,
+                    fixtureGroups: appModel.session.project.groups,
                     onChanged: {
                         appModel.commitEffectsToProject()
                         appModel.notifyUI()
@@ -211,9 +213,10 @@ enum PanelRegistry {
         case .console:
             return AnyView(
                 ConsolePanel(
-                    lines: appModel.consoleLog,
-                    midiLines: appModel.midiLog,
-                    outputStatus: appModel.outputStatus
+                    events: appModel.diagnostics.consoleEvents,
+                    showTimestamps: appModel.settings.showConsoleTimestamps,
+                    outputStatus: appModel.outputStatus,
+                    onClear: { appModel.diagnostics.clearConsoleView() }
                 )
             )
         }

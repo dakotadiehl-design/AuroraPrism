@@ -38,7 +38,7 @@ Regenerate the project after editing `project.yml`:
 
 **Dependency rule:** the app target links SPM **library** products only:
 
-`AuroraUI`, `AuroraCore`, `AuroraModel`, `AuroraFixtureLib`, `AuroraEngine`, `AuroraOutput`, `AuroraMIDI`, `AuroraRemote`, `AuroraDiagnostics`
+`AuroraUI`, `AuroraCore`, `AuroraModel`, `AuroraFixtureLib`, `AuroraEngine`, `AuroraOutput`, `AuroraMIDI`, `AuroraDiagnostics`, `PrismACP`, and the local `AuroraACP` package product. Do not link `acp-framed-hello`. ACP is the only remote stack.
 
 It does **not** link the SPM executable product. Module graph and PR1 edges are unchanged.
 
@@ -89,7 +89,7 @@ File: `App/Aurora.entitlements`
 |-------------|-------|----------------|
 | `com.apple.security.app-sandbox` | `true` | Production isolation; path toward notarization |
 | `com.apple.security.network.client` | `true` | Outbound Art-Net, sACN, OSC, remote, RTP-MIDI |
-| `com.apple.security.network.server` | `true` | Listen: OSC :9000, remote TCP :8742, web :8743; multicast/session needs |
+| `com.apple.security.network.server` | `true` | Listen: OSC :9000, ACP WebSocket (default `27421`), sACN multicast, and RTP-MIDI sessions |
 | `com.apple.security.files.user-selected.read-write` | `true` | Open/Save `.aurora` and fixture import via panels |
 | `com.apple.security.files.bookmarks.app-scope` | `true` | **Reserved** for future security-scoped bookmark persistence. **Not implemented yet** — open/save use the panel sandbox extension for the current session only. Do not document Recent Shows as bookmark-backed until a store exists. |
 | `com.apple.security.device.usb` | `true` | ENTTEC USB DMX Pro / local USB serial DMX |

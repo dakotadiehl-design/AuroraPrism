@@ -1,5 +1,7 @@
+import AuroraDesignSystem
 import AppKit
 import AuroraCore
+import AuroraDiagnostics
 import AuroraModel
 import AuroraUI
 import SwiftUI
@@ -40,6 +42,7 @@ enum CheckpointBScreenshotExporter {
             fputs("Checkpoint B screenshots written to \(outDir.path)\n", stderr)
             NSApp.terminate(nil)
         } catch {
+            PrismLog.debug(.uiPresentation, "ui.presentation.export_failed", "A screenshot export failed.")
             fputs("Checkpoint B export failed: \(error)\n", stderr)
             exit(1)
         }

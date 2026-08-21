@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import SwiftUI
 
 /// Position pad with independent pan/tilt capability and mixed display (UI-03 Pass 2).

@@ -1,0 +1,555 @@
+[
+  {
+    "cueBlockGroupID" : "D39D07C0-6CFF-4D9B-9F60-FBD2F89C9C02",
+    "id" : "17B03E8E-D0B5-4372-B5C0-0ADDEC8E936A",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "intensity" : 1
+          },
+          "fixtureId" : "89964976-6EA2-43A0-B984-1C8787681B5A",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Center Stage 100%",
+    "notes" : "",
+    "type" : "intensity"
+  },
+  {
+    "cueBlockGroupID" : "D39D07C0-6CFF-4D9B-9F60-FBD2F89C9C02",
+    "id" : "25E4542A-2CC6-475B-B7CD-BACC6901AB17",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "intensity" : 1
+          },
+          "fixtureId" : "5231051D-23CB-4C94-A859-6328831C8216",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Stage Right 100%",
+    "notes" : "",
+    "type" : "intensity"
+  },
+  {
+    "cueBlockGroupID" : "D39D07C0-6CFF-4D9B-9F60-FBD2F89C9C02",
+    "id" : "2363E4A0-ADAA-456A-A06D-865E605506B3",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "intensity" : 1
+          },
+          "fixtureId" : "CC15E7F4-1C80-49E9-80F3-07544AA81EF9",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Stage Left 100%",
+    "notes" : "",
+    "type" : "intensity"
+  },
+  {
+    "cueBlockGroupID" : "D39D07C0-6CFF-4D9B-9F60-FBD2F89C9C02",
+    "id" : "1AED6DA7-653C-44D2-ACB1-B4D5A2ED5FCB",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "colorA@element-0" : 0,
+            "colorA@element-1" : 0,
+            "colorA@element-2" : 0,
+            "colorB@element-0" : 0,
+            "colorB@element-1" : 0,
+            "colorB@element-2" : 0,
+            "colorG@element-0" : 0,
+            "colorG@element-1" : 0,
+            "colorG@element-2" : 0,
+            "colorR@element-0" : 1,
+            "colorR@element-1" : 1,
+            "colorR@element-2" : 1
+          },
+          "fixtureId" : "CC15E7F4-1C80-49E9-80F3-07544AA81EF9",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "colorB@element-0" : 0,
+            "colorB@element-1" : 0,
+            "colorB@element-2" : 0,
+            "colorG@element-0" : 0,
+            "colorG@element-1" : 0,
+            "colorG@element-2" : 0,
+            "colorR@element-0" : 1,
+            "colorR@element-1" : 1,
+            "colorR@element-2" : 1
+          },
+          "fixtureId" : "89964976-6EA2-43A0-B984-1C8787681B5A",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "colorA@element-0" : 0,
+            "colorA@element-1" : 0,
+            "colorA@element-2" : 0,
+            "colorB@element-0" : 0,
+            "colorB@element-1" : 0,
+            "colorB@element-2" : 0,
+            "colorG@element-0" : 0,
+            "colorG@element-1" : 0,
+            "colorG@element-2" : 0,
+            "colorR@element-0" : 1,
+            "colorR@element-1" : 1,
+            "colorR@element-2" : 1
+          },
+          "fixtureId" : "5231051D-23CB-4C94-A859-6328831C8216",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Red",
+    "notes" : "",
+    "type" : "color"
+  },
+  {
+    "cueBlockGroupID" : "834C16D3-1598-45C7-84BF-31CC6E33D7E6",
+    "id" : "D54FBFD5-28A3-477E-89A4-1C563B703F3A",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "intensity" : 1
+          },
+          "fixtureId" : "B32F0E50-1A0A-4B54-94C9-A63FC2118800",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "intensity" : 1
+          },
+          "fixtureId" : "F8F29917-C0DD-4063-8A57-C5D0D887C658",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "intensity" : 1
+          },
+          "fixtureId" : "5E0A6EE0-0FFE-4E08-98E0-175FB242DAD5",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "intensity" : 1
+          },
+          "fixtureId" : "C71BFFE4-FE36-4A38-BE7F-13C554F7F11A",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "100%",
+    "notes" : "Rear uplights 100% brightness",
+    "type" : "intensity"
+  },
+  {
+    "cueBlockGroupID" : "834C16D3-1598-45C7-84BF-31CC6E33D7E6",
+    "id" : "8E3D95F6-5E69-4D88-A4A5-1700CECDBC92",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "colorB" : 0,
+            "colorG" : 0,
+            "colorHue" : 0,
+            "colorR" : 1,
+            "colorSat" : 1,
+            "colorVal" : 1,
+            "colorWB" : 0
+          },
+          "fixtureId" : "B32F0E50-1A0A-4B54-94C9-A63FC2118800",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "colorB" : 0,
+            "colorG" : 0,
+            "colorHue" : 0,
+            "colorR" : 1,
+            "colorSat" : 1,
+            "colorVal" : 1,
+            "colorWB" : 0
+          },
+          "fixtureId" : "F8F29917-C0DD-4063-8A57-C5D0D887C658",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "colorB" : 0,
+            "colorG" : 0,
+            "colorHue" : 0,
+            "colorR" : 1,
+            "colorSat" : 1,
+            "colorVal" : 1,
+            "colorWB" : 0
+          },
+          "fixtureId" : "5E0A6EE0-0FFE-4E08-98E0-175FB242DAD5",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "colorB" : 0,
+            "colorG" : 0,
+            "colorHue" : 0,
+            "colorR" : 1,
+            "colorSat" : 1,
+            "colorVal" : 1,
+            "colorWB" : 0
+          },
+          "fixtureId" : "C71BFFE4-FE36-4A38-BE7F-13C554F7F11A",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Red",
+    "notes" : "",
+    "type" : "color"
+  },
+  {
+    "cueBlockGroupID" : "834C16D3-1598-45C7-84BF-31CC6E33D7E6",
+    "id" : "2BAF7621-EC03-4C20-8402-7ADB30C71D15",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "colorB" : 0,
+            "colorG" : 0.5,
+            "colorHue" : 30,
+            "colorR" : 1,
+            "colorSat" : 1,
+            "colorVal" : 1,
+            "colorWB" : 0
+          },
+          "fixtureId" : "F8F29917-C0DD-4063-8A57-C5D0D887C658",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "colorB" : 0,
+            "colorG" : 0.5,
+            "colorHue" : 30,
+            "colorR" : 1,
+            "colorSat" : 1,
+            "colorVal" : 1,
+            "colorWB" : 0
+          },
+          "fixtureId" : "C71BFFE4-FE36-4A38-BE7F-13C554F7F11A",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "colorB" : 0,
+            "colorG" : 0,
+            "colorHue" : 0,
+            "colorR" : 1,
+            "colorSat" : 1,
+            "colorVal" : 1,
+            "colorWB" : 0
+          },
+          "fixtureId" : "B32F0E50-1A0A-4B54-94C9-A63FC2118800",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "colorB" : 0,
+            "colorG" : 0,
+            "colorHue" : 0,
+            "colorR" : 1,
+            "colorSat" : 1,
+            "colorVal" : 1,
+            "colorWB" : 0
+          },
+          "fixtureId" : "5E0A6EE0-0FFE-4E08-98E0-175FB242DAD5",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Red\/Orange",
+    "notes" : "",
+    "type" : "color"
+  },
+  {
+    "cueBlockGroupID" : "834C16D3-1598-45C7-84BF-31CC6E33D7E6",
+    "id" : "9FEA4861-A351-4DBC-8D77-3046B736390B",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "intensity" : 0.5
+          },
+          "fixtureId" : "C71BFFE4-FE36-4A38-BE7F-13C554F7F11A",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "intensity" : 0.5
+          },
+          "fixtureId" : "5E0A6EE0-0FFE-4E08-98E0-175FB242DAD5",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "intensity" : 0.5
+          },
+          "fixtureId" : "F8F29917-C0DD-4063-8A57-C5D0D887C658",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "intensity" : 0.5
+          },
+          "fixtureId" : "B32F0E50-1A0A-4B54-94C9-A63FC2118800",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "50%",
+    "notes" : "",
+    "type" : "intensity"
+  },
+  {
+    "cueBlockGroupID" : "D39D07C0-6CFF-4D9B-9F60-FBD2F89C9C02",
+    "id" : "88D9F777-9C0D-45F3-ACEE-5BD112A44CEA",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "intensity" : 0.5
+          },
+          "fixtureId" : "CC15E7F4-1C80-49E9-80F3-07544AA81EF9",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Stage Left 50%",
+    "notes" : "",
+    "type" : "intensity"
+  },
+  {
+    "cueBlockGroupID" : "D39D07C0-6CFF-4D9B-9F60-FBD2F89C9C02",
+    "id" : "5AEBDF04-A1F3-4EB2-A559-23E39A985DFD",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "intensity" : 0.5
+          },
+          "fixtureId" : "89964976-6EA2-43A0-B984-1C8787681B5A",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Center Stage 50%",
+    "notes" : "",
+    "type" : "intensity"
+  },
+  {
+    "cueBlockGroupID" : "D39D07C0-6CFF-4D9B-9F60-FBD2F89C9C02",
+    "id" : "5132B5E6-A1E1-4D0B-8340-0AB9EC486FE9",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "intensity" : 0.5
+          },
+          "fixtureId" : "5231051D-23CB-4C94-A859-6328831C8216",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Stage Right 50%",
+    "notes" : "",
+    "type" : "intensity"
+  },
+  {
+    "cueBlockGroupID" : "D39D07C0-6CFF-4D9B-9F60-FBD2F89C9C02",
+    "id" : "1CBD54BC-CAB8-4B8B-9939-D6687689FA4F",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "intensity" : 0
+          },
+          "fixtureId" : "CC15E7F4-1C80-49E9-80F3-07544AA81EF9",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Stage Left 0%",
+    "notes" : "",
+    "type" : "intensity"
+  },
+  {
+    "cueBlockGroupID" : "D39D07C0-6CFF-4D9B-9F60-FBD2F89C9C02",
+    "id" : "05DB751C-A599-48AB-B7AB-68C2834D8F7D",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "intensity" : 0
+          },
+          "fixtureId" : "89964976-6EA2-43A0-B984-1C8787681B5A",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Center Stage 0%",
+    "notes" : "",
+    "type" : "intensity"
+  },
+  {
+    "cueBlockGroupID" : "D39D07C0-6CFF-4D9B-9F60-FBD2F89C9C02",
+    "id" : "3259359A-A800-4DBA-9CA4-3A4288930C73",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "intensity" : 0
+          },
+          "fixtureId" : "5231051D-23CB-4C94-A859-6328831C8216",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Stage Right 0%",
+    "notes" : "",
+    "type" : "intensity"
+  },
+  {
+    "cueBlockGroupID" : "D39D07C0-6CFF-4D9B-9F60-FBD2F89C9C02",
+    "id" : "0DB64B0F-D047-435D-B1EC-48352851326C",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "colorA@element-1" : 1,
+            "colorA@element-2" : 1,
+            "colorB@element-0" : 1,
+            "colorB@element-1" : 1,
+            "colorB@element-2" : 1,
+            "colorG@element-0" : 0.3333333333333335,
+            "colorG@element-1" : 0.3333333333333335,
+            "colorG@element-2" : 0.3333333333333335,
+            "colorR@element-0" : 0,
+            "colorR@element-1" : 0,
+            "colorR@element-2" : 0
+          },
+          "fixtureId" : "CC15E7F4-1C80-49E9-80F3-07544AA81EF9",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "colorA@element-0" : 1,
+            "colorA@element-1" : 1,
+            "colorA@element-2" : 1,
+            "colorB@element-0" : 1,
+            "colorB@element-1" : 1,
+            "colorB@element-2" : 1,
+            "colorG@element-0" : 0.3333333333333335,
+            "colorG@element-1" : 0.3333333333333335,
+            "colorG@element-2" : 0.3333333333333335,
+            "colorR@element-0" : 0,
+            "colorR@element-1" : 0,
+            "colorR@element-2" : 0
+          },
+          "fixtureId" : "89964976-6EA2-43A0-B984-1C8787681B5A",
+          "paletteRefs" : {
+
+          }
+        },
+        {
+          "attributes" : {
+            "colorA@element-0" : 1,
+            "colorA@element-1" : 1,
+            "colorB@element-0" : 1,
+            "colorB@element-1" : 1,
+            "colorB@element-2" : 1,
+            "colorG@element-0" : 0.3333333333333335,
+            "colorG@element-1" : 0.3333333333333335,
+            "colorG@element-2" : 0.3333333333333335,
+            "colorR@element-0" : 0,
+            "colorR@element-1" : 0,
+            "colorR@element-2" : 0
+          },
+          "fixtureId" : "5231051D-23CB-4C94-A859-6328831C8216",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Blue\/Amber Fade",
+    "notes" : "",
+    "type" : "color"
+  }
+]

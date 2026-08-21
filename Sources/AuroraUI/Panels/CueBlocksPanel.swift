@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import AuroraCore
 import AuroraEngine
 import AuroraModel
@@ -5,6 +6,13 @@ import SwiftUI
 #if canImport(AppKit)
 import AppKit
 #endif
+
+public extension Notification.Name {
+    /// Requests the standard Cue Block creation workflow from the visible library panel.
+    static let prismCreateCueBlock = Notification.Name("prism.createCueBlock")
+    /// Requests the standard Cue Block Group creation workflow from the visible library panel.
+    static let prismCreateCueBlockGroup = Notification.Name("prism.createCueBlockGroup")
+}
 
 /// Compact, LightKey-inspired Cue Blocks library: organizational Group → semantic type → block.
 public struct CueBlocksPanel: View {
@@ -143,6 +151,12 @@ public struct CueBlocksPanel: View {
             Button("Cancel", role: .cancel) { pendingValueUpdate = nil }
         } message: {
             Text("The selected fixtures and current Programmer values will replace this block’s stored fixture scope and values. Its name, group, notes, and cue references will be preserved.")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .prismCreateCueBlock)) { _ in
+            prepareBlockCreation()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .prismCreateCueBlockGroup)) { _ in
+            prepareGroupCreation()
         }
     }
 
@@ -299,7 +313,7 @@ public struct CueBlocksPanel: View {
                                 .frame(width: 10)
                             Image(systemName: type.folderSymbol)
                                 .foregroundStyle(AuroraColor.textTertiary)
-                            Text(type.displayName)
+                            Text(sectionName(groupID: groupID, type: type))
                                 .font(AuroraTypography.secondary)
                             Spacer()
                             Text("\(typed.count)")
@@ -310,6 +324,15 @@ public struct CueBlocksPanel: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        if let groupID {
+                            Button("Rename Section…") {
+                                beginRenameSection(groupID: groupID, type: type)
+                            }
+                        } else {
+                            Text("Move this Cue Block into a Group to customize its section name")
+                        }
+                    }
                     if expanded {
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach(typed) { block in blockRow(block) }
@@ -760,6 +783,7 @@ public struct CueBlocksPanel: View {
         switch renameTarget {
         case .block: return "Rename Cue Block"
         case .group: return "Rename Cue Block Group"
+        case .section: return "Rename Cue Block Section"
         case nil: return "Rename"
         }
     }
@@ -772,6 +796,20 @@ public struct CueBlocksPanel: View {
     private func beginRename(_ group: CueBlockGroup) {
         renameDraft = group.name
         renameTarget = .group(group.id)
+    }
+
+    private func beginRenameSection(groupID: UUID, type: CueBlockType) {
+        renameDraft = sectionName(groupID: groupID, type: type)
+        renameTarget = .section(groupID: groupID, type: type)
+    }
+
+    private func sectionName(groupID: UUID?, type: CueBlockType) -> String {
+        guard let groupID,
+              let group = context.project.cueBlockGroup(id: groupID),
+              let customName = group.sectionNames[type]?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !customName.isEmpty
+        else { return type.displayName }
+        return customName
     }
 
     private func commitRename() {
@@ -794,6 +832,17 @@ public struct CueBlocksPanel: View {
             }
             group.name = name
             perform(UpdateCueBlockGroupCommand(group: group), success: "Renamed group to \(name)")
+        case .section(let groupID, let type):
+            guard var group = context.project.cueBlockGroup(id: groupID) else {
+                statusText = "Cue Block Group could not be found"
+                renameTarget = nil
+                return
+            }
+            group.sectionNames[type] = name
+            perform(
+                UpdateCueBlockGroupCommand(group: group),
+                success: "Renamed \(type.displayName) section to \(name)"
+            )
         }
         renameTarget = nil
     }
@@ -832,7 +881,7 @@ public struct CueBlocksPanel: View {
             statusText = "Duplicated \(block.name)"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -878,7 +927,7 @@ public struct CueBlocksPanel: View {
             statusText = success
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -895,7 +944,7 @@ public struct CueBlocksPanel: View {
             statusText = "Created group \(group.name)"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -940,7 +989,7 @@ public struct CueBlocksPanel: View {
             statusText = "Created \(block.name)" + (warnings > 0 ? " · \(warnings) warning(s)" : "")
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -1083,18 +1132,7 @@ public struct CueBlocksPanel: View {
     /// mixing space. RGB wins when both representations are present because it
     /// already includes the Color Engine's white-balance transform.
     private func cueBlockRGB(from attributes: [String: Double]) -> AuroraEngine.RGBColor? {
-        if let red = attributes["colorR"],
-           let green = attributes["colorG"],
-           let blue = attributes["colorB"] {
-            return AuroraEngine.RGBColor(r: red, g: green, b: blue)
-        }
-        guard let hue = attributes[ColorAuthoringAttribute.hue] else { return nil }
-        return ColorMath.resolvedRGB(
-            hue: hue,
-            saturation: attributes[ColorAuthoringAttribute.saturation] ?? 1,
-            brightness: attributes[ColorAuthoringAttribute.brightness] ?? 1,
-            whiteBalance: attributes[ColorAuthoringAttribute.whiteBalance] ?? 0
-        )
+        CueBlockColorPreview.rgb(from: attributes)
     }
 
     private func addToSelectedCue(_ block: CueBlock) {
@@ -1119,7 +1157,7 @@ public struct CueBlocksPanel: View {
             onProjectChanged()
         } catch {
             try? context.session.cancelGroup()
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -1132,7 +1170,7 @@ public struct CueBlocksPanel: View {
             statusText = "Moved \(block.name)"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -1149,7 +1187,7 @@ public struct CueBlocksPanel: View {
             }
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
         pendingDeleteBlock = nil
     }
@@ -1162,7 +1200,7 @@ public struct CueBlocksPanel: View {
             statusText = "Deleted \(group.name) · blocks moved to Unfiled"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
         pendingDeleteGroup = nil
     }
@@ -1179,9 +1217,49 @@ public struct CueBlocksPanel: View {
     }
 }
 
+/// Pure color resolution shared by cue-block rows and regression tests.
+public enum CueBlockColorPreview {
+    public static func rgb(from attributes: [String: Double]) -> AuroraEngine.RGBColor? {
+        if let red = attributes["colorR"],
+           let green = attributes["colorG"],
+           let blue = attributes["colorB"] {
+            return AuroraEngine.RGBColor(r: red, g: green, b: blue)
+        }
+        // Pixel fixtures store color per control element. Average complete RGB
+        // samples so cue-block swatches represent the authored strip color.
+        let suffixes = Set(attributes.keys.compactMap { key -> String? in
+            guard key.hasPrefix("colorR@") else { return nil }
+            return String(key.dropFirst("colorR".count))
+        })
+        let elementSamples = suffixes.compactMap { suffix -> AuroraEngine.RGBColor? in
+            guard let red = attributes["colorR\(suffix)"],
+                  let green = attributes["colorG\(suffix)"],
+                  let blue = attributes["colorB\(suffix)"]
+            else { return nil }
+            return AuroraEngine.RGBColor(r: red, g: green, b: blue)
+        }
+        if !elementSamples.isEmpty {
+            let count = Double(elementSamples.count)
+            return AuroraEngine.RGBColor(
+                r: elementSamples.reduce(0) { $0 + $1.r } / count,
+                g: elementSamples.reduce(0) { $0 + $1.g } / count,
+                b: elementSamples.reduce(0) { $0 + $1.b } / count
+            )
+        }
+        guard let hue = attributes[ColorAuthoringAttribute.hue] else { return nil }
+        return ColorMath.resolvedRGB(
+            hue: hue,
+            saturation: attributes[ColorAuthoringAttribute.saturation] ?? 1,
+            brightness: attributes[ColorAuthoringAttribute.brightness] ?? 1,
+            whiteBalance: attributes[ColorAuthoringAttribute.whiteBalance] ?? 0
+        )
+    }
+}
+
 private enum CueBlockRenameTarget: Equatable {
     case block(UUID)
     case group(UUID)
+    case section(groupID: UUID, type: CueBlockType)
 }
 
 private extension CueBlockType {

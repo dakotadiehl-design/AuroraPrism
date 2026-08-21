@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import AuroraCore
 import AuroraEngine
 import AuroraModel
@@ -84,9 +85,14 @@ public struct StagePanel: View {
                     interactionMode: interactionMode,
                     geometryEditingEnabled: mode == .edit,
                     selectedIDs: selectedIDs,
+                    selectedTargets: context.session.selection.snapshot.fixtureTargets,
+                    orderedSelectedTargets: context.session.selection.snapshot.orderedFixtureTargets,
                     scale: $scale,
                     pan: $pan,
                     onSelectFixtures: onSelectFixtures,
+                    onSelectFixtureTargets: { targets in
+                        context.session.selectFixtureTargetsOrdered(targets, extending: false)
+                    },
                     onLayoutChanged: onLayoutChanged,
                     revealFixtureID: revealFixtureID,
                     statusNote: $statusNote
@@ -378,7 +384,7 @@ public struct StagePanel: View {
             statusNote = "Placed all unplaced fixtures"
             onLayoutChanged()
         } catch {
-            statusNote = error.localizedDescription
+            statusNote = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -389,7 +395,7 @@ public struct StagePanel: View {
             statusNote = "Removed from Stage (still patched)"
             onLayoutChanged()
         } catch {
-            statusNote = error.localizedDescription
+            statusNote = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -436,7 +442,9 @@ public struct StagePanel: View {
         do {
             try context.session.perform(UpdateStageLayoutCommand(layout: layout))
             onLayoutChanged()
-        } catch {}
+        } catch {
+            statusNote = prismReportCommandFailure(error, operation: "commit stage layout", category: .uiStage)
+        }
     }
 
     private var statusBar: some View {

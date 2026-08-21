@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import AuroraModel
 import CoreMIDI
 import Foundation
@@ -15,18 +16,12 @@ public final class MIDIOutputManager: @unchecked Sendable {
     private var isStopping = false
     private var destinations: [MIDIEndpointRef: String] = [:]
     private var destinationByID: [String: MIDIEndpointRef] = [:]
-    private var diagnostics: ((String) -> Void)?
+
     /// Source IDs that recently sent input — used for feedback loop prevention.
     private var recentInputSources: [String: TimeInterval] = [:]
     private var idStorage: [String: NSString] = [:]
 
     public init() {}
-
-    public func setDiagnosticsLogger(_ logger: @escaping (String) -> Void) {
-        lock.lock()
-        diagnostics = logger
-        lock.unlock()
-    }
 
     public func noteInputFrom(sourceID: String, now: TimeInterval = Date().timeIntervalSince1970) {
         lock.lock()
@@ -108,10 +103,14 @@ public final class MIDIOutputManager: @unchecked Sendable {
             destinationByID[id] = dest
             idStorage[id] = id as NSString
         }
-        let diag = diagnostics
         let destCount = destinations.count
         lock.unlock()
-        diag?("MIDI destinations: \(destCount)")
+        PrismLog.notice(
+            .controlMIDI,
+            "control.midi.source_changed",
+            "MIDI destinations changed.",
+            metadata: ["count": .count(destCount)]
+        )
     }
 
     public var destinationIDs: [String] {

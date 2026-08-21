@@ -56,7 +56,7 @@ Aurora should feel like a modern professional creative application (Logic / Fina
 | KD13 | Default engine rate | 40 Hz (25 ms), configurable 20–44 Hz | Balance smoothness vs CPU; measurable |
 | KD14 | Fixture definitions | Custom JSON personality format first; import adapters later | Ship seed library quickly; GDTF/OFL as PR-level work |
 | KD15 | Dual host workflow | Plan/design on Linux OK; implement & verify on macOS only | Matches team setup; product is macOS-native; see `docs/development-workflow.md` |
-| KD16 | Stage remote companion | Shared remote protocol; **web client first** (iPad Safari); native iPad later; **LAN + PIN**; **live-ops v1** | Off-stage Mac, on-stage control; volunteers need zero install; same control plane as desktop UI |
+| KD16 | Stage remote companion | **ACP-only** remote clients with enrolled identities, explicit capabilities, and Prism-authoritative state | One protocol and security boundary; native and future browser clients use ACP |
 
 ---
 
@@ -64,15 +64,15 @@ Aurora should feel like a modern professional creative application (Logic / Fina
 
 ```
 ┌──────────────────────────────┐     ┌─────────────────────────────┐
-│  Aurora UI (SwiftUI+AppKit)  │     │  Stage companion            │
-│  Workspace | Patch | Cue …   │     │  Web (v1) / native iPad later│
+│  Aurora UI (SwiftUI+AppKit)  │     │  ACP Remote client          │
+│  Workspace | Patch | Cue …   │     │  Native; browser may follow │
 └──────────────┬───────────────┘     └──────────────┬──────────────┘
                │ commands / snapshots                 │ remote protocol
                │                                      │ (WebSocket + auth)
                └──────────────────┬───────────────────┘
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Application Core (+ AuroraRemote session bridge)               │
+│  Application Core + PrismACP adapter                            │
 │  Project Manager | Commands | Undo | Selection | Prefs | Events │
 └────────────────────────────┬────────────────────────────────────┘
                              │ model events / engine control
@@ -93,7 +93,7 @@ Aurora should feel like a modern professional creative application (Logic / Fina
 User (Mac UI or remote companion) → Application Core (commands) → Lighting Engine → Output Drivers → Hardware
 ```
 
-Remote clients **never** talk to Output or the engine scheduler directly. See [`remote-companion.md`](./remote-companion.md).
+Remote clients **never** talk to Output or the engine scheduler directly. `PrismACP` validates ACP sessions and routes semantic actions through the same `ControlActionRouter` used by local control.
 
 ### 3.1 Architectural principles
 
@@ -117,9 +117,9 @@ Remote clients **never** talk to Output or the engine scheduler directly. See [`
 | `AuroraOutput` | Library | DMX buffers, `OutputDriver`, mock/null drivers; future Art-Net/sACN |
 | `AuroraFixtureLib` | Library | Manufacturers, personalities, channel layouts, seed data |
 | `AuroraDiagnostics` | Library | Logging, metrics, monitor data sources |
-| `AuroraRemote` | Library | LAN remote sessions, auth/PIN, protocol codec, command bridge, snapshot fan-out |
-| Remote web assets | Resources (with app / remote host) | Static live-ops web UI served to iPad Safari |
-| `AuroraPad` (later) | iPad app | Native companion speaking the same remote protocol |
+| `PrismACP` | Library | ACP lifecycle, enrollment policy, capabilities, revisioned state, command ledger, and semantic action bridge |
+| `AuroraACP` | Package dependency | ACP schemas, transport, session, security, and Remote-profile protocol implementation |
+| ACP Remote client | Separate application | Enrolled companion using the public ACP Remote profile |
 
 Dependency direction (allowed):
 
@@ -131,8 +131,8 @@ App → UI → Core → Model
        MIDI → Core/Engine (events in; no UI)
        FixtureLib → Model
        Diagnostics → Core/Engine/MIDI/Output (observe only)
-       Remote → Core, Model   (commands + events; no Output/MIDI drivers)
-       App → Remote           (host server lifecycle, Bonjour, QR panel)
+       PrismACP → Core, Model (semantic commands + revisioned state; no Output/MIDI drivers)
+       App → PrismACP         (listener lifecycle, enrollment policy, Bonjour)
 ```
 
 UI must not depend on Output or MIDI implementations directly. Remote must not depend on Output or MIDI implementations directly.
@@ -400,13 +400,13 @@ Typed events (examples):
 - `projectModified`  
 - `selectionChanged`  
 - `engineFramePublished` (throttled for UI)  
-- `remoteClientJoined` / `remoteClientLeft` / `remoteSessionLocked`  
+- ACP session/readiness and revisioned domain-state events
 
-Subscribers: UI panels, diagnostics, **remote session bridge**, optional future plugins. Delivery on appropriate queues (UI on main; engine never waits on UI or remote sockets).
+Subscribers: UI panels, diagnostics, **PrismACP adapter**, optional future plugins. Delivery on appropriate queues (UI on main; engine never waits on UI or network sockets).
 
-### 6.2.1 Remote as a command source
+### 6.2.1 ACP Remote as a command source
 
-`AuroraRemote` translates authorized companion messages into the **same** live-action / command entry points used by the Mac UI (Go, Stop, FireCue, programmer sets, etc.). Structural edit commands that are unsafe for stage (delete fixtures, re-patch) are **not** exposed on the remote protocol in v1.
+`PrismACP` translates authorized, preconditioned ACP controls into the **same** semantic `ControlActionRouter` entry points used by the Mac UI. ACP never mutates cue, programmer, output, or DMX internals directly. Structural edits that are unsafe for stage are not remotely exposed.
 
 ### 6.3 Selection manager
 
@@ -743,16 +743,16 @@ Incremental, independently reviewable pull requests. Later PRs assume earlier on
 | **PR29** | Plugin architecture skeleton | Core interfaces | Mature APIs | Extension points for protocols/effects/libs |
 | **PR30** | Performance hardening | Engine / CI | PR10–11 | Benchmarks, latency budgets, scale tests |
 
-### Phase H — Stage remote companion
+### Phase H — ACP stage remote companion
 
-Does **not** block live-capable core (PR1–PR24). Implement after Core commands/events and cue playback exist. Detail: [`remote-companion.md`](./remote-companion.md).
+Does **not** block live-capable core (PR1–PR24). The former private remote protocol and bundled browser client have been deleted; ACP is the only remote boundary.
 
 | PR | Title | Components | Depends | Description |
 |----|-------|------------|---------|-------------|
-| **PR31** | Remote protocol & session core | `AuroraRemote` | PR3–4, PR10–11 | Auth/PIN, WebSocket server skeleton, command bridge, throttled snapshots, protocol version |
-| **PR32** | Web companion (live ops) | Remote web assets, App UI | PR31, PR12, PR19 | Bonjour + QR, touch transport/cue/song/monitors, lite programmer |
-| **PR33** | Remote hardening | Remote / App | PR32 | Roles, lock/kill switch, multi-client limits, reconnect, security tests |
-| **PR34** | Native iPad companion (optional) | `AuroraPad` | PR31–33 | SwiftUI client on same protocol; distribution TBD |
+| **PR31** | ACP service integration | `PrismACP`, `AuroraACP` | PR3–4, PR10–11 | Enrollment, WebSocket transport, capability negotiation, revisioned state, semantic command bridge |
+| **PR32** | ACP Remote client | Separate client app | PR31, PR12, PR19 | Bonjour discovery, authenticated session, cue/output controls, transferred resources |
+| **PR33** | ACP hardening | PrismACP / App | PR32 | Authorization, command recovery, reconnect, leases, security and safety tests |
+| **PR34** | Additional ACP clients (optional) | Native or browser client | PR31–33 | Same ACP protocol and security model; no Prism-hosted legacy web UI |
 
 ### Dependency sketch
 

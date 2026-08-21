@@ -117,7 +117,7 @@ public final class StageStockCatalog: ObservableObject {
             }
             didLoad = true
         } catch {
-            loadError = error.localizedDescription
+            loadError = prismReportCommandFailure(error, operation: "media", category: .uiStage)
             assets = []
             didLoad = true
         }

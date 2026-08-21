@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import AuroraCore
 import AuroraEngine
 import AuroraModel
@@ -10,6 +11,7 @@ public struct ProgrammerPanel: View {
     public var project: ShowProject
     public var presentation: ProgrammerAttributePresentation
     public var presentationRevision: UInt64
+    public var resolvedLook: ActiveLook
     public var onChanged: () -> Void
 
     @State private var activeFamily: AttributeFamily = .color
@@ -18,7 +20,6 @@ public struct ProgrammerPanel: View {
     @State private var showTechnicalColor = false
     @State private var showFanTools = false
 
-    @State private var draftIntensity: Double = 0
     @State private var draftPan: Double = 0.5
     @State private var draftTilt: Double = 0.5
     @State private var draftHue: Double = 0.08
@@ -36,6 +37,7 @@ public struct ProgrammerPanel: View {
         case position = "Position"
         case beam = "Beam"
         case effects = "Effects"
+        case controls = "Controls"
         // Legacy aliases used by fan/align tools
         case pan = "Pan"
         case tilt = "Tilt"
@@ -44,7 +46,7 @@ public struct ProgrammerPanel: View {
 
         /// Primary Color Engine tab bar (reference layout).
         public static var colorEngineTabs: [AttributeFamily] {
-            [.color, .position, .beam, .effects]
+            [.color, .position, .beam, .effects, .controls]
         }
     }
 
@@ -54,6 +56,7 @@ public struct ProgrammerPanel: View {
         project: ShowProject,
         presentation: ProgrammerAttributePresentation = .empty,
         presentationRevision: UInt64 = 0,
+        resolvedLook: ActiveLook = .empty,
         onChanged: @escaping () -> Void = {}
     ) {
         self.context = context
@@ -61,6 +64,7 @@ public struct ProgrammerPanel: View {
         self.project = project
         self.presentation = presentation
         self.presentationRevision = presentationRevision
+        self.resolvedLook = resolvedLook
         self.onChanged = onChanged
     }
 
@@ -68,6 +72,11 @@ public struct ProgrammerPanel: View {
         let fromPres = presentation.orderedFixtureIDs
         if !fromPres.isEmpty { return fromPres }
         return context.session.selection.snapshot.orderedFixtureIDs
+    }
+
+    private var orderedTargets: [FixtureTarget] {
+        let targets = context.session.selection.snapshot.orderedFixtureTargets
+        return targets.isEmpty ? orderedIDs.map { FixtureTarget(fixtureID: $0) } : targets
     }
 
     /// First-wins on duplicate fixture IDs (never traps on malformed project data).
@@ -84,14 +93,33 @@ public struct ProgrammerPanel: View {
         !ProgrammerCueBridge.levelsAreEmpty(programmer.captureLevels())
     }
 
+    private var effectiveIntensityValues: [UUID: Double] {
+        var liveValues = resolvedLook.fixtureAttributes
+        for (fixtureID, attributes) in programmer.snapshot().values {
+            var merged = liveValues[fixtureID] ?? [:]
+            merged.merge(attributes) { _, programmerValue in programmerValue }
+            liveValues[fixtureID] = merged
+        }
+        return ProgrammerIntensityGroup.effectiveValues(
+            fixtureIDs: orderedIDs,
+            project: project,
+            resolvedValues: liveValues
+        )
+    }
+
     private var livePresentation: ProgrammerAttributePresentation {
-        if presentation.selectionCount == orderedIDs.count, !orderedIDs.isEmpty {
+        // Fixture-scoped presentations cannot describe a physical sub-element
+        // selection. Re-resolve those selections against their concrete scoped
+        // attributes so the programmer reflects the thing the user clicked.
+        if orderedTargets.allSatisfy({ $0.elementID == nil }),
+           presentation.selectionCount == orderedIDs.count, !orderedIDs.isEmpty {
             return presentation
         }
         return ProgrammerAttributePresentationResolver.resolve(
             orderedFixtureIDs: orderedIDs,
             project: project,
-            programmer: programmer.snapshot()
+            programmer: programmer.snapshot(),
+            targets: orderedTargets
         )
     }
 
@@ -156,7 +184,7 @@ public struct ProgrammerPanel: View {
 
     private func headerBar(_ pres: ProgrammerAttributePresentation) -> some View {
         HStack {
-            Text("\(pres.selectionCount) fixtures")
+            Text(selectionCountLabel)
                 .font(AuroraTypography.sectionHeading)
                 .foregroundStyle(AuroraColor.accentBright)
             Text(selectedNames)
@@ -199,10 +227,29 @@ public struct ProgrammerPanel: View {
     }
 
     private var selectedNames: String {
-        let names = fixtureNames
-        let list = orderedIDs.prefix(4).compactMap { names[$0] }
-        let extra = orderedIDs.count > 4 ? " +\(orderedIDs.count - 4)" : ""
+        let list = orderedTargets.prefix(4).map { target in
+            let fixtureName = fixtureNames[target.fixtureID] ?? "Fixture"
+            guard let elementID = target.elementID else { return fixtureName }
+            guard let fixture = project.fixtures.first(where: { $0.id == target.fixtureID }),
+                  let definition = project.definition(id: fixture.definitionId)
+            else { return "\(fixtureName) [\(elementID)]" }
+            let elementName = definition.elements.first(where: { $0.id == elementID })?.name ?? elementID
+            return "\(fixtureName) [\(elementName)]"
+        }
+        let extra = orderedTargets.count > 4 ? " +\(orderedTargets.count - 4)" : ""
         return list.joined(separator: ", ") + extra
+    }
+
+    private var selectionCountLabel: String {
+        let elementCount = orderedTargets.filter { $0.elementID != nil }.count
+        let wholeCount = orderedTargets.count - elementCount
+        if elementCount > 0, wholeCount == 0 {
+            return "\(elementCount) sub-fixture\(elementCount == 1 ? "" : "s")"
+        }
+        if elementCount > 0 {
+            return "\(wholeCount) fixture\(wholeCount == 1 ? "" : "s"), \(elementCount) sub-fixture\(elementCount == 1 ? "" : "s")"
+        }
+        return "\(wholeCount) fixture\(wholeCount == 1 ? "" : "s")"
     }
 
     // MARK: - Family tabs + body
@@ -240,23 +287,34 @@ public struct ProgrammerPanel: View {
     }
 
     private var activeTab: AttributeFamily {
-        switch activeFamily {
+        Self.visibleTab(for: activeFamily)
+    }
+
+    /// Canonical visible surface for operational aliases used by Fan/Align.
+    public static func visibleTab(for family: AttributeFamily) -> AttributeFamily {
+        switch family {
+        case .intensity: return .color
         case .pan, .tilt, .position: return .position
         case .strobe, .effects: return .effects
         case .generic: return .beam
-        default: return activeFamily
+        default: return family
         }
     }
 
-    private func tabEnabled(_ tab: AttributeFamily, pres: ProgrammerAttributePresentation) -> Bool {
+    public static func isTabEnabled(_ tab: AttributeFamily, presentation pres: ProgrammerAttributePresentation) -> Bool {
         switch tab {
         case .intensity: return pres.hasIntensity
         case .color: return pres.hasColor || pres.hasIntensity
         case .position: return pres.hasPosition
         case .beam: return pres.hasBeam
         case .effects: return pres.hasStrobe || pres.hasGeneric
+        case .controls: return pres.hasFunctions
         default: return true
         }
+    }
+
+    private func tabEnabled(_ tab: AttributeFamily, pres: ProgrammerAttributePresentation) -> Bool {
+        Self.isTabEnabled(tab, presentation: pres)
     }
 
     @ViewBuilder
@@ -266,12 +324,15 @@ public struct ProgrammerPanel: View {
             let colorPres = ProgrammerColorPresentationResolver.resolve(
                 orderedFixtureIDs: orderedIDs,
                 project: project,
-                programmer: programmer.snapshot()
+                programmer: programmer.snapshot(),
+                targets: orderedTargets
             )
             ProgrammerColorEngineView(
                 color: colorPres,
                 programmer: programmer,
                 project: project,
+                targets: orderedTargets,
+                resolvedIntensityValues: effectiveIntensityValues,
                 onChanged: onChanged
             )
             .frame(minHeight: 280)
@@ -284,12 +345,6 @@ public struct ProgrammerPanel: View {
                 .foregroundStyle(AuroraColor.accentBright)
                 if showTechnicalColor {
                     technicalColorSection(pres)
-                }
-            }
-        case .intensity:
-            HStack(alignment: .top, spacing: AuroraSpacing.lg) {
-                if pres.hasIntensity {
-                    intensityControl(pres.intensity)
                 }
             }
         case .position:
@@ -334,43 +389,16 @@ public struct ProgrammerPanel: View {
                     pres: pres
                 )
             }
-        default:
-            controlsRowLegacy(pres)
-        }
-    }
-
-    /// Fallback combined row (legacy).
-    private func controlsRowLegacy(_ pres: ProgrammerAttributePresentation) -> some View {
-        HStack(alignment: .top, spacing: AuroraSpacing.lg) {
-            if pres.hasIntensity {
-                intensityControl(pres.intensity)
-            }
-            if pres.hasPosition {
-                positionControls(pres)
-            }
-        }
-    }
-
-    private func intensityControl(_ state: ProgrammerAttributeState) -> some View {
-        // Virtual intensity defaults to effective 100% when presentation reports .common(1.0).
-        let untreated = state.displayValue ?? 0
-        let display = displayValue(for: state, untreated: untreated)
-        return VStack(spacing: 4) {
-            attributeChrome(state, label: "Intensity")
-            AuroraFader(
-                value: Binding(
-                    get: { draftIntensity },
-                    set: { newValue in
-                        draftIntensity = newValue
-                        applyCommon(attribute: "intensity", value: newValue)
-                        activeFamily = .intensity
-                    }
-                ),
-                label: "Intensity",
-                iconName: AuroraLightingIcon.intensity.rawValue,
-                showsOwnedChrome: !state.isUntouched && !state.isMixed,
-                display: display
+        case .controls:
+            extendedFamilySection(
+                title: "DEVICE FUNCTIONS",
+                attributes: pres.functionAttributes,
+                expanded: .constant(true),
+                family: .controls,
+                pres: pres
             )
+        default:
+            EmptyView() // aliases are normalized by `activeTab`
         }
     }
 
@@ -497,6 +525,14 @@ public struct ProgrammerPanel: View {
     }
 
     private func shortAttrLabel(_ attr: String) -> String {
+        let base = attr.split(separator: "@").first.map(String.init) ?? attr
+        for target in orderedTargets {
+            guard let fixture = project.fixtures.first(where: { $0.id == target.fixtureID }),
+                  let definition = project.definition(id: fixture.definitionId),
+                  let channel = definition.channels.first(where: { $0.attribute == base })
+            else { continue }
+            if !channel.name.isEmpty { return channel.name }
+        }
         if attr.count <= 8 { return attr }
         if attr.contains("@") {
             let parts = attr.split(separator: "@")
@@ -644,8 +680,13 @@ public struct ProgrammerPanel: View {
             orderedFixtureIDs: orderedIDs,
             project: project
         )
-        let map = ProgrammerGeometry.align(fixtureIDs: capable, value: value)
-        programmer.setMany(attribute: attribute, values: map)
+        let capableSet = Set(capable)
+        let targets = orderedTargets.filter { capableSet.contains($0.fixtureID) }
+        programmer.setMany(FixtureTargetResolver.batch(
+            targets: targets,
+            attributes: [attribute: value],
+            project: project
+        ))
         onChanged()
     }
 
@@ -659,6 +700,7 @@ public struct ProgrammerPanel: View {
         case .beam: attribute = "zoom"
         case .strobe, .effects: attribute = "strobe"
         case .generic: attribute = "intensity"
+        case .controls: attribute = livePresentation.functionAttributes.first ?? "intensity"
         }
         let capable = ProgrammerAttributePresentationResolver.capableFixtureIDs(
             attribute: attribute,
@@ -681,6 +723,7 @@ public struct ProgrammerPanel: View {
         case .beam: attribute = pres.beamAttributes.first ?? "zoom"
         case .strobe, .effects: attribute = pres.strobeAttributes.first ?? "strobe"
         case .generic: attribute = pres.genericAttributes.first ?? "intensity"
+        case .controls: attribute = pres.functionAttributes.first ?? "intensity"
         }
         let capable = ProgrammerAttributePresentationResolver.capableFixtureIDs(
             attribute: attribute,
@@ -716,6 +759,10 @@ public struct ProgrammerPanel: View {
         case .generic:
             var any = false
             for attr in pres.genericAttributes.prefix(8) where alignAttribute(attr) { any = true }
+            if any { onChanged() }
+        case .controls:
+            var any = false
+            for attr in pres.functionAttributes where alignAttribute(attr) { any = true }
             if any { onChanged() }
         }
     }
@@ -762,6 +809,8 @@ public struct ProgrammerPanel: View {
             state = pres.strobeAttributes.first.map { pres.state(for: $0) } ?? .unsupported
         case .generic:
             state = pres.genericAttributes.first.map { pres.state(for: $0) } ?? .unsupported
+        case .controls:
+            state = pres.functionAttributes.first.map { pres.state(for: $0) } ?? .unsupported
         }
         if case .common(let v) = state.value {
             fanCenter = v
@@ -775,13 +824,6 @@ public struct ProgrammerPanel: View {
     }
 
     private func syncDrafts(from pres: ProgrammerAttributePresentation) {
-        if case .common(let v) = pres.intensity.value {
-            // Includes virtual intensity effective default 1.0
-            draftIntensity = v
-        } else if case .untouched = pres.intensity.value {
-            draftIntensity = 0
-        }
-
         if case .common(let v) = pres.pan.value {
             draftPan = v
         } else if case .untouched = pres.pan.value {

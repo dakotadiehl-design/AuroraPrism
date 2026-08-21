@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import SwiftUI
 
 /// Playback rail/role — independent of selection overlay (CR-09).

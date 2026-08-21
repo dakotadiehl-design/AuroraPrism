@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import AuroraCore
 import AuroraEngine
 import AuroraModel
@@ -275,7 +276,7 @@ public struct PalettesPanel: View {
             onInspectPalette(palette.id)
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -295,7 +296,7 @@ public struct PalettesPanel: View {
             onInspectPreset(preset.id)
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -431,7 +432,7 @@ public struct PalettesPanel: View {
             onProjectChanged()
         } catch {
             try? context.session.cancelGroup()
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -482,7 +483,7 @@ public struct PalettesPanel: View {
             statusText = "Deleted \(palette.name)"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -495,7 +496,7 @@ public struct PalettesPanel: View {
             statusText = "Deleted \(preset.name)"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 

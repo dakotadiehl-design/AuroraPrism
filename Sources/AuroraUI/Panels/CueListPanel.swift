@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import AuroraCore
 import AuroraEngine
 import AuroraModel
@@ -334,7 +335,7 @@ public struct CueListPanel: View {
             statusText = "Created \(list.name)"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -347,7 +348,7 @@ public struct CueListPanel: View {
             statusText = "Deleted list \(list.name)"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -369,7 +370,7 @@ public struct CueListPanel: View {
             statusText = "Added empty cue (appended)"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -394,7 +395,7 @@ public struct CueListPanel: View {
             statusText = "Recorded \(cue.name) (\(levels.fixtures.count) fixture(s))"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -415,7 +416,7 @@ public struct CueListPanel: View {
             statusText = "Updated \(next.name.isEmpty ? "cue" : next.name) levels"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -432,7 +433,7 @@ public struct CueListPanel: View {
             statusText = "Duplicated cue"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -448,7 +449,7 @@ public struct CueListPanel: View {
             statusText = "Reordered cue"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -564,6 +565,7 @@ public struct CueListPanel: View {
                     Label("Add", systemImage: "plus")
                 }
                 .menuStyle(.borderlessButton)
+                .buttonStyle(.automatic)
                 .fixedSize()
                 .help("Add a Cue Block to this cue")
             }
@@ -617,9 +619,10 @@ public struct CueListPanel: View {
         ForEach(CueBlockType.allCases, id: \.self) { type in
             let typed = blocks.filter { $0.type == type }
             if !typed.isEmpty {
-                Menu(cueBlockTypeName(type)) {
+                Section(cueBlockTypeName(type)) {
                     ForEach(typed) { block in
                         Button(block.name) { addCueBlock(block, cue: cue, list: list) }
+                            .buttonStyle(.automatic)
                             .disabled(cue.cueBlockRefs.contains { $0.cueBlockID == block.id })
                     }
                 }
@@ -637,7 +640,7 @@ public struct CueListPanel: View {
             statusText = "Added \(block.name) to cue"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -678,7 +681,7 @@ public struct CueListPanel: View {
             ))
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -692,7 +695,7 @@ public struct CueListPanel: View {
             ))
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -706,7 +709,7 @@ public struct CueListPanel: View {
             statusText = "Removed Cue Block from cue"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -731,7 +734,7 @@ public struct CueListPanel: View {
             try context.session.perform(UpdateCueCommand(listID: list.id, cue: next))
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 
@@ -743,7 +746,7 @@ public struct CueListPanel: View {
             statusText = "Deleted cue"
             onProjectChanged()
         } catch {
-            statusText = error.localizedDescription
+            statusText = prismReportCommandFailure(error, operation: "edit")
         }
     }
 

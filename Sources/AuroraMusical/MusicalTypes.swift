@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import Foundation
 #if canImport(Darwin)
 import Darwin
@@ -212,6 +213,28 @@ public enum MusicalDurationError: Error, Equatable, Sendable {
     case nonPositiveCount
     case nonFiniteCount
     case dottedAndTriplet
+}
+
+extension MusicalMeter.ValidationError: LocalizedError, PrismDiagnosableError {
+    public var errorDescription: String? { userMessage }
+    public var prismErrorCode: String { "music.song.invalid_meter" }
+    public var userTitle: String { "That Meter Isn’t Valid" }
+    public var userMessage: String { "That meter isn’t valid." }
+    public var recoverySuggestion: String? { "Choose a supported time signature and grouping that adds up to the numerator." }
+    public var technicalDetails: String { String(reflecting: self) }
+    public var prismCategory: PrismLogCategory { .musicSong }
+    public var prismSeverity: PrismLogLevel { .error }
+}
+
+extension MusicalDurationError: LocalizedError, PrismDiagnosableError {
+    public var errorDescription: String? { userMessage }
+    public var prismErrorCode: String { "music.scheduler.invalid_duration" }
+    public var userTitle: String { "That Duration Isn’t Valid" }
+    public var userMessage: String { "That musical duration isn’t valid." }
+    public var recoverySuggestion: String? { "Use a positive duration, and don’t combine dotted and triplet at the same time." }
+    public var technicalDetails: String { String(reflecting: self) }
+    public var prismCategory: PrismLogCategory { .musicScheduler }
+    public var prismSeverity: PrismLogLevel { .error }
 }
 
 /// Duration in grid terms (not necessarily metrical beat).

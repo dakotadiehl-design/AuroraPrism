@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import AuroraModel
 import Foundation
 
@@ -84,7 +85,14 @@ public final class FixtureLibrary: @unchecked Sendable {
             definitions.append(definition)
         }
 
-        return try FixtureLibrary(definitions: definitions)
+        let library = try FixtureLibrary(definitions: definitions)
+        PrismLog.notice(
+            .fixtureLibrary,
+            "fixture.library.loaded",
+            "Loaded fixture personalities.",
+            metadata: ["count": .count(library.definitions.count)]
+        )
+        return library
     }
 
     public var definitions: [FixtureDefinition] { ordered }

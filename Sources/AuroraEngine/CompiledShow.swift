@@ -17,11 +17,54 @@ public struct CompiledAttributeWrite: Sendable, Equatable {
     public let kind: Kind
     /// When true, normalized value is inverted (`1 - v`) before DMX encode (pan/tilt invert).
     public let invert: Bool
+    /// Ranges reserved for reset/lamp/service commands. Normal Programmer and playback
+    /// writes are moved to the nearest safe value before reaching DMX output.
+    public let protectedRanges: [ClosedRange<UInt8>]
+    /// Optional local DMX range used by one semantic function of a compound channel.
+    public let activeRange: ClosedRange<UInt8>?
+    /// Range-specific views must not write a default when their attribute is untouched,
+    /// because another semantic view may own the same physical channel.
+    public let writesDefaultWhenUnowned: Bool
 
-    public init(attribute: String, kind: Kind, invert: Bool = false) {
+    public init(
+        attribute: String,
+        kind: Kind,
+        invert: Bool = false,
+        protectedRanges: [ClosedRange<UInt8>] = [],
+        activeRange: ClosedRange<UInt8>? = nil,
+        writesDefaultWhenUnowned: Bool = true
+    ) {
         self.attribute = attribute
         self.kind = kind
         self.invert = invert
+        self.protectedRanges = protectedRanges
+        self.activeRange = activeRange
+        self.writesDefaultWhenUnowned = writesDefaultWhenUnowned
+    }
+
+    public func safeEightBitValue(_ proposed: UInt8) -> UInt8 {
+        guard let blocked = protectedRanges.first(where: { $0.contains(proposed) }) else { return proposed }
+        let below = blocked.lowerBound > 0 ? blocked.lowerBound - 1 : nil
+        let above = blocked.upperBound < 255 ? blocked.upperBound + 1 : nil
+        switch (below, above) {
+        case let (lower?, upper?):
+            return proposed - lower <= upper - proposed ? lower : upper
+        case let (lower?, nil): return lower
+        case let (nil, upper?): return upper
+        case (nil, nil): return 0
+        }
+    }
+
+    public func eightBitValue(normalized: Double) -> UInt8 {
+        let clamped = min(1, max(0, normalized))
+        let proposed: UInt8
+        if let activeRange {
+            let width = Double(Int(activeRange.upperBound) - Int(activeRange.lowerBound))
+            proposed = UInt8((Double(activeRange.lowerBound) + clamped * width).rounded())
+        } else {
+            proposed = UInt8((clamped * 255).rounded())
+        }
+        return safeEightBitValue(proposed)
     }
 }
 
@@ -173,7 +216,12 @@ public struct CompiledShow: Sendable, Equatable {
     /// Build channel write plans from a fixture definition (pairs coarse/fine by attribute).
     /// Expands multi-cell blocks into per-cell attributes `attr@cellN` (A1 / Pass-1 multi-cell).
     public static func compileAttributeWrites(definition: FixtureDefinition) -> [CompiledAttributeWrite] {
-        var expanded: [ChannelDef] = definition.channels
+        var expanded: [ChannelDef] = definition.channels.map { channel in
+            guard let elementID = channel.elementID, !channel.attribute.isEmpty else { return channel }
+            var copy = channel
+            copy.attribute = "\(channel.attribute)@\(elementID)"
+            return copy
+        }
 
         // Expand repeated cell blocks into absolute offsets + per-cell attribute keys.
         if let block = definition.cellBlock, block.cellCount > 0, !block.channels.isEmpty {
@@ -196,7 +244,8 @@ public struct CompiledShow: Sendable, Equatable {
         }
 
         var byAttribute: [String: [ChannelDef]] = [:]
-        for channel in expanded {
+        for channel in expanded where channel.dmxFunctions.isEmpty
+            || !channel.dmxFunctions.allSatisfy(\.isProtected) {
             byAttribute[channel.attribute, default: []].append(channel)
         }
 
@@ -228,7 +277,8 @@ public struct CompiledShow: Sendable, Equatable {
                             coarseDefault: coarse.defaultValue,
                             fineDefault: fine.defaultValue
                         ),
-                        invert: invert
+                        invert: invert,
+                        protectedRanges: protectedRanges(in: coarse)
                     )
                 )
                 for channel in group where channel.id != coarse.id && channel.id != fine.id {
@@ -236,7 +286,8 @@ public struct CompiledShow: Sendable, Equatable {
                         CompiledAttributeWrite(
                             attribute: attribute,
                             kind: .eightBit(offset: channel.offset, defaultValue: channel.defaultValue),
-                            invert: invert
+                            invert: invert,
+                            protectedRanges: protectedRanges(in: channel)
                         )
                     )
                 }
@@ -246,13 +297,45 @@ public struct CompiledShow: Sendable, Equatable {
                         CompiledAttributeWrite(
                             attribute: attribute,
                             kind: .eightBit(offset: channel.offset, defaultValue: channel.defaultValue),
-                            invert: invert
+                            invert: invert,
+                            protectedRanges: protectedRanges(in: channel)
                         )
                     )
                 }
             }
         }
 
+        writes.append(contentsOf: compileRangeSpecificWrites(channels: expanded))
+        return writes
+    }
+
+    private static func protectedRanges(in channel: ChannelDef) -> [ClosedRange<UInt8>] {
+        channel.dmxFunctions.filter(\.isProtected).map { $0.dmxMin...$0.dmxMax }
+    }
+
+    private static func compileRangeSpecificWrites(channels: [ChannelDef]) -> [CompiledAttributeWrite] {
+        var writes: [CompiledAttributeWrite] = []
+        for channel in channels {
+            let protected = protectedRanges(in: channel)
+            let functions = channel.dmxFunctions.filter {
+                !$0.isProtected && $0.semantic == .attribute && $0.attribute != nil
+            }
+            let grouped = Dictionary(grouping: functions, by: { $0.attribute! })
+            guard grouped.count > 1 || grouped.keys.contains(where: { $0 != channel.attribute }) else { continue }
+            for attribute in grouped.keys.sorted() {
+                guard let ranges = grouped[attribute],
+                      let lower = ranges.map(\.dmxMin).min(),
+                      let upper = ranges.map(\.dmxMax).max()
+                else { continue }
+                writes.append(CompiledAttributeWrite(
+                    attribute: attribute,
+                    kind: .eightBit(offset: channel.offset, defaultValue: channel.defaultValue),
+                    protectedRanges: protected,
+                    activeRange: lower...upper,
+                    writesDefaultWhenUnowned: false
+                ))
+            }
+        }
         return writes
     }
 

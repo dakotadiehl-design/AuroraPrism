@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import AuroraModel
 import Foundation
 import Network
@@ -26,6 +27,7 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
     private var _packetsDropped: UInt64 = 0
     private var _lastSuccessAt: Date?
     private var _state: OutputDriverState = .disabled
+    private let noteFrameSummary: @Sendable () -> Int?
 
     public var lastError: String? {
         lock.lock()
@@ -43,12 +45,19 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
         id: UUID = UUID(),
         name: String = "sACN",
         config: SACNConfig = .default,
-        cid: UUID = UUID()
+        cid: UUID = UUID(),
+        frameSummaryNote: (@Sendable () -> Int?)? = nil
     ) {
         self.id = id
         self.name = name
         self.config = config
         self.cid = cid
+        if let frameSummaryNote {
+            noteFrameSummary = frameSummaryNote
+        } else {
+            let counter = PrismIntervalCounter(interval: 1)
+            noteFrameSummary = { counter.note() }
+        }
     }
 
     public func updateConfig(_ config: SACNConfig) throws {
@@ -67,9 +76,16 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
             try updateConfig(config)
         } catch {
             lock.lock()
-            _lastError = error.localizedDescription
+            _lastError = PrismErrorReporting.userFacingMessage(for: error)
             _state = .failed
             lock.unlock()
+            PrismLog.error(
+                .outputSacn,
+                "output.sacn.failed",
+                "Prism couldn't update sACN.",
+                technical: String(reflecting: error),
+                ratePolicy: .oncePerSecond
+            )
         }
     }
 
@@ -80,11 +96,13 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
         _lastError = nil
         _state = .ready
         lock.unlock()
+        PrismLog.notice(.outputSacn, "output.sacn.started", "sACN output is on.")
     }
 
     public func stop() {
         // Snapshot under lock; cancel outside so NW path callbacks cannot re-enter deadlocked.
         lock.lock()
+        let wasRunning = _isRunning
         let open = Array(connections.values)
         connections.removeAll()
         _isRunning = false
@@ -92,6 +110,9 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
         lock.unlock()
         for conn in open {
             conn.cancel()
+        }
+        if wasRunning {
+            PrismLog.notice(.outputSacn, "output.sacn.stopped", "sACN output is off.")
         }
     }
 
@@ -123,19 +144,48 @@ public final class SACNOutputDriver: OutputDriver, @unchecked Sendable {
 
         let connection = connection(forHost: host, port: cfg.destinationPort)
         connection.send(content: packet, completion: .contentProcessed { [weak self] error in
-            guard let self else { return }
-            self.lock.lock()
-            if let error {
-                self._lastError = error.localizedDescription
-                self._packetsDropped &+= 1
-                self._state = .degraded
-            } else {
-                self._packetsSent &+= 1
-                self._lastSuccessAt = Date()
-                if self._state == .degraded { self._state = .ready }
-            }
-            self.lock.unlock()
+            self?.handleSendCompletion(error)
         })
+    }
+
+    /// Kept internal so completion-state behavior can be tested without a live UDP failure.
+    func handleSendCompletion(_ error: NWError?) {
+        lock.lock()
+        guard _isRunning else {
+            lock.unlock()
+            return
+        }
+        if let error {
+            _lastError = PrismErrorReporting.userFacingMessage(for: error)
+            _packetsDropped &+= 1
+            _state = .degraded
+            lock.unlock()
+            PrismLog.error(
+                .outputSacn,
+                "output.sacn.failed",
+                "Prism couldn't send an sACN frame.",
+                technical: String(reflecting: error),
+                ratePolicy: .oncePerSecond
+            )
+            return
+        }
+
+        _packetsSent &+= 1
+        _lastSuccessAt = Date()
+        let recovered = _state == .degraded
+        if recovered { _state = .ready }
+        lock.unlock()
+        if recovered {
+            PrismLog.info(.outputSacn, "output.sacn.recovered", "sACN recovered.")
+        }
+        guard PrismLog.isEnabled(.debug, category: .outputSacn),
+              let count = noteFrameSummary() else { return }
+        PrismLog.debug(
+            .outputSacn,
+            "output.sacn.frame_summary",
+            "sACN frame summary.",
+            metadata: ["count": .count(count), "sampled": .flag(true)]
+        )
     }
 
     private func connection(forHost host: String, port: UInt16) -> NWConnection {

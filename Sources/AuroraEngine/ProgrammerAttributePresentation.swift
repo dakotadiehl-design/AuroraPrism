@@ -71,6 +71,8 @@ public struct ProgrammerAttributePresentation: Equatable, Sendable {
     public var strobeAttributes: [String]
     /// Generic / raw / remaining controllable attributes not covered above.
     public var genericAttributes: [String]
+    /// Definition-driven non-lighting device functions, such as fog and fan output.
+    public var functionAttributes: [String]
     /// Per-attribute state for beam/strobe/generic (key = attribute).
     public var extendedStates: [String: ProgrammerAttributeState]
 
@@ -87,6 +89,7 @@ public struct ProgrammerAttributePresentation: Equatable, Sendable {
         beamAttributes: [String] = [],
         strobeAttributes: [String] = [],
         genericAttributes: [String] = [],
+        functionAttributes: [String] = [],
         extendedStates: [String: ProgrammerAttributeState] = [:]
     ) {
         self.orderedFixtureIDs = orderedFixtureIDs
@@ -101,6 +104,7 @@ public struct ProgrammerAttributePresentation: Equatable, Sendable {
         self.beamAttributes = beamAttributes
         self.strobeAttributes = strobeAttributes
         self.genericAttributes = genericAttributes
+        self.functionAttributes = functionAttributes
         self.extendedStates = extendedStates
     }
 
@@ -111,6 +115,7 @@ public struct ProgrammerAttributePresentation: Equatable, Sendable {
     public var hasBeam: Bool { !beamAttributes.isEmpty }
     public var hasStrobe: Bool { !strobeAttributes.isEmpty }
     public var hasGeneric: Bool { !genericAttributes.isEmpty }
+    public var hasFunctions: Bool { !functionAttributes.isEmpty }
 
     /// HSV wheel only when selection has RGB mapping the wheel can write.
     public var hasRGBColor: Bool {
@@ -170,13 +175,15 @@ public enum ProgrammerAttributePresentationResolver {
     public static func resolve(
         orderedFixtureIDs: [UUID],
         project: ShowProject,
-        programmer: ProgrammerState
+        programmer: ProgrammerState,
+        targets: [FixtureTarget]? = nil
     ) -> ProgrammerAttributePresentation {
         guard !orderedFixtureIDs.isEmpty else { return .empty }
 
         let physicalCaps = physicalCapabilityMap(orderedFixtureIDs: orderedFixtureIDs, project: project)
         let caps = effectiveCapabilityMap(fromPhysical: physicalCaps)
         let values = programmer.values
+        let resolvedTargets = targets ?? orderedFixtureIDs.map { FixtureTarget(fixtureID: $0) }
 
         let intensity = resolveIntensity(
             ordered: orderedFixtureIDs,
@@ -186,10 +193,10 @@ public enum ProgrammerAttributePresentationResolver {
         )
         let pan = resolveAttribute("pan", ordered: orderedFixtureIDs, caps: caps, values: values)
         let tilt = resolveAttribute("tilt", ordered: orderedFixtureIDs, caps: caps, values: values)
-        let colorR = resolveAttribute("colorR", ordered: orderedFixtureIDs, caps: caps, values: values)
-        let colorG = resolveAttribute("colorG", ordered: orderedFixtureIDs, caps: caps, values: values)
-        let colorB = resolveAttribute("colorB", ordered: orderedFixtureIDs, caps: caps, values: values)
-        let colorW = resolveAttribute("colorW", ordered: orderedFixtureIDs, caps: caps, values: values)
+        let colorR = resolveAttribute("colorR", targets: resolvedTargets, caps: caps, values: values, project: project)
+        let colorG = resolveAttribute("colorG", targets: resolvedTargets, caps: caps, values: values, project: project)
+        let colorB = resolveAttribute("colorB", targets: resolvedTargets, caps: caps, values: values, project: project)
+        let colorW = resolveAttribute("colorW", targets: resolvedTargets, caps: caps, values: values, project: project)
 
         // Technical list: supported color channels only (no dead loop).
         let tech = (Self.primaryColorAttributes + Self.knownTechnicalColorExtras).filter { attr in
@@ -218,11 +225,28 @@ public enum ProgrammerAttributePresentationResolver {
                 genericSet.insert(attr)
             }
         }
-        let generic = genericSet.sorted()
+        let functionFixtureIDs = Set(orderedFixtureIDs.filter { id in
+            guard let fixture = project.fixtures.first(where: { $0.id == id }),
+                  let definition = project.definition(id: fixture.definitionId) else { return false }
+            if project.visualizationDescriptor(for: definition).form == .atmospheric { return true }
+            return definition.channels.contains { isDeviceFunctionAttribute($0.attribute) }
+        })
+        var functionSet: Set<String> = []
+        var remainingGeneric: Set<String> = []
+        for attribute in genericSet {
+            let belongsToDevice = functionFixtureIDs.contains { caps[$0]?.contains(attribute) == true }
+            if belongsToDevice || isDeviceFunctionAttribute(attribute) {
+                functionSet.insert(attribute)
+            } else {
+                remainingGeneric.insert(attribute)
+            }
+        }
+        let functions = functionSet.sorted(by: channelOrder(project: project, fixtureIDs: orderedFixtureIDs))
+        let generic = remainingGeneric.sorted()
 
         var extended: [String: ProgrammerAttributeState] = [:]
-        for attr in beam + strobe + generic {
-            extended[attr] = resolveAttribute(attr, ordered: orderedFixtureIDs, caps: caps, values: values)
+        for attr in beam + strobe + functions + generic {
+            extended[attr] = resolveAttribute(attr, targets: resolvedTargets, caps: caps, values: values, project: project)
         }
 
         return ProgrammerAttributePresentation(
@@ -238,8 +262,31 @@ public enum ProgrammerAttributePresentationResolver {
             beamAttributes: beam,
             strobeAttributes: strobe,
             genericAttributes: generic,
+            functionAttributes: functions,
             extendedStates: extended
         )
+    }
+
+    private static func isDeviceFunctionAttribute(_ attribute: String) -> Bool {
+        let normalized = attribute.lowercased().filter(\.isLetter)
+        return ["fog", "haze", "smoke", "fan", "pump", "fluid", "heater", "output"]
+            .contains(where: normalized.contains)
+    }
+
+    private static func channelOrder(project: ShowProject, fixtureIDs: [UUID]) -> (String, String) -> Bool {
+        var order: [String: UInt16] = [:]
+        for fixtureID in fixtureIDs {
+            guard let fixture = project.fixtures.first(where: { $0.id == fixtureID }),
+                  let definition = project.definition(id: fixture.definitionId) else { continue }
+            for channel in definition.channels where order[channel.attribute] == nil {
+                order[channel.attribute] = channel.offset
+            }
+        }
+        return { lhs, rhs in
+            let left = order[lhs] ?? .max
+            let right = order[rhs] ?? .max
+            return left == right ? lhs < rhs : left < right
+        }
     }
 
     public static func capableFixtureIDs(
@@ -284,6 +331,31 @@ public enum ProgrammerAttributePresentationResolver {
             )
         }
         return resolveAttributeGeneric(attribute, ordered: ordered, caps: caps, values: values)
+    }
+
+    public static func resolveAttribute(
+        _ attribute: String,
+        targets: [FixtureTarget],
+        caps: [UUID: Set<String>],
+        values: [UUID: [String: Double]],
+        project: ShowProject
+    ) -> ProgrammerAttributeState {
+        let capable = targets.compactMap { target -> (FixtureTarget, String)? in
+            guard caps[target.fixtureID]?.contains(attribute) == true,
+                  let concrete = FixtureTargetResolver.concreteAttribute(attribute, target: target, project: project)
+            else { return nil }
+            return (target, concrete)
+        }
+        guard !capable.isEmpty else { return .unsupported }
+        let support: AttributeSupportState = capable.count == targets.count ? .all : .partial
+        let found = capable.compactMap { values[$0.0.fixtureID]?[$0.1] }
+        if found.isEmpty { return .init(support: support, value: .untouched) }
+        if found.count < capable.count { return .init(support: support, value: .mixed) }
+        let first = found[0]
+        return .init(
+            support: support,
+            value: found.allSatisfy { abs($0 - first) < 1e-9 } ? .common(first) : .mixed
+        )
     }
 
     private static func resolveAttributeGeneric(
@@ -373,6 +445,9 @@ public enum ProgrammerAttributePresentationResolver {
             if let def = project.definition(id: fixture.definitionId) {
                 attrs = Set(CompiledShow.compileAttributeWrites(definition: def).map(\.attribute))
                     .union(def.channels.map(\.attribute))
+                    // Compiled cell keys are scoped (`colorR@0`); Programmer controls
+                    // need the base capabilities (`colorR`) to expose color/emitter UI.
+                    .union(def.cellBlock?.channels.map(\.attribute) ?? [])
             } else {
                 attrs = []
             }

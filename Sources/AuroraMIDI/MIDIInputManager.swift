@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import AuroraModel
 import AuroraMusical
 import CoreMIDI
@@ -37,7 +38,7 @@ public final class MIDIInputManager: @unchecked Sendable {
     private var sourceIDRetainers: [MIDIEndpointRef: NSString] = [:]
     /// Per-source stream parsers so running status survives packet boundaries (P2-2).
     private var streamParsers: [String: MIDIStreamParser] = [:]
-    private var diagnostics: ((String) -> Void)?
+
 
     public init() {}
 
@@ -80,12 +81,6 @@ public final class MIDIInputManager: @unchecked Sendable {
         lock.unlock()
     }
 
-    public func setDiagnosticsLogger(_ logger: @escaping (String) -> Void) {
-        lock.lock()
-        diagnostics = logger
-        lock.unlock()
-    }
-
     public func start() throws {
         lock.lock()
         isStopping = false
@@ -102,6 +97,7 @@ public final class MIDIInputManager: @unchecked Sendable {
         }
         guard status == noErr else {
             client = 0
+            PrismLog.error(.controlMIDI, "control.midi.failed", "Prism couldn't start MIDI.")
             throw MIDIError.coreMIDI("MIDIClientCreate failed: \(status)")
         }
 
@@ -114,10 +110,12 @@ public final class MIDIInputManager: @unchecked Sendable {
                 client = 0
             }
             inputPort = 0
+            PrismLog.error(.controlMIDI, "control.midi.failed", "Prism couldn't start MIDI.")
             throw MIDIError.coreMIDI("MIDIInputPortCreate failed: \(status)")
         }
 
         try reconcileSources()
+        PrismLog.notice(.controlMIDI, "control.midi.started", "MIDI input is on.")
     }
 
     public func stop() {
@@ -216,7 +214,7 @@ public final class MIDIInputManager: @unchecked Sendable {
             streamParsers[sourceID] = nil
             let life = sourceLifecycleHandler
             lock.unlock()
-            logDiag("MIDI source removed: \(sourceID)")
+            PrismLog.notice(.controlMIDI, "control.midi.source_changed", "A MIDI source was removed.")
             life?(.disconnected(sourceID: sourceID))
         }
 
@@ -253,14 +251,14 @@ public final class MIDIInputManager: @unchecked Sendable {
                 connected[endpoint] = sourceID
                 let life = sourceLifecycleHandler
                 lock.unlock()
-                logDiag("MIDI source connected: \(sourceID)")
+                PrismLog.notice(.controlMIDI, "control.midi.source_changed", "A MIDI source was connected.")
                 life?(.connected(sourceID: sourceID))
             } else {
                 lock.lock()
                 sourceIDRetainers[endpoint] = nil
                 streamParsers[sourceID] = nil
                 lock.unlock()
-                logDiag("MIDI connect failed \(sourceID): \(status)")
+                PrismLog.error(.controlMIDI, "control.midi.failed", "Prism couldn't connect a MIDI source.")
             }
         }
 
@@ -274,6 +272,12 @@ public final class MIDIInputManager: @unchecked Sendable {
         let handler = inventoryHandler
         lock.unlock()
         handler?(count)
+        PrismLog.notice(
+            .controlMIDI,
+            "control.midi.source_changed",
+            "The MIDI source list changed.",
+            metadata: ["count": .count(count)]
+        )
     }
 
     public func connectAllSources() throws {
@@ -378,13 +382,6 @@ public final class MIDIInputManager: @unchecked Sendable {
         h?(events)
     }
 
-    private func logDiag(_ message: String) {
-        lock.lock()
-        let d = diagnostics
-        lock.unlock()
-        d?(message)
-    }
-
     private func stringProperty(_ object: MIDIObjectRef, _ property: CFString) -> String? {
         var unmanaged: Unmanaged<CFString>?
         let status = MIDIObjectGetStringProperty(object, property, &unmanaged)
@@ -395,4 +392,17 @@ public final class MIDIInputManager: @unchecked Sendable {
 
 public enum MIDIError: Error, Equatable, Sendable {
     case coreMIDI(String)
+}
+
+extension MIDIError: LocalizedError, PrismDiagnosableError {
+    public var errorDescription: String? { userMessage }
+    public var prismErrorCode: String { "control.midi.coremidi" }
+    public var userTitle: String { "Prism Couldn't Start MIDI" }
+    public var userMessage: String { "Prism couldn’t start MIDI." }
+    public var recoverySuggestion: String? {
+        "Quit other apps using the MIDI interface, then unplug and reconnect it."
+    }
+    public var technicalDetails: String { String(reflecting: self) }
+    public var prismCategory: PrismLogCategory { .controlMIDI }
+    public var prismSeverity: PrismLogLevel { .error }
 }

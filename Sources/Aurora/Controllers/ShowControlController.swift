@@ -1,10 +1,12 @@
 import AuroraCore
+import AuroraDiagnostics
 import AuroraEngine
 import AuroraMIDI
 import AuroraModel
 import AuroraMusical
 import AuroraOutput
 import Foundation
+import PrismACP
 
 /// Engine transport, action dispatch, programmer, song, performance presentation (Stage C).
 @MainActor
@@ -22,6 +24,10 @@ final class ShowControlController: ObservableObject {
     @Published private(set) var engineStatus: String = "Engine stopped"
     @Published var songStatus: String = ""
     @Published private(set) var performance: PerformanceSnapshot = .empty
+    /// ACP authority epoch / revision. Advances only at semantic commits.
+    private(set) var authorityEpoch: UInt64 = 1
+    private(set) var stateRevision: UInt64 = 0
+    var onSemanticCommit: (() -> Void)?
 
     private var statusTimer: Timer?
     /// Last inventory used for external source binding resolution.
@@ -37,6 +43,20 @@ final class ShowControlController: ObservableObject {
         self.controlRouter.attachMusicalEngine(musicalEngine)
         self.clockAdapter = MIDIClockTimingAdapter(sink: musicalEngine)
         self.musicalDriver.setEngine(musicalEngine)
+        let effectMusicalEngine = self.musicalEngine
+        self.engine.setEffectClockSnapshotProvider { [weak effectMusicalEngine] time in
+            guard let state = effectMusicalEngine?.state else { return [:] }
+            var clocks: [EffectClockSource: EffectClockSnapshot] = [
+                .musicEngine: EffectClockSnapshot(musicalState: state, source: .musicEngine, monotonicTime: time),
+                .ame: EffectClockSnapshot(musicalState: state, source: .ame, monotonicTime: time),
+            ]
+            if let activeSourceID = state.timing.activeSourceID,
+               activeSourceID != MusicalEngine.internalSourceID,
+               state.timing.timingPolicy != .internalOnly {
+                clocks[.midiClock] = EffectClockSnapshot(musicalState: state, source: .midiClock, monotonicTime: time)
+            }
+            return clocks
+        }
         installHostNavigationCallbacks()
     }
 
@@ -152,8 +172,15 @@ final class ShowControlController: ObservableObject {
             }
             musicalDriver.start()
             refreshEngineStatus()
+            PrismLog.notice(.engineShow, "engine.show.started", "The show engine is running.")
         } catch {
             engineStatus = "Engine start failed"
+            PrismLog.error(
+                .engineShow,
+                "engine.show.start_failed",
+                "Prism couldn't start the show engine.",
+                technical: String(reflecting: error)
+            )
         }
     }
 
@@ -162,6 +189,7 @@ final class ShowControlController: ObservableObject {
         statusTimer = nil
         musicalDriver.stop()
         engine.stop()
+        PrismLog.notice(.engineShow, "engine.show.stopped", "The show engine is stopped.")
     }
 
     func startStatusPolling(outputStatus: @escaping () -> String, project: @escaping () -> ShowProject, isDirty: @escaping () -> Bool) {
@@ -320,28 +348,190 @@ final class ShowControlController: ObservableObject {
         objectWillChange.send()
     }
 
-    func go() {
-        engine.go()
+    func noteAuthoritativeCommit(replacingUniverse: Bool = false) {
+        if replacingUniverse {
+            authorityEpoch += 1
+            stateRevision = 1
+        } else {
+            stateRevision += 1
+        }
+        onSemanticCommit?()
+    }
+
+    @discardableResult
+    func go(origin: ControlActionOrigin = .localUI) -> Bool {
+        let before = engine.playback.snapshot()
+        controlRouter.dispatch(.go, origin: origin)
+        let after = engine.playback.snapshot()
+        let advanced = after.cueID != before.cueID || after.cueIndex != before.cueIndex
+        refreshSemanticPresentation()
+        if advanced { noteAuthoritativeCommit() }
         refreshEngineStatus()
         objectWillChange.send()
+        return advanced
+    }
+
+    /// Rebuild presentation immediately from the playback controller after a
+    /// semantic transport command. The frame snapshot is intentionally
+    /// throttled and can still describe the prior cue when ACP publishes the
+    /// resulting revision.
+    private func refreshSemanticPresentation() {
+        var engineSnapshot = engine.currentSnapshot()
+        engineSnapshot.playback = engine.playback.snapshot()
+        engineSnapshot.isRunning = engine.isRunning
+        performance = PerformanceSnapshot.build(
+            project: projectMirror,
+            isDirty: performance.isDirty,
+            engineSnap: engineSnapshot,
+            song: songDirector.snapshot(project: projectMirror),
+            outputStatusLine: performance.outputStatusLine,
+            global: engine.globalShowControl
+        )
+    }
+
+    /// Single authoritative cue projection for ACP admission and publication.
+    /// This deliberately reads PlaybackController directly; the engine frame
+    /// snapshot and SwiftUI presentation snapshot are both throttled views.
+    func authoritativeCueState() -> (current: PerformanceCueSummary, next: PerformanceCueSummary) {
+        let song = songDirector.snapshot(project: projectMirror)
+        return PerformanceCuePresentation.resolveCues(
+            project: projectMirror,
+            playback: engine.playback.snapshot(),
+            song: SongCueResolveContext(
+                songID: song.songID,
+                entryIndex: song.entryIndex,
+                entryCount: song.entryCount,
+                currentEntryLabel: song.currentEntryLabel,
+                nextEntryLabel: song.nextEntryLabel
+            )
+        )
+    }
+
+    /// Atomic ACP GO boundary: evaluates the client's observed state and
+    /// commits through the same semantic router before returning a revision.
+    func executeACPControl(_ request: PrismACPControlRequest) -> PrismACPControlResult {
+        guard ["performance.go", "performance.fire_cue", "output.master", "blackoutOn", "blackoutOff"].contains(request.action.name) else {
+            return PrismACPControlResult(disposition: "rejected", reason: "unsupported")
+        }
+        let isBlackoutCommand = ["blackoutOn", "blackoutOff"].contains(request.action.name)
+        guard engine.isRunning || isBlackoutCommand else {
+            return PrismACPControlResult(disposition: "rejected", reason: "not_armed")
+        }
+        let cueState = authoritativeCueState()
+        do {
+            try request.evaluatePreconditions(
+                authorityEpoch: authorityEpoch,
+                revision: stateRevision,
+                showID: nil,
+                currentCueID: cueState.current.cueID?.uuidString.lowercased()
+            )
+        } catch {
+            return PrismACPControlResult(
+                disposition: "precondition_failed",
+                reason: "precondition_failed",
+                resultingEpoch: authorityEpoch,
+                resultingRevision: stateRevision
+            )
+        }
+        let origin = ControlActionOrigin(
+            sourceType: .remote,
+            nodeID: request.action.originNodeID,
+            instanceID: request.action.originInstanceID,
+            sessionID: request.action.originSessionID,
+            principalID: request.action.originPrincipal,
+            commandID: request.action.commandID,
+            displayName: nil
+        )
+        let applied: Bool
+        switch request.action.name {
+        case "performance.go":
+            applied = go(origin: origin)
+        case "performance.fire_cue":
+            guard let parameter = request.action.parameter, let cueID = UUID(uuidString: parameter) else {
+                return PrismACPControlResult(
+                    disposition: "rejected",
+                    reason: "invalid_cue_id",
+                    resultingEpoch: authorityEpoch,
+                    resultingRevision: stateRevision
+                )
+            }
+            applied = fireCue(id: cueID, origin: origin)
+        case "output.master":
+            guard let value = request.action.value, value.isFinite, (0...1).contains(value) else {
+                return PrismACPControlResult(
+                    disposition: "rejected",
+                    reason: "invalid_value",
+                    resultingEpoch: authorityEpoch,
+                    resultingRevision: stateRevision
+                )
+            }
+            controlRouter.dispatch(
+                .masterIntensity,
+                control: MIDIControlValue(normalized: value, isTrigger: false),
+                origin: origin
+            )
+            refreshSemanticPresentation()
+            noteAuthoritativeCommit()
+            refreshEngineStatus()
+            objectWillChange.send()
+            applied = true
+        case "blackoutOn", "blackoutOff":
+            let requestedBlackout = request.action.name == "blackoutOn"
+            if engine.globalShowControl.blackout != requestedBlackout {
+                controlRouter.dispatch(requestedBlackout ? .blackout : .blackoutOff, origin: origin)
+                refreshSemanticPresentation()
+                noteAuthoritativeCommit()
+                refreshEngineStatus()
+                objectWillChange.send()
+            }
+            applied = engine.globalShowControl.blackout == requestedBlackout
+        default:
+            applied = false
+        }
+        guard applied else {
+            return PrismACPControlResult(
+                disposition: "rejected",
+                reason: request.action.name == "performance.go" ? "go_did_not_advance" : "cue_not_on_active_list",
+                resultingEpoch: authorityEpoch,
+                resultingRevision: stateRevision
+            )
+        }
+        return PrismACPControlResult(
+            disposition: "applied",
+            resultingEpoch: authorityEpoch,
+            resultingRevision: stateRevision
+        )
     }
 
     func back() {
         engine.back()
+        noteAuthoritativeCommit()
         refreshEngineStatus()
         objectWillChange.send()
     }
 
     func stopPlayback() {
         engine.stopPlayback()
+        noteAuthoritativeCommit()
         refreshEngineStatus()
         objectWillChange.send()
     }
 
-    func fireCue(id: UUID) {
-        engine.fire(cueID: id)
+    @discardableResult
+    func fireCue(id: UUID, origin: ControlActionOrigin = .localUI) -> Bool {
+        let playback = engine.playback.snapshot()
+        guard let listID = playback.listID,
+              let list = projectMirror.cueLists.first(where: { $0.id == listID }),
+              list.cues.contains(where: { $0.id == id })
+        else { return false }
+        controlRouter.dispatch(.fireCue(id), origin: origin)
+        let applied = engine.playback.snapshot().cueID == id
+        guard applied else { return false }
+        refreshSemanticPresentation()
+        noteAuthoritativeCommit()
         refreshEngineStatus()
         objectWillChange.send()
+        return true
     }
 
     func perform(action: ShowAction, project: ShowProject, orderedSelection: [UUID], midiValue: UInt8? = nil) {

@@ -5,7 +5,11 @@ import XCTest
 final class CueBlockModelTests: XCTestCase {
     func testCueBlockGroupAndMembershipRoundTrip() throws {
         let source = UUID()
-        let group = CueBlockGroup(name: "Dance Floor", sourceFixtureGroupID: source)
+        let group = CueBlockGroup(
+            name: "Dance Floor",
+            sourceFixtureGroupID: source,
+            sectionNames: [.intensity: "Brightness", .general: "Atmosphere"]
+        )
         let block = CueBlock(name: "Blue", type: .color, cueBlockGroupID: group.id, sourceGroupID: source)
         var project = ShowProject.empty(name: "Grouped")
         project.cueBlockGroups = [group]
@@ -15,6 +19,18 @@ final class CueBlockModelTests: XCTestCase {
         let decoded = try JSONDecoder().decode(ShowProject.self, from: encoded)
         XCTAssertEqual(decoded.cueBlockGroups, [group])
         XCTAssertEqual(decoded.cueBlocks.first?.cueBlockGroupID, group.id)
+    }
+
+    func testCueBlockGroupWithoutSectionNamesDecodesWithDefaults() throws {
+        let json = """
+        {
+          "id": "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA",
+          "name": "Legacy Group",
+          "notes": ""
+        }
+        """
+        let group = try JSONDecoder().decode(CueBlockGroup.self, from: Data(json.utf8))
+        XCTAssertTrue(group.sectionNames.isEmpty)
     }
 
     func testValidatorReportsMissingCueBlockGroup() {

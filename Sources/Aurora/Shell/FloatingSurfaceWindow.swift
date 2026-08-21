@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import AppKit
 import AuroraUI
 import SwiftUI

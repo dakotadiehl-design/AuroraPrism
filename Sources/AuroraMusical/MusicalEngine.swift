@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import Foundation
 
 /// Snapshot / timeline observer token.
@@ -269,6 +270,7 @@ public final class MusicalEngine: @unchecked Sendable {
         let stateObs = Array(stateObservers.values)
         let timeObs = Array(timelineObservers.values)
         lock.unlock()
+        PrismLog.notice(.musicClock, "music.clock.provider_changed", "The musical clock provider changed.")
         notifyState(snap, stateObs)
         notifyTimeline(timeline, timeObs)
         deliverFires(fireNow)
@@ -414,6 +416,7 @@ public final class MusicalEngine: @unchecked Sendable {
         let stateObs = Array(stateObservers.values)
         let timeObs = Array(timelineObservers.values)
         lock.unlock()
+        PrismLog.notice(.musicClock, "music.clock.tempo_source_changed", "The musical timing source changed.")
         notifyState(snap, stateObs)
         notifyTimeline(timeline, timeObs)
         deliverFires(fireNow)
@@ -462,15 +465,18 @@ public final class MusicalEngine: @unchecked Sendable {
     /// Manual UI start: resets to origin. Prefer `receiveTransportStart` for MIDI Start.
     public func startTransport() {
         startTransport(at: clock.now(), resetToOrigin: true, emitStarted: true)
+        PrismLog.notice(.musicTransport, "music.transport.start", "Musical transport started.")
     }
 
     /// Manual continue from current position.
     public func continueTransport() {
         continueTransport(at: clock.now())
+        PrismLog.notice(.musicTransport, "music.transport.continue", "Musical transport continued.")
     }
 
     public func stopTransport(applyFailurePolicies: Bool = true) {
         stopTransport(at: clock.now(), applyFailurePolicies: applyFailurePolicies)
+        PrismLog.notice(.musicTransport, "music.transport.stop", "Musical transport stopped.")
     }
 
     public func seek(to position: QuarterNotePosition) {
@@ -742,9 +748,18 @@ public final class MusicalEngine: @unchecked Sendable {
         let meter = _state.timing.meter
         let transport = _state.timing.transport
         let snap = _state
+        let lostProvider = snap.timing.sourceHealth == .lost
         let obs = Array(stateObservers.values)
         let timeObs = Array(timelineObservers.values)
         lock.unlock()
+        if lostProvider {
+            PrismLog.warning(
+                .musicClock,
+                "music.clock.provider_lost",
+                "The musical clock provider was lost.",
+                ratePolicy: .oncePerSecond
+            )
+        }
         notifyState(snap, obs)
         notifyTimeline(timeline, timeObs)
         deliverFires(fireNow)

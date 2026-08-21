@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import SwiftUI
 
 /// HSV color disc for Programmer gallery (pure UI, no engine).

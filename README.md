@@ -6,7 +6,7 @@ Professional-grade **lighting control** for macOS — live performance show cont
 
 **Backend is UI-gate ready.** Stages A–E (P0–P3), Xcode packaging, and the Final Backend UI Gate review are implemented. See [`docs/PROJECT_HANDOFF.md`](./docs/PROJECT_HANDOFF.md) and [`docs/UI_BACKEND_CONTRACT.md`](./docs/UI_BACKEND_CONTRACT.md) before new work.
 
-Remote: Enable Remote (random PIN) → `http://<mac>:8743`.
+Remote: ACP WebSocket on port `27421` (Bonjour `_acp._tcp`). The legacy PIN/TCP/HTTP companion is removed.
 
 | Doc | Description |
 |-----|-------------|

@@ -1,7 +1,7 @@
 import AuroraCore
+import AuroraDiagnostics
 import AuroraMIDI
 import AuroraModel
-import AuroraRemote
 import AuroraUI
 import AppKit
 import SwiftUI
@@ -35,6 +35,11 @@ struct AuroraSettingsRoot: View {
             SettingsRemoteTab()
                 .environmentObject(appModel)
                 .tabItem { settingsTabLabel("Remote", systemImage: "iphone") }
+            SettingsLoggingTab(
+                initial: appModel.settings.loggingConfiguration,
+                apply: { appModel.settings.applyLoggingConfiguration($0) }
+            )
+            .tabItem { settingsTabLabel("Logging", systemImage: "text.alignleft") }
             SettingsAdvancedTab()
                 .environmentObject(appModel)
                 .tabItem { settingsTabLabel("Advanced", systemImage: "wrench.and.screwdriver") }
@@ -56,7 +61,7 @@ struct AuroraSettingsRoot: View {
 
 private struct SettingsFixtureLibraryTab: View {
     @EnvironmentObject private var appModel: AppModel
-    @State private var errorMessage: String?
+    @State private var errorReport: PrismErrorReport?
 
     var body: some View {
         Form {
@@ -84,21 +89,23 @@ private struct SettingsFixtureLibraryTab: View {
                         try appModel.document.reloadUserFixtureLibrary()
                         appModel.notifyUI()
                     } catch {
-                        errorMessage = error.localizedDescription
+                        errorReport = PrismErrorReporting.report(
+                            error: error,
+                            context: PrismErrorContext(
+                                operation: "reload fixture library",
+                                category: .fixtureLibrary,
+                                fallbackTitle: "Prism Couldn't Update the Fixture Library",
+                                fallbackMessage: "The Fixture Library could not be updated.",
+                                eventCode: "fixture.library.load_failed"
+                            )
+                        )
                     }
                 }
             }
         }
         .formStyle(.grouped)
         .padding()
-        .alert("Fixture Library Error", isPresented: Binding(
-            get: { errorMessage != nil },
-            set: { if !$0 { errorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { errorMessage = nil }
-        } message: {
-            Text(errorMessage ?? "The Fixture Library could not be updated.")
-        }
+        .prismErrorAlert(item: $errorReport)
     }
 
     private func chooseDirectory() {
@@ -117,7 +124,16 @@ private struct SettingsFixtureLibraryTab: View {
             try appModel.document.setUserFixtureLibraryDirectory(url)
             appModel.notifyUI()
         } catch {
-            errorMessage = error.localizedDescription
+            errorReport = PrismErrorReporting.report(
+                error: error,
+                context: PrismErrorContext(
+                    operation: "set fixture library directory",
+                    category: .fixtureLibrary,
+                    fallbackTitle: "Prism Couldn't Update the Fixture Library",
+                    fallbackMessage: "The Fixture Library could not be updated.",
+                    eventCode: "fixture.library.failed"
+                )
+            )
         }
     }
 }
@@ -264,8 +280,11 @@ private struct SettingsMIDITab: View {
             try appModel.session.perform(RemoveMIDIMappingCommand(mappingID: id))
             appModel.notifyUI()
         } catch {
-            appModel.document.statusMessage = "Delete mapping failed: \(error.localizedDescription)"
-            appModel.diagnostics.log("MIDI mapping delete failed: \(error.localizedDescription)", subsystem: .midi)
+            appModel.document.statusMessage = prismReportCommandFailure(
+                error,
+                operation: "delete MIDI mapping",
+                category: .controlMIDI
+            )
             appModel.notifyUI()
         }
     }
@@ -346,8 +365,7 @@ private struct SettingsOutputTab: View {
                         set: { id in
                             appModel.output.selectLocalDMXDevice(
                                 id: id.isEmpty ? nil : id,
-                                engineRunning: appModel.performance.engineRunning,
-                                log: { appModel.diagnostics.log($0) }
+                                engineRunning: appModel.performance.engineRunning
                             )
                         }
                     )) {
@@ -367,8 +385,7 @@ private struct SettingsOutputTab: View {
                     set: { on in
                         appModel.output.setLocalDMXEnabled(
                             on,
-                            engineRunning: appModel.performance.engineRunning,
-                            log: { appModel.diagnostics.log($0) }
+                            engineRunning: appModel.performance.engineRunning
                         )
                     }
                 ))
@@ -489,7 +506,7 @@ private struct SettingsOutputTab: View {
             )
             appModel.notifyUI()
         } catch {
-            appModel.diagnostics.log(error.localizedDescription)
+            _ = prismReportCommandFailure(error, operation: "change universe route", category: .outputRouting)
         }
     }
 }
@@ -498,26 +515,40 @@ private struct SettingsOutputTab: View {
 
 private struct SettingsRemoteTab: View {
     @EnvironmentObject private var appModel: AppModel
-    @State private var draftTCPPort: String = "8742"
-    @State private var draftWebPort: String = "8743"
+    @State private var draftPort: String = "27421"
     @State private var portError: String?
 
     var body: some View {
         Form {
             settingsScopeHeader("APPLICATION")
-            Section("Remote access") {
-                Text(appModel.remote.remoteStatus)
+            Section("ACP remote access") {
+                Text(appModel.acp.status)
                     .font(.body.monospaced())
-                Text(appModel.remote.isActuallyRunning ? "Runtime: running" : "Runtime: stopped")
+                Text(appModel.acp.isRunning ? "Runtime: running" : "Runtime: stopped")
                     .font(.caption)
-                    .foregroundStyle(appModel.remote.isActuallyRunning ? Color.secondary : Color.orange)
-                Toggle("Enable remote control", isOn: Binding(
+                    .foregroundStyle(appModel.acp.isRunning ? Color.secondary : Color.orange)
+                if !appModel.acp.nodeID.isEmpty {
+                    Text("Identity: \(appModel.acp.nodeID)")
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+                Toggle("Enable ACP remote access", isOn: Binding(
                     get: { appModel.settings.remoteAccessEnabled },
                     set: { on in
                         appModel.applyRemoteFromSettings(enabled: on)
                     }
                 ))
-                Picker("Access", selection: Binding(
+                Toggle("Bonjour discovery", isOn: Binding(
+                    get: { appModel.settings.acpDiscoveryEnabled },
+                    set: { on in
+                        appModel.settings.acpDiscoveryEnabled = on
+                        appModel.settings.save()
+                        if appModel.settings.remoteAccessEnabled {
+                            appModel.applyRemoteFromSettings()
+                        }
+                    }
+                ))
+                Picker("Network scope", selection: Binding(
                     get: { appModel.settings.remoteAccessMode },
                     set: { mode in
                         appModel.settings.remoteAccessMode = mode
@@ -528,62 +559,61 @@ private struct SettingsRemoteTab: View {
                     }
                 )) {
                     Text("This Mac only").tag(RemoteAccessMode.thisMacOnly)
-                    Text("All Interfaces").tag(RemoteAccessMode.localNetwork)
-                }
-                Text(appModel.settings.remoteAccessMode == .thisMacOnly
-                     ? "Listens on 127.0.0.1 only."
-                     : "Binds all interfaces (not private-LAN filtered). Prefer trusted networks; no TLS.")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                HStack {
-                    Text("TCP port")
-                    Spacer()
-                    TextField("8742", text: $draftTCPPort)
-                        .frame(width: 72)
-                        .multilineTextAlignment(.trailing)
-                        .onSubmit { commitPorts(applyRemote: appModel.settings.remoteAccessEnabled) }
+                    Text("Local network").tag(RemoteAccessMode.localNetwork)
                 }
                 HStack {
-                    Text("Web port")
+                    Text("ACP WebSocket port")
                     Spacer()
-                    TextField("8743", text: $draftWebPort)
+                    TextField("", text: $draftPort, prompt: Text("27421"))
                         .frame(width: 72)
                         .multilineTextAlignment(.trailing)
-                        .onSubmit { commitPorts(applyRemote: appModel.settings.remoteAccessEnabled) }
+                        .onSubmit { commitPort(apply: appModel.settings.remoteAccessEnabled) }
                 }
                 if let portError {
                     Text(portError)
                         .font(.caption)
                         .foregroundStyle(Color.red)
                 }
-                Button("Apply / Restart Remote") {
-                    commitPorts(applyRemote: true)
+                Button("Apply / Restart ACP") {
+                    commitPort(apply: true)
                 }
                 .controlSize(.small)
-                .disabled(!appModel.settings.remoteAccessEnabled && portError != nil)
-                if appModel.settings.remoteAccessEnabled || !appModel.settings.remotePIN.isEmpty {
-                    HStack {
-                        Text("PIN (not logged)")
-                        Spacer()
-                        Text(appModel.settings.remotePIN.isEmpty ? "—" : appModel.settings.remotePIN)
-                            .font(.body.monospaced())
-                        Button("Regenerate") {
-                            appModel.settings.remotePIN = RemoteHostConfig.generatePIN()
-                            appModel.settings.save()
-                            if appModel.settings.remoteAccessEnabled {
-                                appModel.applyRemoteFromSettings()
-                            }
-                        }
-                        .controlSize(.small)
+                Divider()
+                Toggle("Allow enrolled Remotes to control shows", isOn: Binding(
+                    get: { appModel.settings.acpShowControlEnabled },
+                    set: { enabled in
+                        appModel.settings.acpShowControlEnabled = enabled
+                        appModel.settings.save()
+                        if appModel.settings.remoteAccessEnabled { appModel.applyRemoteFromSettings() }
                     }
-                }
-                Text("Mutating control requires PIN authentication.")
+                ))
+                TextField("Enrolled ACP node ID", text: Binding(
+                    get: { appModel.settings.acpOperatorNodeIDsText },
+                    set: { appModel.settings.acpOperatorNodeIDsText = $0 }
+                ))
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit {
+                        appModel.settings.save()
+                        if appModel.settings.remoteAccessEnabled { appModel.applyRemoteFromSettings() }
+                    }
+                TextField("Node IDs separately authorized to clear blackout", text: Binding(
+                    get: { appModel.settings.acpBlackoutClearNodeIDsText },
+                    set: { appModel.settings.acpBlackoutClearNodeIDsText = $0 }
+                ))
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit {
+                        appModel.settings.save()
+                        if appModel.settings.remoteAccessEnabled { appModel.applyRemoteFromSettings() }
+                    }
+                Text("Show control remains unavailable until control is enabled, at least one Remote node ID is enrolled, the network scope is This Mac only, and ACP is applied/restarted. Clearing blackout requires the same node ID to be explicitly listed in the separate blackout-clear field. LAN control remains closed until ACP transport trust binds the enrolled identity.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Discovery never authenticates a client. Legacy PIN/TCP/HTTP remote is removed.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
             Section("Clients") {
-                Text("Connected: \(appModel.remote.remoteHost.sessions.clientsSnapshot.count)")
-                Button("Kick all clients") {
+                Button("Revoke all clients") {
                     appModel.kickAllRemoteClients()
                 }
                 .controlSize(.small)
@@ -592,23 +622,20 @@ private struct SettingsRemoteTab: View {
         .formStyle(.grouped)
         .padding()
         .onAppear {
-            draftTCPPort = String(appModel.settings.remotePort)
-            draftWebPort = String(appModel.settings.remoteWebPort)
+            draftPort = String(appModel.settings.acpWebSocketPort)
         }
     }
 
-    private func commitPorts(applyRemote: Bool) {
-        let tcp = AppSettingsStore.validatePort(draftTCPPort)
-        let web = AppSettingsStore.validatePort(draftWebPort)
-        if let err = tcp.1 ?? web.1 {
+    private func commitPort(apply: Bool) {
+        let parsed = AppSettingsStore.validatePort(draftPort)
+        if let err = parsed.1 {
             portError = err
             return
         }
         portError = nil
-        if let p = tcp.0 { appModel.settings.remotePort = p }
-        if let p = web.0 { appModel.settings.remoteWebPort = p }
+        if let p = parsed.0 { appModel.settings.acpWebSocketPort = p }
         appModel.settings.save()
-        if applyRemote, appModel.settings.remoteAccessEnabled {
+        if apply, appModel.settings.remoteAccessEnabled {
             appModel.applyRemoteFromSettings()
         }
     }
@@ -691,6 +718,82 @@ private struct SettingsAdvancedTab: View {
                     }
                 }
             }
+        }
+    }
+}
+
+// MARK: - Logging
+
+private struct SettingsLoggingTab: View {
+    @StateObject private var model: LoggingSettingsModel
+
+    init(initial: PrismLogConfiguration, apply: @escaping (PrismLogConfiguration) -> Void) {
+        _model = StateObject(wrappedValue: LoggingSettingsModel(configuration: initial, apply: apply))
+    }
+
+    var body: some View {
+        Form {
+            settingsScopeHeader("APPLICATION")
+            Section {
+                Text("Prism writes logs through macOS Unified Logging. macOS decides how long they stay on disk. Sensitive values are redacted. Changing a level applies immediately and does not add detail to older records. Verbose and informational messages are mainly for live troubleshooting and may not persist.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section("Profile") {
+                Picker("Profile", selection: Binding(
+                    get: { model.configuration.profile },
+                    set: { model.applyProfile($0) }
+                )) {
+                    ForEach(PrismLogProfile.allCases, id: \.self) { profile in
+                        Text(profile.displayName).tag(profile)
+                    }
+                }
+                Text("Custom keeps your current per-category mix. Changing any one category also selects Custom.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                HStack {
+                    Button("Reset Defaults") { model.confirmReset = true }
+                    Button("Set All to High-level") { model.setAll(to: .notice) }
+                }
+            }
+            ForEach(PrismLogCategoryGroup.allCases, id: \.self) { group in
+                Section(group.displayName) {
+                    Button("Set all in \(group.displayName) to High-level") {
+                        model.setGroup(group, to: .notice)
+                    }
+                    .font(.caption)
+                    ForEach(group.categories, id: \.self) { category in
+                        Picker(category.displayName, selection: Binding(
+                            get: { model.configuration.level(for: category) },
+                            set: { model.setLevel($0, for: category) }
+                        )) {
+                            ForEach(PrismLogLevel.settingsChoices, id: \.self) { level in
+                                Text(level.settingsLabel).tag(level)
+                            }
+                        }
+                    }
+                }
+            }
+            Section("Support") {
+                Text(model.supportCommand)
+                    .font(.caption.monospaced())
+                    .textSelection(.enabled)
+                HStack {
+                    Button("Copy Support Command", action: model.copySupportCommand)
+                    Button("Copy Live Stream Command", action: model.copyStreamCommand)
+                }
+                if let copied = model.copiedMessage {
+                    Text(copied).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+        .alert("Reset Logging Defaults?", isPresented: $model.confirmReset) {
+            Button("Reset", role: .destructive) { model.resetDefaults() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This restores Production Defaults for every category.")
         }
     }
 }

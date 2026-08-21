@@ -6,8 +6,8 @@ import AuroraMIDI
 import AuroraModel
 import AuroraDiagnostics
 import AuroraOutput
-import AuroraRemote
 import AuroraUI
+import PrismACP
 import Combine
 import Foundation
 import SwiftUI
@@ -26,7 +26,7 @@ final class AppModel: ObservableObject {
     let showControl: ShowControlController
     let input: InputController
     let output: OutputController
-    let remote: RemoteController
+    let acp: PrismACPController
     let diagnostics: DiagnosticsController
     let settings: AppSettingsStore
     let autosave = AutosaveController()
@@ -48,6 +48,10 @@ final class AppModel: ObservableObject {
 
     private var cancellables = Set<AnyCancellable>()
     private var controlEventObserver: ControlEventObserverToken?
+    /// Private Effects authoring state used only to substitute the main Stage presentation.
+    /// It is never installed in `EffectRunner` and therefore cannot reach DMX output.
+    private var effectsStagePreviewEffect: EffectInstance?
+    private var effectsStagePreviewEnabled = false
 
     // MARK: - Compatibility facades (menus / panels still use these names)
 
@@ -83,9 +87,7 @@ final class AppModel: ObservableObject {
     var consoleLog: [String] { diagnostics.consoleLog }
     var oscStatus: String { input.oscStatus }
     var isOSCEnabled: Bool { input.isOSCEnabled }
-    var remoteStatus: String { remote.remoteStatus }
-    var remoteHost: RemoteHost { remote.remoteHost }
-    var remoteWeb: RemoteWebServer? { remote.remoteWeb }
+    var remoteStatus: String { acp.status }
     var engine: LightingEngine { showControl.engine }
     var songDirector: SongDirector { showControl.songDirector }
     var midiLearn: MIDILearnSession { input.midiLearn }
@@ -93,23 +95,46 @@ final class AppModel: ObservableObject {
     var performance: PerformanceSnapshot { showControl.performance }
 
     init(project: ShowProject = .empty(name: "Untitled Show")) {
-        let document = ProjectController(project: project)
         let settings = AppSettingsStore()
+        PrismLogConfigurationStore.shared.replace(settings.loggingConfiguration)
+        let memorySink = InMemoryPrismLogSink.shared
+        PrismLog.shared = CompositePrismLogger(sinks: [UnifiedPrismLogger(), memorySink])
+        if settings.consumeLoggingLoadWarning() {
+            PrismLog.warning(
+                .appSettings,
+                "app.settings.config_fallback",
+                "Prism couldn't read the saved logging settings and restored the production defaults."
+            )
+        }
+
+        let document = ProjectController(project: project)
         let output = OutputController(settings: settings)
         let showControl = ShowControlController(output: output.outputManager)
         let input = InputController()
-        let remote = RemoteController()
-        let diagnostics = DiagnosticsController()
+        let acp = PrismACPController()
+        let diagnostics = DiagnosticsController(memorySink: memorySink)
         let workspace = WorkspaceController()
 
         self.document = document
         self.output = output
         self.showControl = showControl
         self.input = input
-        self.remote = remote
+        self.acp = acp
         self.diagnostics = diagnostics
         self.workspace = workspace
         self.settings = settings
+        showControl.onSemanticCommit = { [weak self] in
+            Task { @MainActor in
+                await self?.publishACPState()
+            }
+        }
+        Task {
+            await acp.service.installHostExecutor { request in
+                await MainActor.run {
+                    showControl.executeACPControl(request)
+                }
+            }
+        }
 
         // C5.1: wire float window coordinator → workspace frame / redock policy.
         floatWindows.isTerminating = { [weak self] in self?.isTerminating == true }
@@ -142,7 +167,7 @@ final class AppModel: ObservableObject {
             showControl.objectWillChange,
             input.objectWillChange,
             output.objectWillChange,
-            remote.objectWillChange,
+            acp.objectWillChange,
             diagnostics.objectWillChange,
             settings.objectWillChange,
             programmerPresentation.objectWillChange,
@@ -170,10 +195,10 @@ final class AppModel: ObservableObject {
             }
         }
 
-        document.onLog = { [weak self] msg in self?.diagnostics.log(msg) }
         document.onProjectModified = { [weak self] in
             guard let self else { return }
             self.applyProjectUpdate()
+            self.showControl.noteAuthoritativeCommit()
             self.refreshProgrammerPresentation()
             // CR-05: keep loaded song cursor identity coherent after entry edits.
             self.songDirector.reconcile(project: self.session.project)
@@ -187,10 +212,6 @@ final class AppModel: ObservableObject {
 
         // —— Launch bootstrap milestones (splash status only; no parallel subsystem) ——
         launchSplash.note(.loadingFixtureLibrary)
-        // Seed log from library load
-        if !document.statusMessage.isEmpty {
-            diagnostics.log(document.statusMessage)
-        }
         if document.fixtureLibrary == nil,
            document.statusMessage.localizedCaseInsensitiveContains("failed") {
             launchSplash.markFailed(document.statusMessage)
@@ -203,9 +224,7 @@ final class AppModel: ObservableObject {
         launchSplash.note(.startingOutput)
         // UI-08 A1: only start Local DMX if configured device is present and requested.
         if settings.localDMX.requestedEnabled {
-            output.setLocalDMXEnabled(true, engineRunning: engine.isRunning) { [weak self] msg in
-                self?.diagnostics.log(msg)
-            }
+            output.setLocalDMXEnabled(true, engineRunning: engine.isRunning)
         } else {
             output.startLocalDMXIfNeeded()
         }
@@ -216,8 +235,7 @@ final class AppModel: ObservableObject {
         // UI-GATE-1: multi-observer — MIDI log and show-control both subscribe; neither replaces the other.
         input.startMIDI(
             router: showControl.controlRouter,
-            session: { [weak self] in self?.document.session ?? DocumentSession(project: .empty()) },
-            onLog: { [weak self] msg in self?.diagnostics.log(msg, subsystem: .midi) }
+            session: { [weak self] in self?.document.session ?? DocumentSession(project: .empty()) }
         )
         // Binding resolution against live inventory (Wave 1–5 review C5).
         input.setInventoryListener { [weak self] devices in
@@ -233,7 +251,7 @@ final class AppModel: ObservableObject {
                 }
             }
         }
-        input.applySavedRTPMIDI { [weak self] msg in self?.diagnostics.log(msg, subsystem: .midi) }
+        input.applySavedRTPMIDI()
 
         launchSplash.note(.preparingWorkspace)
         showControl.startStatusPolling(
@@ -254,7 +272,6 @@ final class AppModel: ObservableObject {
             }
         }
         autosave.start()
-        // REM-04: restore remote from persisted settings after composition is ready.
         if settings.remoteAccessEnabled {
             applyRemoteFromSettings(enabled: true)
         }
@@ -262,6 +279,15 @@ final class AppModel: ObservableObject {
         diagnostics.startLiveUpdates { [weak self] in
             self?.buildDiagnosticsSnapshot() ?? .empty
         }
+        PrismLog.notice(
+            .appLifecycle,
+            "app.lifecycle.launch",
+            "Prism is ready.",
+            metadata: [
+                "profile": .public(settings.loggingConfiguration.profile.rawValue),
+                "count": .count(PrismLogCategory.allCases.count),
+            ]
+        )
         refreshProgrammerPresentation()
         if case .failed = launchSplash.bootstrap {
             // Keep error splash; still allow UI observation.
@@ -297,6 +323,89 @@ final class AppModel: ObservableObject {
         refreshProgrammerPresentation()
         // `programmerPresentation` is already cascaded via objectWillChange subscription.
         // Stage/output follow engine frames; no broad shell rebuild required here.
+    }
+
+    /// Applies silent Shift-D numeric entry to the current fixture selection.
+    func setSelectedDimmer(percent: Int) {
+        let fixtureIDs = session.selection.snapshot.orderedFixtureIDs
+        guard !fixtureIDs.isEmpty else { return }
+        var resolved = engine.currentResolvedSnapshot().programmerLook.fixtureAttributes
+        for (fixtureID, attributes) in engine.programmer.snapshot().values {
+            var merged = resolved[fixtureID] ?? [:]
+            merged.merge(attributes) { _, programmerValue in programmerValue }
+            resolved[fixtureID] = merged
+        }
+        let current = ProgrammerIntensityGroup.effectiveValues(
+            fixtureIDs: fixtureIDs,
+            project: session.project,
+            resolvedValues: resolved
+        )
+        guard !current.isEmpty else { return }
+        let shifted = ProgrammerIntensityGroup.shiftedValues(
+            current,
+            toAverage: Double(min(100, max(0, percent))) / 100
+        )
+        engine.programmer.setMany(attribute: "intensity", values: shifted)
+        noteProgrammerUIChanged()
+    }
+
+    /// Applies silent Shift-F numeric entry to fog/haze output on capable fixtures.
+    func setSelectedFog(percent: Int) {
+        setSelectedDeviceFunction(
+            percent: percent,
+            preferredAttributes: [
+                "fogOutput", "hazeOutput", "smokeOutput", "fog", "haze", "smoke",
+            ]
+        )
+    }
+
+    /// Applies silent Shift-S numeric entry to fan/blower speed on capable fixtures.
+    func setSelectedFanSpeed(percent: Int) {
+        setSelectedDeviceFunction(
+            percent: percent,
+            preferredAttributes: ["fanSpeed", "fan_speed", "blowerSpeed", "fan", "blower"]
+        )
+    }
+
+    private func setSelectedDeviceFunction(percent: Int, preferredAttributes: [String]) {
+        let fixtureIDs = session.selection.snapshot.orderedFixtureIDs
+        guard !fixtureIDs.isEmpty else { return }
+        let caps = ProgrammerAttributePresentationResolver.physicalCapabilityMap(
+            orderedFixtureIDs: fixtureIDs,
+            project: session.project
+        )
+        var resolved = engine.currentResolvedSnapshot().programmerLook.fixtureAttributes
+        for (fixtureID, attributes) in engine.programmer.snapshot().values {
+            var merged = resolved[fixtureID] ?? [:]
+            merged.merge(attributes) { _, programmerValue in programmerValue }
+            resolved[fixtureID] = merged
+        }
+
+        let normalizedPreference = preferredAttributes.map { $0.lowercased() }
+        var attributesByFixture: [UUID: String] = [:]
+        var current: [UUID: Double] = [:]
+        for fixtureID in fixtureIDs {
+            let supported = caps[fixtureID] ?? []
+            guard let attribute = normalizedPreference.compactMap({ wanted in
+                supported.first { $0.lowercased() == wanted }
+            }).first else { continue }
+            attributesByFixture[fixtureID] = attribute
+            current[fixtureID] = resolved[fixtureID]?[attribute] ?? 0
+        }
+        guard !current.isEmpty else { return }
+
+        let shifted = ProgrammerIntensityGroup.shiftedValues(
+            current,
+            toAverage: Double(min(100, max(0, percent))) / 100
+        )
+        var batch: [UUID: [String: Double]] = [:]
+        for (fixtureID, value) in shifted {
+            if let attribute = attributesByFixture[fixtureID] {
+                batch[fixtureID] = [attribute: value]
+            }
+        }
+        engine.programmer.setMany(batch)
+        noteProgrammerUIChanged()
     }
 
     /// Deprecated alias for `notifyUI()` (panels still call `bump()`).
@@ -378,9 +487,14 @@ final class AppModel: ObservableObject {
             reloadEngine()
             notifyUI()
         } catch {
-            document.statusMessage = "Import failed: \(error.localizedDescription)"
+            document.statusMessage = PrismErrorReporting.userFacingMessage(for: error)
             document.presentError(error, title: "Import Failed")
         }
+    }
+
+    func createUserFixture(_ definition: FixtureDefinition) throws {
+        _ = try document.importFixtureDefinitions([definition], sourceName: "Fixture Creator")
+        notifyUI()
     }
 
     /// Commits reviewed LightKey personalities and refreshes fixture-dependent runtime state.
@@ -427,11 +541,12 @@ final class AppModel: ObservableObject {
             showControl.resetSong()
             afterDocumentReplaced()
             NSDocumentController.shared.noteNewRecentDocumentURL(url)
+            RecentProjectStore.note(url)
             if ProjectPackage.isLegacyPackageURL(url) {
                 await promptToMigrateLegacyProject()
             }
         } catch {
-            document.statusMessage = "Open failed: \(error.localizedDescription)"
+            document.statusMessage = PrismErrorReporting.userFacingMessage(for: error)
             document.presentError(error, title: "Open Failed")
         }
     }
@@ -442,6 +557,7 @@ final class AppModel: ObservableObject {
         // DOC-01: successful New/Open/Demo leaves Welcome for Build.
         workspace.enterDocumentWorkspace()
         reloadEngine()
+        showControl.noteAuthoritativeCommit(replacingUniverse: true)
         notifyUI()
     }
 
@@ -593,7 +709,7 @@ final class AppModel: ObservableObject {
             applyProjectUpdate()
             return updated.name.isEmpty ? "cue" : updated.name
         } catch {
-            document.statusMessage = error.localizedDescription
+            document.statusMessage = PrismErrorReporting.statusMessage(for: error, operation: "update cue")
             return nil
         }
     }
@@ -615,7 +731,7 @@ final class AppModel: ObservableObject {
             applyProjectUpdate()
             return cue.name
         } catch {
-            document.statusMessage = error.localizedDescription
+            document.statusMessage = PrismErrorReporting.statusMessage(for: error, operation: "record cue")
             return nil
         }
     }
@@ -683,11 +799,11 @@ final class AppModel: ObservableObject {
             notifyUI()
             return !document.isDirty
         } catch {
-            document.statusMessage = "Save failed: \(error.localizedDescription)"
+            document.statusMessage = PrismErrorReporting.userFacingMessage(for: error)
             if presentErrorsAsModal {
                 document.presentError(error, title: "Save Failed")
             } else {
-                diagnostics.log("Save failed during quit: \(error.localizedDescription)", subsystem: .project)
+                _ = PrismErrorReporting.report(error: error, context: .projectSave())
             }
             return false
         }
@@ -746,10 +862,34 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func setEffectsStagePreview(_ effect: EffectInstance?) {
+        effectsStagePreviewEffect = effect
+        notifyUI()
+    }
+
+    func setEffectsStagePreviewEnabled(_ enabled: Bool) {
+        effectsStagePreviewEnabled = enabled
+        notifyUI()
+    }
+
     /// Semantic stage preview from engine's authoritative resolved frame (Pass-1 A5 fix).
     /// Does **not** re-run playback/effects in AppModel.
     func stagePreviewSnapshot() -> StagePreviewSnapshot {
         let resolved = engine.currentResolvedSnapshot()
+        if effectsStagePreviewEnabled, let effect = effectsStagePreviewEffect {
+            let preview = engine.evaluateEffectPreview(
+                effect,
+                time: ProcessInfo.processInfo.systemUptime,
+                baseLook: resolved.presentationLook
+            )
+            return StagePreviewBuilder.build(
+                project: session.project,
+                look: preview.semanticLook,
+                frameIndex: resolved.frameIndex,
+                time: resolved.timestamp,
+                global: .init()
+            )
+        }
         return StagePreviewBuilder.build(
             project: session.project,
             look: resolved.presentationLook,
@@ -897,7 +1037,7 @@ final class AppModel: ObservableObject {
     // MARK: - Input
 
     func setRTPMIDIEnabled(_ enabled: Bool) {
-        input.setRTPMIDIEnabled(enabled) { [weak self] msg in self?.diagnostics.log(msg) }
+        input.setRTPMIDIEnabled(enabled)
         notifyUI()
     }
 
@@ -909,10 +1049,9 @@ final class AppModel: ObservableObject {
             router: showControl.controlRouter,
             onUINotify: { [weak self] action, _ in
                 self?.showControl.refreshEngineStatus()
-                self?.diagnostics.log("OSC \(action.storageKey)", subsystem: .midi)
+                PrismLog.debug(.controlOSC, "control.osc.dispatch", "OSC dispatched an action.")
                 self?.notifyUI()
-            },
-            onLog: { [weak self] msg in self?.diagnostics.log(msg, subsystem: .midi) }
+            }
         )
         // Ensure router has current selection/mappings before live OSC arrives.
         showControl.controlRouter.updateMappings(session.project.midiMappings, project: session.project)
@@ -936,16 +1075,20 @@ final class AppModel: ObservableObject {
         do {
             try showControl.engine.updateConfiguration(config)
             showControl.engine.frameMetrics.setTargetPeriodMs(config.framePeriod * 1000)
-            diagnostics.log(
-                String(format: "Engine frame rate %.0f Hz", clamped),
-                subsystem: .engine
+            PrismLog.notice(
+                .engineShow,
+                "engine.show.started",
+                "The show engine frame rate is \(Int(clamped)) Hz.",
+                metadata: ["frameRateHz": .double(clamped, privacy: .public)]
             )
         } catch {
             // Still set metrics target if restart failed mid-flight.
             showControl.engine.frameMetrics.setTargetPeriodMs((1.0 / max(1, clamped)) * 1000)
-            diagnostics.log(
-                "Frame rate apply failed: \(error.localizedDescription)",
-                subsystem: .engine
+            PrismLog.error(
+                .engineShow,
+                "engine.show.start_failed",
+                "Prism couldn't apply the new frame rate.",
+                technical: String(reflecting: error)
             )
         }
     }
@@ -953,13 +1096,13 @@ final class AppModel: ObservableObject {
     /// BLOCKER-1 / UI-GATE-7: autosave through `ProjectSaveCoordinator` (serialized per destination).
     private func performBackgroundAutosave() async {
         guard document.documentURL != nil, document.isDirty else { return }
-        diagnostics.log("Autosave begin", subsystem: .project)
         let cleaned = await document.autosaveIfPossible()
+        if document.autosaveDisabledAfterFailures {
+            autosave.isEnabled = false
+            autosave.stop()
+        }
         if cleaned {
-            diagnostics.log("Autosave ok", subsystem: .project)
             notifyUI()
-        } else if document.isDirty {
-            diagnostics.log("Autosave skipped or stale — document remains dirty", subsystem: .project)
         }
     }
 
@@ -978,9 +1121,7 @@ final class AppModel: ObservableObject {
     // MARK: - Output
 
     func setArtNetEnabled(_ enabled: Bool) {
-        output.setArtNetEnabled(enabled, engineRunning: engine.isRunning) { [weak self] msg in
-            self?.diagnostics.log(msg)
-        }
+        output.setArtNetEnabled(enabled, engineRunning: engine.isRunning)
         notifyUI()
     }
 
@@ -990,9 +1131,7 @@ final class AppModel: ObservableObject {
     }
 
     func setSACNEnabled(_ enabled: Bool) {
-        output.setSACNEnabled(enabled, engineRunning: engine.isRunning) { [weak self] msg in
-            self?.diagnostics.log(msg)
-        }
+        output.setSACNEnabled(enabled, engineRunning: engine.isRunning)
         notifyUI()
     }
 
@@ -1014,180 +1153,85 @@ final class AppModel: ObservableObject {
     }
 
     func log(_ message: String) {
-        diagnostics.log(message)
+        PrismLog.info(.appLifecycle, "app.lifecycle.launch", message)
         notifyUI()
     }
 
     // MARK: - Remote
 
-    /// Authoritative remote enable/config path (REM-01/05). Menu and Settings both use this.
+    func publishACPState() async {
+        let node = await acp.service.diagnostics().nodeID
+        guard !node.isEmpty else { return }
+        let perf = showControl.performance
+        // Use the same live playback projection used by ACP precondition
+        // evaluation. Presentation/frame snapshots may lag a semantic GO.
+        let cues = showControl.authoritativeCueState()
+        let state = PrismACPAuthoritativeState(
+            authorityEpoch: showControl.authorityEpoch,
+            revision: showControl.stateRevision,
+            showID: session.project.workspaceLayoutId?.uuidString.lowercased()
+                ?? PrismACPRemoteProfile.stableUUID(seed: document.documentURL?.standardizedFileURL.path ?? session.project.metadata.name),
+            showName: session.project.metadata.name,
+            engineRunning: engine.isRunning,
+            currentCueID: cues.current.cueID?.uuidString.lowercased() ?? "",
+            currentCueName: cues.current.name,
+            nextCueID: cues.next.cueID?.uuidString.lowercased() ?? "",
+            nextCueName: cues.next.name,
+            outputStatus: output.outputStatus,
+            masterIntensity: engine.globalShowControl.masterIntensity,
+            blackout: perf.blackout
+        )
+        _ = node
+        await acp.service.noteAuthoritativeState(state)
+    }
+
+    /// Authoritative remote enable path. Starts ACP only; never the legacy TCP/HTTP stack.
     func applyRemoteFromSettings(enabled: Bool? = nil) {
         if let enabled {
             settings.remoteAccessEnabled = enabled
-            if enabled, settings.remotePIN.isEmpty {
-                settings.remotePIN = RemoteHostConfig.generatePIN()
-            }
             settings.save()
         }
         let on = settings.remoteAccessEnabled
-        let pin = settings.remotePIN.isEmpty ? nil : settings.remotePIN
-        let bind: RemoteBindPolicy = settings.remoteAccessMode == .thisMacOnly ? .loopbackOnly : .allInterfaces
-        setRemoteEnabled(
-            on,
-            pin: pin,
-            port: settings.remotePort,
-            webPort: settings.remoteWebPort,
-            bindPolicy: bind
-        )
-    }
-
-    func setRemoteEnabled(
-        _ enabled: Bool,
-        pin: String? = nil,
-        port: UInt16? = nil,
-        webPort: UInt16? = nil,
-        bindPolicy: RemoteBindPolicy? = nil
-    ) {
-        // UI-GATE-2: capture router for live path off MainActor.
-        let router = showControl.controlRouter
-        let action: @Sendable (RemoteShowAction) -> Void = { [weak self] action in
-            // Transport / programmer / fire — immediate, no MainActor hop.
-            switch action {
-            case .go:
-                router.dispatch(.go)
-            case .stop:
-                router.dispatch(.stop)
-            case .back:
-                router.dispatch(.back)
-            case .next:
-                router.dispatch(.go)
-            case .fireCueIndex(let i):
-                router.dispatch(.fireCueIndex(i))
-            case .fireCue(let id):
-                router.dispatch(.fireCue(id))
-            case .setProgrammerAttribute(let attr, let value):
-                let control = MIDIControlValue(normalized: value, isTrigger: false)
-                router.dispatch(.programmerAttribute(attr), control: control)
-            case .masterIntensity(let v):
-                router.dispatch(
-                    .masterIntensity,
-                    control: MIDIControlValue(normalized: min(1, max(0, v)), isTrigger: false)
-                )
-            case .blackout:
-                router.dispatch(.blackout)
-            case .blackoutOff:
-                router.dispatch(.blackoutOff)
-            case .toggleBlackout:
-                router.dispatch(.toggleBlackout)
-            case .songNext, .songPrevious:
-                // SongDirector is MainActor; hop only for song navigation.
-                Task { @MainActor in
-                    self?.performRemoteSong(action)
-                }
-                return
+        let discovery = settings.acpDiscoveryEnabled
+        let port = settings.acpWebSocketPort
+        let loopback = settings.remoteAccessMode == .thisMacOnly
+        let operatorNodeIDs = Set(settings.acpOperatorNodeIDsText
+            .split(whereSeparator: { $0 == "," || $0.isWhitespace })
+            .map { String($0).lowercased() })
+        let blackoutClearNodeIDs = Set(settings.acpBlackoutClearNodeIDsText
+            .split(whereSeparator: { $0 == "," || $0.isWhitespace })
+            .map { String($0).lowercased() })
+            .intersection(operatorNodeIDs)
+        let controlEnabled = settings.acpShowControlEnabled && !operatorNodeIDs.isEmpty
+        Task { @MainActor in
+            await acp.apply(
+                enabled: on,
+                discovery: discovery,
+                port: port,
+                loopbackOnly: loopback,
+                advertiseControl: controlEnabled,
+                operatorNodeIDs: operatorNodeIDs,
+                blackoutClearNodeIDs: blackoutClearNodeIDs
+            )
+            if on {
+                await publishACPState()
             }
-            // Presentation / log only after live dispatch.
-            Task { @MainActor in
-                self?.noteRemoteAction(action)
-            }
+            notifyUI()
         }
-        remote.setRemoteEnabled(
-            enabled,
-            pin: pin,
-            port: port ?? settings.remotePort,
-            webPort: webPort ?? settings.remoteWebPort,
-            bindPolicy: bindPolicy ?? (settings.remoteAccessMode == .thisMacOnly ? .loopbackOnly : .allInterfaces),
-            onAction: action,
-            makeSnapshot: { [weak self] in
-                guard let self else {
-                    return RemoteSnapshot(showName: "", engineRunning: false)
-                }
-                return self.remote.makeRemoteSnapshot(
-                    project: self.session.project,
-                    engine: self.engine,
-                    song: self.songDirector.snapshot(project: self.session.project),
-                    songStatusFallback: self.songStatus,
-                    outputStatusLine: self.output.outputStatus
-                )
-            },
-            onLog: { [weak self] msg in self?.diagnostics.log(msg, subsystem: .remote) }
-        )
-        // Keep settings truth aligned when menu toggles remote (REM-05).
-        if settings.remoteAccessEnabled != enabled {
-            settings.remoteAccessEnabled = enabled
-            if enabled, let pin, !pin.isEmpty {
-                settings.remotePIN = pin
-            } else if enabled, settings.remotePIN.isEmpty {
-                settings.remotePIN = remote.remoteHost.sessions.configSnapshot.pin
-            }
-            settings.save()
-        } else if enabled, let pin, !pin.isEmpty, settings.remotePIN != pin {
-            settings.remotePIN = pin
-            settings.save()
-        }
-        notifyUI()
     }
 
-    private func performRemoteSong(_ action: RemoteShowAction) {
-        switch action {
-        case .songNext:
-            showControl.songNext(project: session.project)
-        case .songPrevious:
-            showControl.songPrevious(project: session.project)
-        default:
-            break
-        }
-        noteRemoteAction(action)
-    }
-
-    private func noteRemoteAction(_ action: RemoteShowAction) {
-        showControl.refreshEngineStatus()
-        diagnostics.log("Remote \(String(describing: action))", subsystem: .remote)
-        notifyUI()
-    }
-
-    func setRemoteLockedToViewer(_ locked: Bool) {
-        remote.setLockedToViewer(locked)
-        diagnostics.log(locked ? "Remote locked to viewer" : "Remote operators allowed", subsystem: .remote)
-        notifyUI()
+    func setRemoteEnabled(_ enabled: Bool) {
+        applyRemoteFromSettings(enabled: enabled)
     }
 
     func kickAllRemoteClients() {
-        let router = showControl.controlRouter
-        let action: @Sendable (RemoteShowAction) -> Void = { [weak self] action in
-            switch action {
-            case .go: router.dispatch(.go)
-            case .stop: router.dispatch(.stop)
-            case .back: router.dispatch(.back)
-            case .next: router.dispatch(.go)
-            case .fireCueIndex(let i): router.dispatch(.fireCueIndex(i))
-            case .fireCue(let id): router.dispatch(.fireCue(id))
-            case .setProgrammerAttribute(let attr, let value):
-                router.dispatch(
-                    .programmerAttribute(attr),
-                    control: MIDIControlValue(normalized: value, isTrigger: false)
-                )
-            case .masterIntensity(let v):
-                router.dispatch(
-                    .masterIntensity,
-                    control: MIDIControlValue(normalized: min(1, max(0, v)), isTrigger: false)
-                )
-            case .blackout:
-                router.dispatch(.blackout)
-            case .blackoutOff:
-                router.dispatch(.blackoutOff)
-            case .toggleBlackout:
-                router.dispatch(.toggleBlackout)
-            case .songNext, .songPrevious:
-                Task { @MainActor in self?.performRemoteSong(action) }
-                return
+        Task { @MainActor in
+            await acp.stop()
+            if settings.remoteAccessEnabled {
+                await acp.setEnabled(true)
             }
-            Task { @MainActor in self?.noteRemoteAction(action) }
+            notifyUI()
         }
-        remote.kickAll(onAction: action) { [weak self] msg in
-            self?.diagnostics.log(msg, subsystem: .remote)
-        }
-        notifyUI()
     }
 
     /// Orderly teardown (PRE-UI-3). Idempotent.
@@ -1197,6 +1241,7 @@ final class AppModel: ObservableObject {
         guard !didShutdown else { return }
         didShutdown = true
         isTerminating = true
+        PrismLog.notice(.appLifecycle, "app.lifecycle.terminate", "Prism is quitting.")
         floatWindows.closeAllWindows()
         autosave.stop()
         // UI11-05 / C5.1: flush layout + float frames; do not redock floats on quit.
@@ -1205,7 +1250,7 @@ final class AppModel: ObservableObject {
         showControl.stopTimers()
         input.stopAll()
         output.stopAll()
-        remote.stopAll()
+        Task { await acp.stop() }
     }
 
     // MARK: - C5.1 unified undock / redock (state + exact window)
@@ -1224,6 +1269,7 @@ final class AppModel: ObservableObject {
         let screenID = workspace.floatState.record(for: surface).screenID ?? defaults.screenID
         let screenName = workspace.floatState.record(for: surface).screenName ?? defaults.screenName
         workspace.undock(surface, frame: frame, screenID: screenID, screenName: screenName)
+        PrismLog.info(.appWindowing, "app.windowing.surface_opened", "A floating workspace window opened.")
         notifyUI()
     }
 
@@ -1267,9 +1313,9 @@ final class AppModel: ObservableObject {
             midiStatus: midiHealth.statusLine,
             midiState: midiHealth.state.rawValue,
             midiSourceCount: midiHealth.connectedSourceCount,
-            remoteStatus: remote.remoteStatus,
-            remoteActuallyRunning: remote.isActuallyRunning,
-            remoteClientCount: remote.remoteHost.sessions.clientsSnapshot.count,
+            remoteStatus: acp.status,
+            remoteActuallyRunning: acp.isRunning,
+            remoteClientCount: 0,
             validationIssueCount: performance.validationIssueCount,
             driverHealth: health.map {
                 DiagnosticsSnapshot.DriverHealthRow(

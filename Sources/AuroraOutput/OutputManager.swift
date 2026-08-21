@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import AuroraModel
 import Foundation
 
@@ -58,6 +59,7 @@ public final class OutputManager: @unchecked Sendable {
             }
             throw error
         }
+        PrismLog.notice(.outputRouting, "output.routing.changed", "Output drivers started.")
     }
 
     public func stopAll() {

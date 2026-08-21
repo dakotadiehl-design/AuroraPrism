@@ -78,6 +78,26 @@ final class PerformanceCuePresentationTests: XCTestCase {
         XCTAssertEqual(next.name, "Intro")
     }
 
+    func testLoadedIdleListPublishesFirstCueAsNext() {
+        let (project, listA, cueA0, _, _) = projectWithCues()
+        let playback = PlaybackSnapshot(
+            listID: listA,
+            cueIndex: -1,
+            cueID: nil,
+            phase: .idle,
+            cueName: ""
+        )
+        let (current, next) = PerformanceCuePresentation.resolveCues(
+            project: project,
+            playback: playback,
+            song: .empty
+        )
+        XCTAssertNil(current.cueID)
+        XCTAssertEqual(next.cueID, cueA0)
+        XCTAssertEqual(next.name, "House")
+        XCTAssertEqual(next.listID, listA)
+    }
+
     func testSongNextNonAdjacentCue() {
         let (project, listA, cueA0, cueA2, songID) = projectWithCues()
         let playback = PlaybackSnapshot(

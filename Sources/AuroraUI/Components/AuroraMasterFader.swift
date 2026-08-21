@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import SwiftUI
 
 /// Horizontal labeled master (Grand Master, group masters) for Perform Mode.

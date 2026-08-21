@@ -3,6 +3,36 @@ import AuroraUI
 import XCTest
 
 final class StageBeamC41Tests: XCTestCase {
+    func testPixelCuePreviewAveragesQualifiedRGBValues() {
+        let color = CueBlockColorPreview.rgb(from: [
+            "colorR@element-0": 1, "colorG@element-0": 0, "colorB@element-0": 0,
+            "colorR@element-1": 1, "colorG@element-1": 0, "colorB@element-1": 0,
+        ])
+        XCTAssertEqual(color?.r ?? 0, 1, accuracy: 0.001)
+        XCTAssertEqual(color?.g ?? 1, 0, accuracy: 0.001)
+        XCTAssertEqual(color?.b ?? 1, 0, accuracy: 0.001)
+    }
+
+    func testAtmosphereGlyphGrowsWithSemanticOutput() {
+        XCTAssertEqual(StageAtmosphereVisualStyle.normalizedLevel(0), 0)
+        XCTAssertEqual(StageAtmosphereVisualStyle.normalizedLevel(127.5, minimum: 0, maximum: 255), 0.5, accuracy: 0.001)
+        XCTAssertEqual(StageAtmosphereVisualStyle.normalizedLevel(255, minimum: 0, maximum: 255), 1)
+        XCTAssertLessThan(StageAtmosphereVisualStyle.cloudScale(0), StageAtmosphereVisualStyle.cloudScale(1))
+        XCTAssertLessThan(StageAtmosphereVisualStyle.cloudOpacity(0), StageAtmosphereVisualStyle.cloudOpacity(1))
+    }
+
+    func testDenseGlyphEmitterLODIsDeterministic() {
+        XCTAssertEqual(FixtureGlyphLevelOfDetail.detailLevel(screenExtent: 10), 0)
+        XCTAssertEqual(FixtureGlyphLevelOfDetail.detailLevel(screenExtent: 30), 1)
+        XCTAssertEqual(FixtureGlyphLevelOfDetail.detailLevel(screenExtent: 80), 2)
+        XCTAssertEqual(FixtureGlyphLevelOfDetail.visibleEmitterIndices(count: 100, detailLevel: 0).count, 8)
+        XCTAssertEqual(FixtureGlyphLevelOfDetail.visibleEmitterIndices(count: 100, detailLevel: 1).count, 24)
+        XCTAssertEqual(FixtureGlyphLevelOfDetail.visibleEmitterIndices(count: 100, detailLevel: 2).count, 100)
+        XCTAssertEqual(
+            FixtureGlyphLevelOfDetail.visibleEmitterIndices(count: 100, detailLevel: 0),
+            FixtureGlyphLevelOfDetail.visibleEmitterIndices(count: 100, detailLevel: 0)
+        )
+    }
     func testWedgePointsNarrowVsBroad() {
         let origin = CGPoint(x: 100, y: 100)
         let dir = -Double.pi / 2 // up
@@ -94,6 +124,7 @@ final class StageBeamC41Tests: XCTestCase {
         let decoded = try JSONDecoder().decode(StageLayout.self, from: data)
         XCTAssertEqual(decoded.fixtures[0].beamLength, place.beamLength, accuracy: 0.001)
         XCTAssertEqual(decoded.fixtures[0].aimDirection, place.aimDirection, accuracy: 0.001)
+        XCTAssertEqual(decoded.fixtures[0].beamRenderMode, .directional)
 
         // Legacy JSON without aim fields
         let fid = UUID()
@@ -153,5 +184,42 @@ final class StageBeamC41Tests: XCTestCase {
             StageBeamRenderStyle.bodyOpacity(1),
             accuracy: 0.0001
         )
+    }
+
+    func testFourVerticalElementBeamOriginsMatchPodCenters() {
+        let origins = (0..<4).map {
+            StageMultiElementGeometry.elementOrigin(
+                fixtureOrigin: CGPoint(x: 100, y: 100),
+                fixtureRotation: 0,
+                index: $0,
+                count: 4,
+                podDiameter: 14,
+                spacing: 3,
+                horizontal: false
+            )
+        }
+        XCTAssertEqual(origins.map(\.x), [100, 100, 100, 100])
+        XCTAssertEqual(origins.map(\.y), [74.5, 91.5, 108.5, 125.5])
+    }
+
+    func testElementBeamOriginsRotateWithFixtureBody() {
+        let first = StageMultiElementGeometry.elementOrigin(
+            fixtureOrigin: CGPoint(x: 100, y: 100),
+            fixtureRotation: .pi / 2,
+            index: 0,
+            count: 4,
+            podDiameter: 14,
+            spacing: 3,
+            horizontal: false
+        )
+        XCTAssertEqual(first.x, 125.5, accuracy: 0.001)
+        XCTAssertEqual(first.y, 100, accuracy: 0.001)
+    }
+
+    func testRotationStepNormalizationWrapsAtOneEightyDegrees() {
+        let from135 = 135.0 * Double.pi / 180
+        let rotated = StageRotateMath.normalizedRadians(from135 + .pi / 2)
+        XCTAssertEqual(rotated * 180 / .pi, -135, accuracy: 0.001)
+        XCTAssertEqual(StageRotateMath.normalizedRadians(4 * .pi), 0, accuracy: 0.001)
     }
 }

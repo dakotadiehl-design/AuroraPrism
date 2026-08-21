@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import SwiftUI
 
 /// Circular beam preview well.

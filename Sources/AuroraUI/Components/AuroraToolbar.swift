@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import SwiftUI
 
 public struct AuroraToolbar<Leading: View, Trailing: View>: View {

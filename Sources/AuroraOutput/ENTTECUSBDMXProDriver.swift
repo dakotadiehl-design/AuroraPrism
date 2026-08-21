@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import AuroraModel
 import Foundation
 #if os(macOS)
@@ -331,6 +332,25 @@ public enum ENTTECError: Error, Equatable, Sendable {
     case writeFailed(String)
 }
 
+extension ENTTECError: LocalizedError, PrismDiagnosableError {
+    public var errorDescription: String? { userMessage }
+    public var prismErrorCode: String {
+        switch self {
+        case .deviceMissing: return "output.localDMX.device_missing"
+        case .notOpen: return "output.localDMX.not_open"
+        case .writeFailed: return "output.localDMX.write_failed"
+        }
+    }
+    public var userTitle: String { "Prism Couldn't Use the USB DMX Interface" }
+    public var userMessage: String { "Prism couldn’t talk to the USB DMX interface." }
+    public var recoverySuggestion: String? {
+        "Check the cable, confirm the device is a DMX USB Pro, and try another port."
+    }
+    public var technicalDetails: String { String(reflecting: self) }
+    public var prismCategory: PrismLogCategory { .outputLocalDMX }
+    public var prismSeverity: PrismLogLevel { .error }
+}
+
 /// Builds ENTTEC DMX USB Pro “Send DMX Packet Request” frames (label 6).
 public enum ENTTECUSBDMXProProtocol {
     public static let startCode: UInt8 = 0x7E
@@ -378,6 +398,7 @@ public final class ENTTECUSBDMXProDriver: OutputDriver, OutputHealthReporting, @
     private var _packetsDropped: UInt64 = 0
     private var _lastSuccessAt: Date?
     private var _state: OutputDriverState = .disabled
+    private let noteFrameSummary: @Sendable () -> Int?
     /// Only show-universe numbers listed here are sent (default: 1). Locked storage.
     private var _universeFilter: Set<UInt16>
 
@@ -397,12 +418,19 @@ public final class ENTTECUSBDMXProDriver: OutputDriver, OutputHealthReporting, @
         id: UUID = UUID(),
         name: String = "ENTTEC USB DMX Pro",
         transport: ENTTECSerialTransport,
-        universeFilter: Set<UInt16> = [1]
+        universeFilter: Set<UInt16> = [1],
+        frameSummaryNote: (@Sendable () -> Int?)? = nil
     ) {
         self.id = id
         self.name = name
         self.transport = transport
         self._universeFilter = universeFilter
+        if let frameSummaryNote {
+            noteFrameSummary = frameSummaryNote
+        } else {
+            let counter = PrismIntervalCounter(interval: 1)
+            noteFrameSummary = { counter.note() }
+        }
     }
 
     public func start() throws {
@@ -416,12 +444,20 @@ public final class ENTTECUSBDMXProDriver: OutputDriver, OutputHealthReporting, @
             _state = .ready
             _lastError = nil
             lock.unlock()
+            PrismLog.notice(.outputLocalDMX, "output.localDMX.started", "Local DMX is on.")
         } catch {
             lock.lock()
             _isRunning = false
             _state = .failed
-            _lastError = error.localizedDescription
+            _lastError = PrismErrorReporting.userFacingMessage(for: error)
             lock.unlock()
+            PrismLog.error(
+                .outputLocalDMX,
+                "output.localDMX.failed",
+                "Prism couldn't start Local DMX.",
+                technical: String(reflecting: error),
+                ratePolicy: .oncePerSecond
+            )
             throw error
         }
     }
@@ -439,7 +475,7 @@ public final class ENTTECUSBDMXProDriver: OutputDriver, OutputHealthReporting, @
         lock.unlock()
 
         if wasRunning, transport.isOpen {
-            var zeros = [UInt8](repeating: 0, count: 512)
+            let zeros = [UInt8](repeating: 0, count: 512)
             zeros.withUnsafeBufferPointer { ptr in
                 let packet = ENTTECUSBDMXProProtocol.sendDMXPacket(dmx: ptr)
                 // One blackout frame per mapped show universe (default: U1).
@@ -451,6 +487,9 @@ public final class ENTTECUSBDMXProDriver: OutputDriver, OutputHealthReporting, @
         // Close must run on this call stack (not a detached queue) so quit cannot exit
         // with the VCOM session still open and the Pro LED still ticking.
         transport.close()
+        if wasRunning {
+            PrismLog.notice(.outputLocalDMX, "output.localDMX.stopped", "Local DMX is off.")
+        }
     }
 
     public func send(universe: UInt16, dmx: UnsafeBufferPointer<UInt8>) {
@@ -484,18 +523,41 @@ public final class ENTTECUSBDMXProDriver: OutputDriver, OutputHealthReporting, @
             }
             _packetsSent &+= 1
             _lastSuccessAt = Date()
-            if _state == .degraded { _state = .ready }
+            let recovered = _state == .degraded
+            if recovered { _state = .ready }
             lock.unlock()
+            if recovered {
+                PrismLog.info(.outputLocalDMX, "output.localDMX.recovered", "Local DMX recovered.")
+            }
+            if PrismLog.isEnabled(.debug, category: .outputLocalDMX),
+               let count = noteFrameSummary() {
+                PrismLog.debug(
+                    .outputLocalDMX,
+                    "output.localDMX.frame_summary",
+                    "Local DMX frame summary.",
+                    metadata: [
+                        "count": .count(count),
+                        "sampled": .flag(true),
+                    ]
+                )
+            }
         } catch {
             lock.lock()
             guard _isRunning else {
                 lock.unlock()
                 return
             }
-            _lastError = error.localizedDescription
+            _lastError = PrismErrorReporting.userFacingMessage(for: error)
             _packetsDropped &+= 1
             _state = .degraded
             lock.unlock()
+            PrismLog.error(
+                .outputLocalDMX,
+                "output.localDMX.failed",
+                "Prism couldn't write to the USB DMX interface.",
+                technical: String(reflecting: error),
+                ratePolicy: .oncePerSecond
+            )
         }
     }
 

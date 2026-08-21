@@ -1,4 +1,5 @@
 import AuroraCore
+import AuroraDiagnostics
 import AuroraEngine
 import AuroraModel
 import AuroraMusical
@@ -18,7 +19,7 @@ struct AMEEngineWindowRoot: View {
     @State private var musicalState: MusicalState = MusicalState()
     @State private var monitorEvents: [AMEDiagnosticEvent] = []
     @State private var isLearning = false
-    @State private var lastCommandError: String?
+    @State private var commandError: PrismErrorReport?
 
     var body: some View {
         let project = appModel.session.project
@@ -142,17 +143,7 @@ struct AMEEngineWindowRoot: View {
             }
         )
         .frame(minWidth: 960, minHeight: 600)
-        .overlay(alignment: .bottom) {
-            if let lastCommandError {
-                Text(lastCommandError)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .padding(8)
-                    .background(.thinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .padding()
-            }
-        }
+        .prismErrorAlert(item: $commandError)
         // Presentation refresh only — never replace root identity.
         .onReceive(Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()) { _ in
             refreshPresentation()
@@ -197,11 +188,13 @@ struct AMEEngineWindowRoot: View {
     private func perform(_ command: any Command) {
         do {
             try appModel.session.perform(command)
-            lastCommandError = nil
+            commandError = nil
             appModel.notifyUI()
         } catch {
-            lastCommandError = error.localizedDescription
-            appModel.diagnostics.log("AME editor command failed: \(error)", subsystem: .app)
+            commandError = PrismErrorReporting.report(
+                error: error,
+                context: .command(operation: "edit AME", category: .projectDocument)
+            )
         }
     }
 }

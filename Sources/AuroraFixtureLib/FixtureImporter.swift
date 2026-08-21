@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import AuroraModel
 import Foundation
 
@@ -7,18 +8,37 @@ public enum FixtureImportError: Error, Equatable, Sendable, LocalizedError {
     case unsupportedFormat
     case invalidDefinition(String)
 
-    public var errorDescription: String? {
+    public var errorDescription: String? { userMessage }
+}
+
+extension FixtureImportError: PrismDiagnosableError {
+    public var prismErrorCode: String {
         switch self {
-        case .emptyModes:
-            return "Fixture file has no modes or channel definitions."
-        case .invalidJSON:
-            return "Fixture file is not valid JSON."
-        case .unsupportedFormat:
-            return "Unsupported fixture format. Supported: Prism native JSON, OFL-lite, and Prism converter (.prism-fixture.json)."
-        case .invalidDefinition(let message):
-            return "Invalid fixture definition: \(message)"
+        case .emptyModes: return "fixture.import.empty_modes"
+        case .invalidJSON: return "fixture.import.invalid_file"
+        case .unsupportedFormat: return "fixture.import.unsupported_format"
+        case .invalidDefinition: return "fixture.import.invalid_definition"
         }
     }
+    public var userTitle: String { "Prism Couldn't Import That Fixture" }
+    public var userMessage: String {
+        switch self {
+        case .emptyModes:
+            return "That fixture file has no modes or channels Prism can use."
+        case .invalidJSON:
+            return "This fixture file isn’t in a format Prism understands."
+        case .unsupportedFormat:
+            return "This fixture file isn’t in a format Prism understands."
+        case .invalidDefinition:
+            return "That fixture profile is missing required information."
+        }
+    }
+    public var recoverySuggestion: String? {
+        "Pick a Prism, OFL-lite, or .prism-fixture.json file."
+    }
+    public var technicalDetails: String { String(reflecting: self) }
+    public var prismCategory: PrismLogCategory { .fixtureImport }
+    public var prismSeverity: PrismLogLevel { .error }
 }
 
 /// Imports fixture definitions from simplified formats (OFL-lite, Prism, native Aurora JSON).
@@ -281,6 +301,20 @@ struct PrismFixturePackage: Codable, Sendable {
         var channelCount: UInt16?
         var channels: [PrismChannel]
         var hasPanTilt: Bool?
+        var beamSpreadDegrees: Double?
+        var beamType: Int?
+        var sourceBeamLayout: PrismSourceBeamLayout?
+    }
+
+    struct PrismSourceBeamLayout: Codable, Sendable {
+        var _class: String?
+        var numberOfBeams: Int?
+        var length: Int?
+        var beamShape: Int?
+        var rowSegments: [Int]?
+        var rowHeights: [Double]?
+        var beamsByRing: [Int]?
+        var additionalBeamsData: FlexibleJSONString?
     }
 
     struct PrismChannel: Codable, Sendable {
@@ -316,17 +350,91 @@ struct PrismFixturePackage: Codable, Sendable {
         let packageMfg = fixture?.manufacturer
         let packageModel = fixture?.model
 
+        let physical = makePhysicalDefinition(manufacturer: packageMfg ?? "Unknown", model: packageModel ?? "Imported Fixture")
         return try fixtureDefinitions.map { def in
             try def.toFixtureDefinition(
                 fallbackManufacturer: packageMfg ?? "Unknown",
-                fallbackModel: packageModel ?? "Imported Fixture"
+                fallbackModel: packageModel ?? "Imported Fixture",
+                physical: physical
             )
         }
+    }
+
+    private func makePhysicalDefinition(manufacturer: String, model: String) -> FixturePhysicalDefinition? {
+        guard let source = fixtureDefinitions.compactMap(\.sourceBeamLayout).first else { return nil }
+        let layoutClass = source._class ?? "LXUndefinedBeamLayout"
+        let segments = source.rowSegments ?? []
+        let rings = source.beamsByRing ?? []
+        let count: Int = {
+            switch layoutClass {
+            case "LXNoBeamLayout": return 0
+            case "LXStripBeamLayout": return max(0, source.length ?? source.numberOfBeams ?? 0)
+            case "LXRowsBeamLayout": return max(0, segments.reduce(0, +))
+            case "LXRingsBeamLayout": return max(0, rings.reduce(0, +))
+            case "LXSingleBeamLayout": return 1
+            default: return max(0, source.numberOfBeams ?? source.length ?? 0)
+            }
+        }()
+        let topology: FixturePhysicalTopologyKind = {
+            switch layoutClass {
+            case "LXNoBeamLayout": return .noBeam
+            case "LXSingleBeamLayout": return .single
+            case "LXStripBeamLayout": return .linear
+            case "LXRowsBeamLayout": return segments.count > 1 && Set(segments).count > 1 ? .variableRows : .grid
+            case "LXGridBeamLayout": return .grid
+            case "LXRingsBeamLayout": return rings.count > 1 ? .rings : .ring
+            case "LXArrayBeamLayout": return .array
+            default: return .unknown
+            }
+        }()
+        let rows = segments.isEmpty ? (count > 0 ? [count] : []) : segments
+        var emitters: [FixturePhysicalEmitter] = []
+        if topology == .ring || topology == .rings {
+            let counts = rings.isEmpty ? [count] : rings
+            for (ringIndex, ringCount) in counts.enumerated() where ringCount > 0 {
+                let radius = counts.count == 1 ? 0.34 : 0.15 + 0.25 * Double(ringIndex + 1) / Double(counts.count)
+                for index in 0..<ringCount {
+                    let angle = -.pi / 2 + 2 * .pi * Double(index) / Double(ringCount)
+                    emitters.append(.init(id: "physical-emitter-\(emitters.count)", name: "Emitter \(emitters.count + 1)", x: 0.5 + cos(angle) * radius, y: 0.5 + sin(angle) * radius, width: 0.1, height: 0.1))
+                }
+            }
+        } else if topology == .grid || topology == .variableRows || topology == .array {
+            for (row, columns) in rows.enumerated() where columns > 0 {
+                for column in 0..<columns {
+                    emitters.append(.init(id: "physical-emitter-\(emitters.count)", name: "Emitter \(emitters.count + 1)", x: (Double(column) + 0.5) / Double(columns), y: (Double(row) + 0.5) / Double(max(rows.count, 1)), width: min(0.7, 0.72 / Double(columns)), height: min(0.7, 0.72 / Double(max(rows.count, 1)))))
+                }
+            }
+        } else if count > 0 {
+            emitters = (0..<count).map { index in .init(id: "physical-emitter-\(index)", name: "Emitter \(index + 1)", x: count == 1 ? 0.5 : (Double(index) + 0.5) / Double(count), y: 0.5, width: count == 1 ? 0.58 : min(0.7, 0.72 / Double(count)), height: 0.58) }
+        }
+        let modelKey = model.lowercased()
+        let form: FixturePhysicalForm = topology == .noBeam ? .atmospheric
+            : topology == .linear ? .linearBar
+            : topology == .grid || topology == .variableRows || topology == .array ? (modelKey.contains("blinder") ? .blinder : .panel)
+            : modelKey.contains("scan") ? .scanner
+            : .generic
+        var metadata = ["beamLayoutClass": layoutClass]
+        if [.grid, .variableRows, .ring, .rings, .array].contains(topology) { metadata["formInference"] = "layout-default" }
+        if let value = source.additionalBeamsData?.value { metadata["additionalBeamsData"] = value }
+        return FixturePhysicalDefinition(
+            manufacturer: manufacturer,
+            model: model,
+            form: form,
+            aspectRatio: form == .linearBar ? max(2.5, Double(max(count, 1)) * 0.55) : 1,
+            emitters: emitters,
+            componentGroups: [.init(id: topology == .noBeam ? "no-beam" : "primary", role: topology == .noBeam ? .atmosphericOutlet : .emitterArray, topology: topology, rows: segments.isEmpty ? nil : segments.count, columns: Set(segments).count == 1 ? segments.first : nil, emitterIDs: emitters.map(\.id), provenance: .imported)],
+            opticalBehaviors: emitters.isEmpty ? [] : [.wash],
+            beamShape: source.beamShape,
+            beamType: fixtureDefinitions.compactMap(\.beamType).first,
+            beamSpreadDegrees: fixtureDefinitions.compactMap(\.beamSpreadDegrees).first,
+            source: .imported,
+            sourceMetadata: metadata
+        )
     }
 }
 
 extension PrismFixturePackage.PrismDefinition {
-    func toFixtureDefinition(fallbackManufacturer: String, fallbackModel: String) throws -> FixtureDefinition {
+    func toFixtureDefinition(fallbackManufacturer: String, fallbackModel: String, physical: FixturePhysicalDefinition?) throws -> FixtureDefinition {
         guard !channels.isEmpty else {
             throw FixtureImportError.invalidDefinition("mode “\(modeName ?? "?")” has no channels")
         }
@@ -395,7 +503,11 @@ extension PrismFixturePackage.PrismDefinition {
             channelCount: channelCount ?? footprint,
             channels: mapped,
             colorModel: colorModel,
-            hasPanTilt: hasPanTilt
+            hasPanTilt: hasPanTilt,
+            physicalFixtureID: physical?.id,
+            portablePhysicalDefinition: physical,
+            controlElements: physical?.emitters.isEmpty == false ? [.init(id: "fixture-output", name: "Fixture Output")] : [],
+            emitterMappings: physical?.emitters.isEmpty == false ? [.init(id: "fixture-output-map", controlElementIDs: ["fixture-output"], physicalEmitterIDs: Set(physical?.emitters.map(\.id) ?? []))] : []
         )
         do {
             try FixtureDefinitionValidation.validate(definition)

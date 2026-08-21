@@ -1,0 +1,81 @@
+{
+  "cues" : [
+    {
+      "cueBlockRefs" : [
+        {
+          "cueBlockID" : "17B03E8E-D0B5-4372-B5C0-0ADDEC8E936A",
+          "enabled" : true,
+          "id" : "91E78C21-0DBF-4ECA-869E-8FC43A5692D3"
+        },
+        {
+          "cueBlockID" : "25E4542A-2CC6-475B-B7CD-BACC6901AB17",
+          "enabled" : true,
+          "id" : "C3F74255-2D87-44E6-B422-E2492195A1F4"
+        },
+        {
+          "cueBlockID" : "2363E4A0-ADAA-456A-A06D-865E605506B3",
+          "enabled" : true,
+          "id" : "B634723F-0193-4F7F-976A-1742751CF3DE"
+        },
+        {
+          "cueBlockID" : "0DB64B0F-D047-435D-B1EC-48352851326C",
+          "enabled" : true,
+          "id" : "8448E301-F746-4FC8-94A3-7963752260A7"
+        }
+      ],
+      "delay" : 0,
+      "fadeIn" : 0,
+      "fadeOut" : 0,
+      "follow" : "none",
+      "id" : "02530C92-934B-4C84-B91B-5C5B877A2D74",
+      "levels" : {
+        "fixtures" : [
+
+        ]
+      },
+      "name" : "Test Cue 1",
+      "number" : 1,
+      "tracking" : "track"
+    },
+    {
+      "cueBlockRefs" : [
+        {
+          "cueBlockID" : "88D9F777-9C0D-45F3-ACEE-5BD112A44CEA",
+          "enabled" : true,
+          "id" : "52E9007E-84B2-4414-8EB4-17EA7A2CE5C0"
+        },
+        {
+          "cueBlockID" : "5AEBDF04-A1F3-4EB2-A559-23E39A985DFD",
+          "enabled" : true,
+          "id" : "572ED546-5C96-4FC7-B071-1B3D2F1308A2"
+        },
+        {
+          "cueBlockID" : "5132B5E6-A1E1-4D0B-8340-0AB9EC486FE9",
+          "enabled" : true,
+          "id" : "BC4DD975-2592-44F5-8C78-4066139841A6"
+        },
+        {
+          "cueBlockID" : "1AED6DA7-653C-44D2-ACB1-B4D5A2ED5FCB",
+          "enabled" : true,
+          "id" : "2B2A9060-5A63-4604-A147-60363CB0AB64"
+        }
+      ],
+      "delay" : 0,
+      "fadeIn" : 0,
+      "fadeOut" : 0,
+      "follow" : "none",
+      "id" : "B4E8EA4B-9C61-4DD3-BC79-9326F6F5FE1B",
+      "levels" : {
+        "fixtures" : [
+
+        ]
+      },
+      "name" : "Cue 2",
+      "number" : 2,
+      "tracking" : "cueOnly"
+    }
+  ],
+  "id" : "A4143326-9A1D-48CF-BB86-620A5D53E574",
+  "name" : "List 1",
+  "notes" : ""
+}

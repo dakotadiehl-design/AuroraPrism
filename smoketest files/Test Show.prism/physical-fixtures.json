@@ -1,0 +1,772 @@
+[
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "generic",
+    "id" : "6AB122F9-B2CC-5802-B92F-CBA3B1FCA31B",
+    "manufacturer" : "American DJ",
+    "model" : "Jolt 300",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXGridBeamLayout",
+      "beamSpread" : "0.0",
+      "beamType" : "1"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "generic",
+    "id" : "EDC21C8D-6822-5710-8023-AFFE6899B96F",
+    "manufacturer" : "American DJ",
+    "model" : "Jolt Bar FX",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXRowsBeamLayout",
+      "beamSpread" : "0.0",
+      "beamType" : "1"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "generic",
+    "id" : "4583DAD6-7C62-540C-AC7B-691C28D90CAB",
+    "manufacturer" : "beamZ",
+    "model" : "BTF100Z Fresnel Zoom",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXSingleBeamLayout",
+      "beamSpread" : "0.0",
+      "beamType" : "0"
+    }
+  },
+  {
+    "aspectRatio" : 3.2,
+    "componentGroups" : [
+      {
+        "emitterIDs" : [
+          "physical-emitter-0",
+          "physical-emitter-1",
+          "physical-emitter-2",
+          "physical-emitter-3"
+        ],
+        "height" : 1,
+        "id" : "primary-emitters",
+        "movement" : "static",
+        "provenance" : "legacy",
+        "role" : "emitterArray",
+        "topology" : "linear",
+        "width" : 1,
+        "x" : 0.5,
+        "y" : 0.5
+      }
+    ],
+    "emitters" : [
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-0",
+        "name" : "Emitter 1",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.195,
+        "x" : 0.125,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-1",
+        "name" : "Emitter 2",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.195,
+        "x" : 0.375,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-2",
+        "name" : "Emitter 3",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.195,
+        "x" : 0.625,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-3",
+        "name" : "Emitter 4",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.195,
+        "x" : 0.875,
+        "y" : 0.5
+      }
+    ],
+    "form" : "linearBar",
+    "id" : "9471DDC5-5531-5D8B-883C-FCFC5F2A8056",
+    "manufacturer" : "Chauvet",
+    "model" : "4Bar Flex Q",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+      "wash"
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXUndefinedBeamLayout",
+      "beamSpread" : "0.0",
+      "beamType" : "0"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "generic",
+    "id" : "D958E2BF-E07C-56D4-81B9-441598C3A8C4",
+    "manufacturer" : "Chauvet",
+    "model" : "COLORado Batten Q15",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXStripBeamLayout",
+      "beamSpread" : "15.0",
+      "beamType" : "1"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "generic",
+    "id" : "FF2FAA4B-8059-51FD-8DB3-FD09B9BE9C0A",
+    "manufacturer" : "Chauvet",
+    "model" : "COLORado PXL Curve 12",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXStripBeamLayout",
+      "beamSpread" : "0.0",
+      "beamType" : "1"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "generic",
+    "id" : "3559228C-0682-5BE1-B888-DBEAE7E01CA3",
+    "manufacturer" : "Chauvet",
+    "model" : "Intimidator Scan 360",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXSingleBeamLayout",
+      "beamSpread" : "2.0",
+      "beamType" : "2"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "generic",
+    "id" : "2BBA8696-D003-5F04-A362-E4910317853E",
+    "manufacturer" : "Chauvet",
+    "model" : "Intimidator Spot 260X",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXSingleBeamLayout",
+      "beamSpread" : "0.0",
+      "beamType" : "0"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "generic",
+    "id" : "433AE23F-7621-577A-B403-DE017F58670C",
+    "manufacturer" : "Chauvet",
+    "model" : "Ovation B-565FC",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXStripBeamLayout",
+      "beamSpread" : "0.0",
+      "beamType" : "1"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "generic",
+    "id" : "79212CDF-EBE0-5C0B-9C2C-EE3A6C0F7F58",
+    "manufacturer" : "Chauvet",
+    "model" : "Rogue R1 Beam",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXSingleBeamLayout",
+      "beamSpread" : "1.0",
+      "beamType" : "2"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "generic",
+    "id" : "0133DFB0-B668-548E-93C5-1BCC787145BC",
+    "manufacturer" : "Chauvet",
+    "model" : "Rogue R1 Beam Wash",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXHexagonsBeamLayout",
+      "beamSpread" : "0.0",
+      "beamType" : "0"
+    }
+  },
+  {
+    "aspectRatio" : 4,
+    "componentGroups" : [
+      {
+        "emitterIDs" : [
+          "physical-emitter-0",
+          "physical-emitter-1",
+          "physical-emitter-2",
+          "physical-emitter-3",
+          "physical-emitter-4"
+        ],
+        "height" : 1,
+        "id" : "primary-emitters",
+        "movement" : "static",
+        "provenance" : "legacy",
+        "role" : "emitterArray",
+        "topology" : "linear",
+        "width" : 1,
+        "x" : 0.5,
+        "y" : 0.5
+      }
+    ],
+    "emitters" : [
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-0",
+        "name" : "Emitter 1",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.156,
+        "x" : 0.1,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-1",
+        "name" : "Emitter 2",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.156,
+        "x" : 0.3,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-2",
+        "name" : "Emitter 3",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.156,
+        "x" : 0.5,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-3",
+        "name" : "Emitter 4",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.156,
+        "x" : 0.7,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-4",
+        "name" : "Emitter 5",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.156,
+        "x" : 0.9,
+        "y" : 0.5
+      }
+    ],
+    "form" : "linearBar",
+    "id" : "FA07B97C-59C1-5718-ABAE-FB2AC3B6EA22",
+    "manufacturer" : "Chauvet",
+    "model" : "Rogue R1 FX-B",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+      "wash"
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXUndefinedBeamLayout",
+      "beamSpread" : "0.0",
+      "beamType" : "0"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "generic",
+    "id" : "77ABECAF-35F1-54B8-BA8B-FE034B415EA6",
+    "manufacturer" : "Chauvet",
+    "model" : "Rogue R1 Hybrid",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXSingleBeamLayout",
+      "beamSpread" : "0.0",
+      "beamType" : "0"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "generic",
+    "id" : "7B08BF30-1ADC-5004-BEF5-065AA2FDE8F0",
+    "manufacturer" : "Chauvet",
+    "model" : "Rogue R1X Spot",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXSingleBeamLayout",
+      "beamSpread" : "16.0",
+      "beamType" : "0"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "generic",
+    "id" : "F358C612-ED7F-5FC7-9965-09E073C978CA",
+    "manufacturer" : "Chauvet",
+    "model" : "Rogue R1X Wash",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXRingsBeamLayout",
+      "beamSpread" : "0.0",
+      "beamType" : "1"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "generic",
+    "id" : "7693022A-55D4-5C2C-A65A-97453FC25273",
+    "manufacturer" : "Chauvet",
+    "model" : "Scorpion Dual RGB ILS",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXSingleBeamLayout",
+      "beamSpread" : "0.0",
+      "beamType" : "0"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "generic",
+    "id" : "B9EA1D1B-F294-51A3-B911-9EFA2770E2B4",
+    "manufacturer" : "Chauvet",
+    "model" : "Shocker Panel FX",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXRowsBeamLayout",
+      "beamSpread" : "119.0",
+      "beamType" : "1"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "par",
+    "id" : "85D87018-22AF-501C-AC9D-62FC6E0209E6",
+    "manufacturer" : "Chauvet",
+    "model" : "SlimPAR Hex 6 IRC",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXRingsBeamLayout",
+      "beamSpread" : "23.0",
+      "beamType" : "0",
+      "formInference" : "model-name-low-confidence"
+    }
+  },
+  {
+    "aspectRatio" : 6.6000000000000005,
+    "beamShape" : 0,
+    "beamSpreadDegrees" : 50,
+    "beamType" : 1,
+    "componentGroups" : [
+      {
+        "emitterIDs" : [
+          "physical-emitter-0",
+          "physical-emitter-1",
+          "physical-emitter-2",
+          "physical-emitter-3",
+          "physical-emitter-4",
+          "physical-emitter-5",
+          "physical-emitter-6",
+          "physical-emitter-7",
+          "physical-emitter-8",
+          "physical-emitter-9",
+          "physical-emitter-10",
+          "physical-emitter-11"
+        ],
+        "height" : 1,
+        "id" : "primary-emitters",
+        "movement" : "static",
+        "provenance" : "imported",
+        "role" : "emitterArray",
+        "topology" : "linear",
+        "width" : 1,
+        "x" : 0.5,
+        "y" : 0.5
+      }
+    ],
+    "emitters" : [
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-0",
+        "name" : "Emitter 1",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.041666666666666664,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-1",
+        "name" : "Emitter 2",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.125,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-2",
+        "name" : "Emitter 3",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.20833333333333334,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-3",
+        "name" : "Emitter 4",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.2916666666666667,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-4",
+        "name" : "Emitter 5",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.375,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-5",
+        "name" : "Emitter 6",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.4583333333333333,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-6",
+        "name" : "Emitter 7",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.5416666666666666,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-7",
+        "name" : "Emitter 8",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.625,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-8",
+        "name" : "Emitter 9",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.7083333333333334,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-9",
+        "name" : "Emitter 10",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.7916666666666666,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-10",
+        "name" : "Emitter 11",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.875,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-11",
+        "name" : "Emitter 12",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.9583333333333334,
+        "y" : 0.5
+      }
+    ],
+    "form" : "linearBar",
+    "id" : "B199D97D-07A5-585D-895E-333409DCB1CA",
+    "manufacturer" : "Chauvet",
+    "model" : "COLORband Q3BT ILS",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+      "wash",
+      "pixel"
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "additionalBeamsData" : "data:42-bytes",
+      "beamLayoutClass" : "LXStripBeamLayout",
+      "beamShape" : "0",
+      "beamSpread" : "50.0",
+      "beamType" : "1",
+      "length" : "12"
+    }
+  }
+]

@@ -1,4 +1,6 @@
+import AuroraDesignSystem
 import AppKit
+import AuroraEngine
 import AuroraUI
 import SwiftUI
 
@@ -7,7 +9,39 @@ extension Notification.Name {
     static let openAMEEngineWindow = Notification.Name("aurora.openAMEEngine")
     static let openLightKeyFixtureImporter = Notification.Name("prism.openLightKeyFixtureImporter")
     static let openUserFixtureLibrary = Notification.Name("prism.openUserFixtureLibrary")
+    static let openFixtureCreator = Notification.Name("prism.openFixtureCreator")
+    static let openEffectsEngineWindow = Notification.Name("prism.openEffectsEngine")
+    static let openDMXMonitor = Notification.Name("aurora.openDMXMonitor")
     static let prismBringMainWindowForward = Notification.Name("prism.bringMainWindowForward")
+}
+
+struct DMXMonitorRequest: Codable, Hashable {
+    var id = UUID()
+    var fixtureID: UUID?
+
+    init(fixtureID: UUID? = nil) {
+        self.fixtureID = fixtureID
+    }
+}
+
+struct DMXMonitorWindow: View {
+    @EnvironmentObject private var appModel: AppModel
+    let request: DMXMonitorRequest
+    @State private var snapshot = EngineFrameSnapshot.idle
+
+    var body: some View {
+        DMXOutputMonitorPanel(
+            snapshot: snapshot,
+            project: appModel.session.project,
+            initialFixtureID: request.fixtureID
+        )
+        .frame(minWidth: 620, minHeight: 420)
+        .preferredColorScheme(.dark)
+        .onAppear { snapshot = appModel.engine.currentSnapshot() }
+        .onReceive(Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()) { _ in
+            snapshot = appModel.engine.currentSnapshot()
+        }
+    }
 }
 
 /// Production root (UI-02) — Build Option A, Perform seed, explicit Welcome (DOC-01).
@@ -62,6 +96,23 @@ struct ContentView: View {
                 NSApp.terminate(nil)
             }
         )
+        .background(
+            DimmerKeyboardEntryMonitor(
+                isEnabled: {
+                    appModel.workspace.mode == .build
+                        && !showWelcome
+                        && !KeyboardCommandGate.isTextEditingActive
+                        && !appModel.session.selection.snapshot.fixtureIDs.isEmpty
+                },
+                onCommitPercent: { target, percent in
+                    switch target {
+                    case .dimmer: appModel.setSelectedDimmer(percent: percent)
+                    case .fog: appModel.setSelectedFog(percent: percent)
+                    case .fan: appModel.setSelectedFanSpeed(percent: percent)
+                    }
+                }
+            )
+        )
         .navigationTitle(appModel.windowTitle)
         .animation(.easeInOut(duration: 0.36), value: appModel.launchSplash.isVisible)
         .onAppear {
@@ -78,6 +129,18 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .openUserFixtureLibrary)) { _ in
             openWindow(id: "user-fixture-library")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openFixtureCreator)) { _ in
+            openWindow(id: "fixture-creator")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openEffectsEngineWindow)) { _ in
+            openWindow(id: "effects-engine")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openDMXMonitor)) { note in
+            openWindow(
+                id: "dmx-monitor",
+                value: DMXMonitorRequest(fixtureID: note.object as? UUID)
+            )
         }
     }
 }

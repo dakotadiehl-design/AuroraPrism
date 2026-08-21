@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import SwiftUI
 
 public struct AuroraInspectorSection<Content: View>: View {

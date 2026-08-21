@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import CoreGraphics
 import Foundation
 
@@ -340,6 +341,12 @@ public enum WorkspaceFloatStore {
             state.schemaVersion = WorkspaceFloatState.currentSchemaVersion
             return state
         } catch {
+            PrismLog.warning(
+                .uiWorkspace,
+                "ui.workspace.float_persist_failed",
+                "Prism couldn't read saved floating-window positions.",
+                technical: String(reflecting: error)
+            )
             return .default
         }
     }
@@ -349,7 +356,12 @@ public enum WorkspaceFloatStore {
             let data = try JSONEncoder().encode(state)
             defaults.set(data, forKey: defaultsKey)
         } catch {
-            // Best-effort.
+            PrismLog.warning(
+                .uiWorkspace,
+                "ui.workspace.float_persist_failed",
+                "Prism couldn't save floating-window positions.",
+                technical: String(reflecting: error)
+            )
         }
     }
 

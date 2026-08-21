@@ -1,0 +1,580 @@
+[
+  {
+    "aspectRatio" : 6.6000000000000005,
+    "beamShape" : 0,
+    "beamSpreadDegrees" : 50,
+    "beamType" : 1,
+    "componentGroups" : [
+      {
+        "emitterIDs" : [
+          "physical-emitter-0",
+          "physical-emitter-1",
+          "physical-emitter-2",
+          "physical-emitter-3",
+          "physical-emitter-4",
+          "physical-emitter-5",
+          "physical-emitter-6",
+          "physical-emitter-7",
+          "physical-emitter-8",
+          "physical-emitter-9",
+          "physical-emitter-10",
+          "physical-emitter-11"
+        ],
+        "height" : 1,
+        "id" : "primary-emitters",
+        "movement" : "static",
+        "provenance" : "imported",
+        "role" : "emitterArray",
+        "topology" : "linear",
+        "width" : 1,
+        "x" : 0.5,
+        "y" : 0.5
+      }
+    ],
+    "emitters" : [
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-0",
+        "name" : "Emitter 1",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.041666666666666664,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-1",
+        "name" : "Emitter 2",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.125,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-2",
+        "name" : "Emitter 3",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.20833333333333334,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-3",
+        "name" : "Emitter 4",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.2916666666666667,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-4",
+        "name" : "Emitter 5",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.375,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-5",
+        "name" : "Emitter 6",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.4583333333333333,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-6",
+        "name" : "Emitter 7",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.5416666666666666,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-7",
+        "name" : "Emitter 8",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.625,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-8",
+        "name" : "Emitter 9",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.7083333333333334,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-9",
+        "name" : "Emitter 10",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.7916666666666666,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-10",
+        "name" : "Emitter 11",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.875,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.58,
+        "id" : "physical-emitter-11",
+        "name" : "Emitter 12",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.06166666666666667,
+        "x" : 0.9583333333333334,
+        "y" : 0.5
+      }
+    ],
+    "form" : "linearBar",
+    "id" : "B199D97D-07A5-585D-895E-333409DCB1CA",
+    "manufacturer" : "Chauvet",
+    "model" : "COLORband Q3BT ILS",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+      "pixel",
+      "wash"
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "additionalBeamsData" : "data:42-bytes",
+      "beamLayoutClass" : "LXStripBeamLayout",
+      "beamShape" : "0",
+      "beamSpread" : "50.0",
+      "beamType" : "1",
+      "length" : "12"
+    }
+  },
+  {
+    "aspectRatio" : 2.5,
+    "beamSpreadDegrees" : 16,
+    "beamType" : 0,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "linearBar",
+    "id" : "5B0612FF-6EA0-506C-A307-CBE84D0082F7",
+    "manufacturer" : "Chauvet",
+    "model" : "4Bar Hex ILS",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXUndefinedBeamLayout",
+      "beamSpread" : "16.0",
+      "beamType" : "0",
+      "formInference" : "model-name-low-confidence",
+      "numberOfBeams" : "4"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "beamSpreadDegrees" : 0,
+    "beamType" : 0,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "panel",
+    "id" : "B2A8D211-856A-552C-97BD-A6DB1AC4A55A",
+    "manufacturer" : "Eliminator",
+    "model" : "LP 12 Hex",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXGridBeamLayout",
+      "beamSpread" : "0.0",
+      "beamType" : "0",
+      "formInference" : "layout-default",
+      "layout.beamLocations" : "{NS.objects:[{NS.pointval:{0, -1},NS.special:1},{NS.pointval:{1, -1},NS.special:1},{NS.pointval:{-1, 0},NS.special:1},{NS.pointval:{0, 0},NS.special:1},{NS.pointval:{1, 0},NS.special:1},{NS.pointval:{2, 0},NS.special:1},{NS.pointval:{-2, 1},NS.special:1},{NS.pointval:{-1, 1},NS.special:1},{NS.pointval:{0, 1},NS.special:1},{NS.pointval:{1, 1},NS.special:1},{NS.pointval:{2, 1},NS.special:1},{NS.pointval:{0, 2},NS.special:1},{NS.pointval:{1, 2},NS.special:1}]}"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "beamShape" : 0,
+    "beamSpreadDegrees" : 0,
+    "beamType" : 0,
+    "componentGroups" : [
+      {
+        "emitterIDs" : [
+          "physical-emitter-0",
+          "physical-emitter-1",
+          "physical-emitter-2",
+          "physical-emitter-3",
+          "physical-emitter-4",
+          "physical-emitter-5",
+          "physical-emitter-6",
+          "physical-emitter-7",
+          "physical-emitter-8",
+          "physical-emitter-9",
+          "physical-emitter-10",
+          "physical-emitter-11",
+          "physical-emitter-12",
+          "physical-emitter-13",
+          "physical-emitter-14",
+          "physical-emitter-15",
+          "physical-emitter-16",
+          "physical-emitter-17"
+        ],
+        "height" : 1,
+        "id" : "primary-emitters",
+        "movement" : "static",
+        "provenance" : "imported",
+        "role" : "emitterArray",
+        "topology" : "rings",
+        "width" : 1,
+        "x" : 0.5,
+        "y" : 0.5
+      }
+    ],
+    "emitters" : [
+      {
+        "height" : 0.11666666666666665,
+        "id" : "physical-emitter-0",
+        "name" : "Emitter 1",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.11666666666666665,
+        "x" : 0.5,
+        "y" : 0.22499999999999998
+      },
+      {
+        "height" : 0.11666666666666665,
+        "id" : "physical-emitter-1",
+        "name" : "Emitter 2",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.11666666666666665,
+        "x" : 0.7381569860407207,
+        "y" : 0.3625
+      },
+      {
+        "height" : 0.11666666666666665,
+        "id" : "physical-emitter-2",
+        "name" : "Emitter 3",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.11666666666666665,
+        "x" : 0.7381569860407207,
+        "y" : 0.6375
+      },
+      {
+        "height" : 0.11666666666666665,
+        "id" : "physical-emitter-3",
+        "name" : "Emitter 4",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.11666666666666665,
+        "x" : 0.5,
+        "y" : 0.775
+      },
+      {
+        "height" : 0.11666666666666665,
+        "id" : "physical-emitter-4",
+        "name" : "Emitter 5",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.11666666666666665,
+        "x" : 0.2618430139592794,
+        "y" : 0.6375000000000001
+      },
+      {
+        "height" : 0.11666666666666665,
+        "id" : "physical-emitter-5",
+        "name" : "Emitter 6",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.11666666666666665,
+        "x" : 0.26184301395927934,
+        "y" : 0.36249999999999993
+      },
+      {
+        "height" : 0.05833333333333333,
+        "id" : "physical-emitter-6",
+        "name" : "Emitter 7",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.05833333333333333,
+        "x" : 0.5,
+        "y" : 0.09999999999999998
+      },
+      {
+        "height" : 0.05833333333333333,
+        "id" : "physical-emitter-7",
+        "name" : "Emitter 8",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.05833333333333333,
+        "x" : 0.7,
+        "y" : 0.15358983848622448
+      },
+      {
+        "height" : 0.05833333333333333,
+        "id" : "physical-emitter-8",
+        "name" : "Emitter 9",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.05833333333333333,
+        "x" : 0.8464101615137755,
+        "y" : 0.3
+      },
+      {
+        "height" : 0.05833333333333333,
+        "id" : "physical-emitter-9",
+        "name" : "Emitter 10",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.05833333333333333,
+        "x" : 0.9,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.05833333333333333,
+        "id" : "physical-emitter-10",
+        "name" : "Emitter 11",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.05833333333333333,
+        "x" : 0.8464101615137756,
+        "y" : 0.7
+      },
+      {
+        "height" : 0.05833333333333333,
+        "id" : "physical-emitter-11",
+        "name" : "Emitter 12",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.05833333333333333,
+        "x" : 0.7,
+        "y" : 0.8464101615137756
+      },
+      {
+        "height" : 0.05833333333333333,
+        "id" : "physical-emitter-12",
+        "name" : "Emitter 13",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.05833333333333333,
+        "x" : 0.5,
+        "y" : 0.9
+      },
+      {
+        "height" : 0.05833333333333333,
+        "id" : "physical-emitter-13",
+        "name" : "Emitter 14",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.05833333333333333,
+        "x" : 0.30000000000000004,
+        "y" : 0.8464101615137756
+      },
+      {
+        "height" : 0.05833333333333333,
+        "id" : "physical-emitter-14",
+        "name" : "Emitter 15",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.05833333333333333,
+        "x" : 0.1535898384862246,
+        "y" : 0.7000000000000002
+      },
+      {
+        "height" : 0.05833333333333333,
+        "id" : "physical-emitter-15",
+        "name" : "Emitter 16",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.05833333333333333,
+        "x" : 0.09999999999999998,
+        "y" : 0.5
+      },
+      {
+        "height" : 0.05833333333333333,
+        "id" : "physical-emitter-16",
+        "name" : "Emitter 17",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.05833333333333333,
+        "x" : 0.15358983848622454,
+        "y" : 0.29999999999999993
+      },
+      {
+        "height" : 0.05833333333333333,
+        "id" : "physical-emitter-17",
+        "name" : "Emitter 18",
+        "opticalBehaviors" : [
+          "wash"
+        ],
+        "shape" : "circle",
+        "width" : 0.05833333333333333,
+        "x" : 0.2999999999999998,
+        "y" : 0.15358983848622465
+      }
+    ],
+    "form" : "par",
+    "id" : "61AC187A-26A6-572B-A10A-AB50F54C4AEE",
+    "manufacturer" : "Shehds",
+    "model" : "LED Zoom PAR 18x18W RGBWA UV Lighting (A)",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+      "pixel",
+      "wash"
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXRingsBeamLayout",
+      "beamShape" : "0",
+      "beamSpread" : "0.0",
+      "beamType" : "0",
+      "beamsByRing" : "6,12,0,0",
+      "formInference" : "layout-default"
+    }
+  },
+  {
+    "aspectRatio" : 1,
+    "beamSpreadDegrees" : 0,
+    "beamType" : 0,
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "atmospheric",
+    "id" : "3ED946BB-EBE2-59C0-A8F7-EDF8F861EDCF",
+    "manufacturer" : "Chauvet",
+    "model" : "Hurricane Haze 4D",
+    "movement" : "unknown",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "imported",
+    "sourceMetadata" : {
+      "beamLayoutClass" : "LXUndefinedBeamLayout",
+      "beamSpread" : "0.0",
+      "beamType" : "0",
+      "formInference" : "model-name-low-confidence"
+    }
+  },
+  {
+    "componentGroups" : [
+
+    ],
+    "emitters" : [
+
+    ],
+    "form" : "atmospheric",
+    "id" : "536A73B7-57EC-4D19-943B-16B6079D6537",
+    "manufacturer" : "Chauvet",
+    "model" : "Hurricane 1800 Flex",
+    "movement" : "static",
+    "opticalBehaviors" : [
+
+    ],
+    "schemaVersion" : 1,
+    "source" : "explicit",
+    "sourceMetadata" : {
+
+    }
+  }
+]

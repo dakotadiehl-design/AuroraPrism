@@ -1,4 +1,6 @@
+import AuroraDesignSystem
 import AuroraCore
+import AuroraEngine
 import AuroraModel
 import SwiftUI
 
@@ -184,17 +186,32 @@ public struct InspectorPanel: View {
                         }
                     }
                 }
+                let selectedElements = context.session.selection.snapshot.orderedFixtureTargets.filter {
+                    $0.fixtureID == fixture.id && $0.elementID != nil
+                }
+                if !selectedElements.isEmpty {
+                    AuroraInspectorSection("Selection") {
+                        labeled("Target", selectedElements.compactMap(\.elementID).joined(separator: ", "))
+                    }
+                }
                 if let attrs = programmerValues[fixture.id], !attrs.isEmpty {
                     AuroraInspectorSection("Programmer") {
                         ForEach(attrs.keys.sorted(), id: \.self) { key in
-                            labeled(key, String(format: "%.0f%%", (attrs[key] ?? 0) * 100))
+                            labeled(key, InspectorProgrammerValueFormatter.string(key: key, value: attrs[key] ?? 0))
                         }
                     }
                 }
 
                 // C4.1: Stage layout aim (geometry — not DMX channels)
                 if let place = context.project.stageLayout.fixtures.first(where: { $0.fixtureID == fixture.id }) {
-                    stageAimSection(placement: place, fixtureID: fixture.id)
+                    stageAimSection(
+                        placement: place,
+                        fixtureID: fixture.id,
+                        supportsSoftGlow: context.project.definition(id: fixture.definitionId).map { definition in
+                            let form = context.project.visualizationDescriptor(for: definition).form
+                            return form == .linearBar || form == .strip || form == .multiHeadBar
+                        } ?? false
+                    )
                 }
             }
             .padding(.bottom, 8)
@@ -203,10 +220,11 @@ public struct InspectorPanel: View {
 
     /// Physical Stage beam visualization controls (independent of Pan/Tilt DMX).
     @ViewBuilder
-    private func stageAimSection(placement: StageFixturePlacement, fixtureID: UUID) -> some View {
+    private func stageAimSection(placement: StageFixturePlacement, fixtureID: UUID, supportsSoftGlow: Bool) -> some View {
         AuroraInspectorSection("Stage Aim") {
             StageAimControls(
                 placement: placement,
+                supportsSoftGlow: supportsSoftGlow,
                 onCommit: { mutate in
                     var layout = context.project.stageLayout
                     guard let i = layout.fixtures.firstIndex(where: { $0.fixtureID == fixtureID }) else { return }
@@ -215,7 +233,7 @@ public struct InspectorPanel: View {
                         try context.session.perform(UpdateStageLayoutCommand(layout: layout))
                         onProjectChanged()
                     } catch {
-                        onError(error.localizedDescription)
+                        onError(prismReportCommandFailure(error, operation: "edit"))
                     }
                 }
             )
@@ -275,7 +293,7 @@ public struct InspectorPanel: View {
                                 )
                                 onProjectChanged()
                             } catch {
-                                onError(error.localizedDescription)
+                                onError(prismReportCommandFailure(error, operation: "edit"))
                             }
                         }
                     )
@@ -301,7 +319,7 @@ public struct InspectorPanel: View {
                                 try context.session.perform(UpdatePaletteCommand(palette: updated))
                                 onProjectChanged()
                             } catch {
-                                onError(error.localizedDescription)
+                                onError(prismReportCommandFailure(error, operation: "edit"))
                             }
                         }
                     )
@@ -325,7 +343,7 @@ public struct InspectorPanel: View {
                                 try context.session.perform(UpdatePresetCommand(preset: updated))
                                 onProjectChanged()
                             } catch {
-                                onError(error.localizedDescription)
+                                onError(prismReportCommandFailure(error, operation: "edit"))
                             }
                         }
                     )
@@ -349,7 +367,7 @@ public struct InspectorPanel: View {
                                 try context.session.perform(UpdateSongCommand(song: updated))
                                 onProjectChanged()
                             } catch {
-                                onError(error.localizedDescription)
+                                onError(prismReportCommandFailure(error, operation: "edit"))
                             }
                         }
                     )
@@ -424,17 +442,29 @@ public struct InspectorPanel: View {
     }
 }
 
+public enum InspectorProgrammerValueFormatter {
+    public static func string(key: String, value: Double) -> String {
+        let base = key.split(separator: "@").first.map(String.init) ?? key
+        if base == ColorAuthoringAttribute.hue {
+            return String(format: "%.0f°", value)
+        }
+        return String(format: "%.0f%%", value * 100)
+    }
+}
+
 // MARK: - Stage aim editor (coalesced undo on slider end)
 
 /// Local slider state so continuous drag does not flood the Undo stack.
 private struct StageAimControls: View {
     let placement: StageFixturePlacement
+    let supportsSoftGlow: Bool
     var onCommit: ((inout StageFixturePlacement) -> Void) -> Void
 
     @State private var directionDeg: Double = 0
     @State private var spreadDeg: Double = 30
     @State private var length: Double = 160
     @State private var beamVisible: Bool = true
+    @State private var renderMode: StageBeamRenderMode = .directional
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -502,6 +532,17 @@ private struct StageAimControls: View {
                 .onChange(of: beamVisible) { _, v in
                     onCommit { $0.beamVisible = v }
                 }
+
+            if supportsSoftGlow {
+                Picker("Render", selection: $renderMode) {
+                    Text("Directional beam").tag(StageBeamRenderMode.directional)
+                    Text("Soft glow").tag(StageBeamRenderMode.softGlow)
+                }
+                .font(AuroraTypography.metadata)
+                .onChange(of: renderMode) { _, value in
+                    onCommit { $0.beamRenderMode = value }
+                }
+            }
         }
         .onAppear { syncFromPlacement() }
         .onChange(of: placement.id) { _, _ in syncFromPlacement() }
@@ -509,6 +550,7 @@ private struct StageAimControls: View {
         .onChange(of: placement.beamSpread) { _, _ in syncFromPlacement() }
         .onChange(of: placement.beamLength) { _, _ in syncFromPlacement() }
         .onChange(of: placement.beamVisible) { _, _ in syncFromPlacement() }
+        .onChange(of: placement.beamRenderMode) { _, _ in syncFromPlacement() }
     }
 
     private func syncFromPlacement() {
@@ -519,6 +561,7 @@ private struct StageAimControls: View {
         spreadDeg = placement.beamSpread * 180 / .pi
         length = placement.beamLength
         beamVisible = placement.beamVisible
+        renderMode = placement.beamRenderMode
     }
 
     private func normalized(_ value: Double, in range: ClosedRange<Double>) -> Double {

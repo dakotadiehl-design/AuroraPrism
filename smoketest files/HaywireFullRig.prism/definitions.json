@@ -1,0 +1,2799 @@
+[
+  {
+    "category" : "lightkey-type-15",
+    "channelCount" : 16,
+    "channels" : [
+      {
+        "attribute" : "colorR",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorR",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "439EA0CF-D50A-442E-A2EE-86CA2D4DDD9E",
+            "name" : "Red",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-0",
+        "highlightValue" : 0,
+        "id" : "15CAE561-5589-48E0-99D2-69E063CE1F4D",
+        "name" : "Red",
+        "offset" : 1,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorG",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorG",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "B89CC0B4-D0DE-4628-81DA-2B133F82EEB0",
+            "name" : "Green",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-0",
+        "highlightValue" : 0,
+        "id" : "1984F8D1-C6F2-4ECE-B7B0-C16C2CE1D1B8",
+        "name" : "Green",
+        "offset" : 2,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorB",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorB",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "6662BBE1-87A6-4EC9-A7E2-ADE74D839BFF",
+            "name" : "Blue",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-0",
+        "highlightValue" : 0,
+        "id" : "5415F479-9EC0-4171-B3FC-5D16E5AC1E4A",
+        "name" : "Blue",
+        "offset" : 3,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorA",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorA",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "2A41BF2C-F6EA-4C89-A527-4000B8581BA3",
+            "name" : "Amber",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-0",
+        "highlightValue" : 0,
+        "id" : "D5AFD9BB-58A8-49A6-8DB4-C5F1E2AF19E8",
+        "name" : "Amber",
+        "offset" : 4,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorR",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorR",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "33C5DE17-728F-44D6-9C57-2B235DAE3FB8",
+            "name" : "Red",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-1",
+        "highlightValue" : 0,
+        "id" : "530E0F6F-BD52-407A-92C8-E5804B97D576",
+        "name" : "Red",
+        "offset" : 5,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorG",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorG",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "C02EC72E-8B1D-4457-943D-853AAD7653B9",
+            "name" : "Green",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-1",
+        "highlightValue" : 0,
+        "id" : "F43BFDC7-7C74-4FA0-ACE2-5D39770E6B4E",
+        "name" : "Green",
+        "offset" : 6,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorB",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorB",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "E413B0ED-05A3-4E4A-9A48-E9BC20CCAE7C",
+            "name" : "Blue",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-1",
+        "highlightValue" : 0,
+        "id" : "C9696BE6-C05A-4A35-AFA2-A87829A7AD58",
+        "name" : "Blue",
+        "offset" : 7,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorA",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorA",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "9FC44D15-06F3-4C1E-A2A9-645DB72AC90E",
+            "name" : "Amber",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-1",
+        "highlightValue" : 0,
+        "id" : "14DAEF97-4661-48AB-90B6-7690C68F51C3",
+        "name" : "Amber",
+        "offset" : 8,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorR",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorR",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "801C3B1C-B105-4BE3-BDB3-829AE3964B68",
+            "name" : "Red",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-2",
+        "highlightValue" : 0,
+        "id" : "2080DCA9-BDE4-4D0C-BFF0-BBE788DCA5F5",
+        "name" : "Red",
+        "offset" : 9,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorG",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorG",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "0D3217F8-5715-4902-94D9-D5D4EEAFF36D",
+            "name" : "Green",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-2",
+        "highlightValue" : 0,
+        "id" : "9C98EFC6-A8AB-49B0-AAE4-64472DEA9495",
+        "name" : "Green",
+        "offset" : 10,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorB",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorB",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "AD4BCFA6-453F-43E1-8F8B-B0A99CBA16B9",
+            "name" : "Blue",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-2",
+        "highlightValue" : 0,
+        "id" : "F7EF614C-9165-471B-A0DB-A11ECC5C0991",
+        "name" : "Blue",
+        "offset" : 11,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorA",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorA",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "EB63B1C9-38C6-4AAD-9AE8-D181BDBFA03D",
+            "name" : "Amber",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-2",
+        "highlightValue" : 0,
+        "id" : "AE06D36F-EEF2-43CD-8DC8-2B25C8E6ABA5",
+        "name" : "Amber",
+        "offset" : 12,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "shutter",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "shutter",
+            "dmxMax" : 15,
+            "dmxMin" : 0,
+            "id" : "6DA3FC56-3049-46AD-B521-76F3E0423B93",
+            "name" : "Function",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "shutter",
+            "dmxMax" : 255,
+            "dmxMin" : 16,
+            "id" : "44233C74-52BA-4A6B-BFA2-C9B98249E893",
+            "name" : "Function",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "872A9404-84D0-490E-B12C-E995C0DD32D1",
+        "name" : "Shutter \/ Strobe",
+        "offset" : 13,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "auto_program",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "auto_program",
+            "dmxMax" : 5,
+            "dmxMin" : 0,
+            "id" : "8A0B6F40-5226-44BB-809E-10337D5CA7E4",
+            "name" : "Off",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "auto_program",
+            "dmxMax" : 36,
+            "dmxMin" : 6,
+            "id" : "86E01238-9B0B-4DE6-84E2-8E04BD21C634",
+            "name" : "Auto Program 1",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "auto_program",
+            "dmxMax" : 68,
+            "dmxMin" : 37,
+            "id" : "BD4DAB3A-4400-4222-A21F-F3CA0F64ED29",
+            "name" : "Auto Program 2",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "auto_program",
+            "dmxMax" : 100,
+            "dmxMin" : 69,
+            "id" : "1D6333F2-BFCD-42B9-BC4D-53BB06D0592F",
+            "name" : "Auto Program 3",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "auto_program",
+            "dmxMax" : 132,
+            "dmxMin" : 101,
+            "id" : "3B2DBB5C-0E57-43F8-A493-8E18B80ECBAD",
+            "name" : "Auto Program 4",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "auto_program",
+            "dmxMax" : 164,
+            "dmxMin" : 133,
+            "id" : "E1E2AE9F-B6AF-4252-AB7E-F1955261CAD1",
+            "name" : "Auto Program 5",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "auto_program",
+            "dmxMax" : 196,
+            "dmxMin" : 165,
+            "id" : "0D22B4FE-2663-46F2-8CFE-D78BEC4EEE90",
+            "name" : "Auto Program 6",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "auto_program",
+            "dmxMax" : 228,
+            "dmxMin" : 197,
+            "id" : "37366416-A1CC-4F85-B01C-AA353EC4A551",
+            "name" : "Auto Program 7",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "auto_program",
+            "dmxMax" : 255,
+            "dmxMin" : 229,
+            "id" : "49D13F65-7739-4845-9395-2FCE23650778",
+            "name" : "Auto Program 8",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "7DFEDD42-645E-42BA-AE9A-D9B789922907",
+        "name" : "Auto Program",
+        "offset" : 14,
+        "resolution" : "eightBit",
+        "semanticKind" : "generic"
+      },
+      {
+        "attribute" : "auto_program_speed",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "auto_program_speed",
+            "dmxMax" : 250,
+            "dmxMin" : 0,
+            "id" : "4FF4DB50-4E80-4350-A4DB-B11D228DA49C",
+            "name" : "Program Speed, Slow > Fast‚",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "auto_program_speed",
+            "dmxMax" : 255,
+            "dmxMin" : 251,
+            "id" : "589B2342-4260-4807-8473-BA184B812CFA",
+            "name" : "Sound-Active Mode",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "CAAD45A2-5D84-4796-9EB3-44FFEF860F72",
+        "name" : "Auto Program Speed",
+        "offset" : 15,
+        "resolution" : "eightBit",
+        "semanticKind" : "generic"
+      },
+      {
+        "attribute" : "intensity",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "intensity",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "E0F7D089-E9EC-4C1D-B9B6-9EA0241422F7",
+            "name" : "Function",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 255,
+        "id" : "4F9ADE50-366A-4A66-9D02-C10EECD7DE6F",
+        "name" : "Intensity",
+        "offset" : 16,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      }
+    ],
+    "colorModel" : "rgb",
+    "controlElements" : [
+      {
+        "id" : "element-0",
+        "name" : "Element 1"
+      },
+      {
+        "id" : "element-1",
+        "name" : "Element 2"
+      },
+      {
+        "id" : "element-2",
+        "name" : "Element 3"
+      }
+    ],
+    "emitterMappings" : [
+      {
+        "combination" : "direct",
+        "controlElementIDs" : [
+          "element-0"
+        ],
+        "id" : "map-element-0",
+        "physicalEmitterIDs" : [
+          "physical-emitter-3",
+          "physical-emitter-0",
+          "physical-emitter-1",
+          "physical-emitter-2"
+        ]
+      },
+      {
+        "combination" : "direct",
+        "controlElementIDs" : [
+          "element-1"
+        ],
+        "id" : "map-element-1",
+        "physicalEmitterIDs" : [
+          "physical-emitter-6",
+          "physical-emitter-4",
+          "physical-emitter-5",
+          "physical-emitter-7"
+        ]
+      },
+      {
+        "combination" : "direct",
+        "controlElementIDs" : [
+          "element-2"
+        ],
+        "id" : "map-element-2",
+        "physicalEmitterIDs" : [
+          "physical-emitter-10",
+          "physical-emitter-8",
+          "physical-emitter-9",
+          "physical-emitter-11"
+        ]
+      }
+    ],
+    "hasPanTilt" : false,
+    "id" : "C5556768-CA5D-52ED-92A8-8E5267CD0C11",
+    "manufacturer" : "Chauvet",
+    "modeName" : "16 Channel",
+    "model" : "COLORband Q3BT ILS",
+    "panInvert" : false,
+    "physicalFixtureID" : "B199D97D-07A5-585D-895E-333409DCB1CA",
+    "portablePhysicalDefinition" : {
+      "aspectRatio" : 6.6000000000000005,
+      "beamShape" : 0,
+      "beamSpreadDegrees" : 50,
+      "beamType" : 1,
+      "componentGroups" : [
+        {
+          "emitterIDs" : [
+            "physical-emitter-0",
+            "physical-emitter-1",
+            "physical-emitter-2",
+            "physical-emitter-3",
+            "physical-emitter-4",
+            "physical-emitter-5",
+            "physical-emitter-6",
+            "physical-emitter-7",
+            "physical-emitter-8",
+            "physical-emitter-9",
+            "physical-emitter-10",
+            "physical-emitter-11"
+          ],
+          "height" : 1,
+          "id" : "primary-emitters",
+          "movement" : "static",
+          "provenance" : "imported",
+          "role" : "emitterArray",
+          "topology" : "linear",
+          "width" : 1,
+          "x" : 0.5,
+          "y" : 0.5
+        }
+      ],
+      "emitters" : [
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-0",
+          "name" : "Emitter 1",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.041666666666666664,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-1",
+          "name" : "Emitter 2",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.125,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-2",
+          "name" : "Emitter 3",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.20833333333333334,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-3",
+          "name" : "Emitter 4",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.2916666666666667,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-4",
+          "name" : "Emitter 5",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.375,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-5",
+          "name" : "Emitter 6",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.4583333333333333,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-6",
+          "name" : "Emitter 7",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.5416666666666666,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-7",
+          "name" : "Emitter 8",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.625,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-8",
+          "name" : "Emitter 9",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.7083333333333334,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-9",
+          "name" : "Emitter 10",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.7916666666666666,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-10",
+          "name" : "Emitter 11",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.875,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-11",
+          "name" : "Emitter 12",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.9583333333333334,
+          "y" : 0.5
+        }
+      ],
+      "form" : "linearBar",
+      "id" : "B199D97D-07A5-585D-895E-333409DCB1CA",
+      "manufacturer" : "Chauvet",
+      "model" : "COLORband Q3BT ILS",
+      "movement" : "unknown",
+      "opticalBehaviors" : [
+        "pixel",
+        "wash"
+      ],
+      "schemaVersion" : 1,
+      "source" : "imported",
+      "sourceMetadata" : {
+        "additionalBeamsData" : "data:42-bytes",
+        "beamLayoutClass" : "LXStripBeamLayout",
+        "beamShape" : "0",
+        "beamSpread" : "50.0",
+        "beamType" : "1",
+        "length" : "12"
+      }
+    },
+    "tiltInvert" : false,
+    "wheels" : [
+
+    ]
+  },
+  {
+    "category" : "lightkey-type-15",
+    "channelCount" : 4,
+    "channels" : [
+      {
+        "attribute" : "colorR",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorR",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "FC1ECAF6-DB8D-4CC0-B3DA-EC5F16F98439",
+            "name" : "Red",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "0631E0F6-46BE-4A71-8047-84B630256956",
+        "name" : "Red",
+        "offset" : 1,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorG",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorG",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "CAA37B24-0914-4055-8786-1807B73DA2C2",
+            "name" : "Green",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "3A1D36DA-A2AC-4DCC-946C-C36183BDBD5B",
+        "name" : "Green",
+        "offset" : 2,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorB",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorB",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "8263CCF7-08A0-4D0B-80CE-B2538AD6BF0B",
+            "name" : "Blue",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "5A0334DE-68C0-42CD-8706-D48E0F2E925E",
+        "name" : "Blue",
+        "offset" : 3,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorA",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorA",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "9034C9C8-230E-415C-9C35-012509B53889",
+            "name" : "Amber",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "604DE7BC-2EFF-46C5-81A7-FD6C9163E064",
+        "name" : "Amber",
+        "offset" : 4,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      }
+    ],
+    "colorModel" : "rgb",
+    "controlElements" : [
+      {
+        "id" : "fixture-output",
+        "name" : "Fixture Output"
+      }
+    ],
+    "emitterMappings" : [
+      {
+        "combination" : "direct",
+        "controlElementIDs" : [
+          "fixture-output"
+        ],
+        "id" : "map-fixture-output",
+        "physicalEmitterIDs" : [
+          "physical-emitter-11",
+          "physical-emitter-4",
+          "physical-emitter-8",
+          "physical-emitter-3",
+          "physical-emitter-1",
+          "physical-emitter-9",
+          "physical-emitter-7",
+          "physical-emitter-10",
+          "physical-emitter-2",
+          "physical-emitter-6",
+          "physical-emitter-5",
+          "physical-emitter-0"
+        ]
+      }
+    ],
+    "hasPanTilt" : false,
+    "id" : "034FE909-D176-58FF-A336-31B32F23F75A",
+    "manufacturer" : "Chauvet",
+    "modeName" : "4 Channel",
+    "model" : "COLORband Q3BT ILS",
+    "panInvert" : false,
+    "physicalFixtureID" : "B199D97D-07A5-585D-895E-333409DCB1CA",
+    "portablePhysicalDefinition" : {
+      "aspectRatio" : 6.6000000000000005,
+      "beamShape" : 0,
+      "beamSpreadDegrees" : 50,
+      "beamType" : 1,
+      "componentGroups" : [
+        {
+          "emitterIDs" : [
+            "physical-emitter-0",
+            "physical-emitter-1",
+            "physical-emitter-2",
+            "physical-emitter-3",
+            "physical-emitter-4",
+            "physical-emitter-5",
+            "physical-emitter-6",
+            "physical-emitter-7",
+            "physical-emitter-8",
+            "physical-emitter-9",
+            "physical-emitter-10",
+            "physical-emitter-11"
+          ],
+          "height" : 1,
+          "id" : "primary-emitters",
+          "movement" : "static",
+          "provenance" : "imported",
+          "role" : "emitterArray",
+          "topology" : "linear",
+          "width" : 1,
+          "x" : 0.5,
+          "y" : 0.5
+        }
+      ],
+      "emitters" : [
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-0",
+          "name" : "Emitter 1",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.041666666666666664,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-1",
+          "name" : "Emitter 2",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.125,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-2",
+          "name" : "Emitter 3",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.20833333333333334,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-3",
+          "name" : "Emitter 4",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.2916666666666667,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-4",
+          "name" : "Emitter 5",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.375,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-5",
+          "name" : "Emitter 6",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.4583333333333333,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-6",
+          "name" : "Emitter 7",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.5416666666666666,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-7",
+          "name" : "Emitter 8",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.625,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-8",
+          "name" : "Emitter 9",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.7083333333333334,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-9",
+          "name" : "Emitter 10",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.7916666666666666,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-10",
+          "name" : "Emitter 11",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.875,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.58,
+          "id" : "physical-emitter-11",
+          "name" : "Emitter 12",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.06166666666666667,
+          "x" : 0.9583333333333334,
+          "y" : 0.5
+        }
+      ],
+      "form" : "linearBar",
+      "id" : "B199D97D-07A5-585D-895E-333409DCB1CA",
+      "manufacturer" : "Chauvet",
+      "model" : "COLORband Q3BT ILS",
+      "movement" : "unknown",
+      "opticalBehaviors" : [
+        "pixel",
+        "wash"
+      ],
+      "schemaVersion" : 1,
+      "source" : "imported",
+      "sourceMetadata" : {
+        "additionalBeamsData" : "data:42-bytes",
+        "beamLayoutClass" : "LXStripBeamLayout",
+        "beamShape" : "0",
+        "beamSpread" : "50.0",
+        "beamType" : "1",
+        "length" : "12"
+      }
+    },
+    "tiltInvert" : false,
+    "wheels" : [
+
+    ]
+  },
+  {
+    "category" : "led",
+    "channelCount" : 27,
+    "channels" : [
+      {
+        "attribute" : "mode",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "mode",
+            "dmxMax" : 9,
+            "dmxMin" : 0,
+            "id" : "02EFE322-99F6-4AEB-92AD-7FBE2EBD16C4",
+            "name" : "Manual",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "mode",
+            "dmxMax" : 29,
+            "dmxMin" : 10,
+            "id" : "72D3D787-7B45-416F-8EFE-BADCF3BEB468",
+            "name" : "Automatic Program 1",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "mode",
+            "dmxMax" : 49,
+            "dmxMin" : 30,
+            "id" : "9FC359B6-E262-47DA-81B9-50BB127AAECD",
+            "name" : "Automatic Program 2",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "mode",
+            "dmxMax" : 69,
+            "dmxMin" : 50,
+            "id" : "1F7FA00C-230F-4FAA-BCB9-CF135FFD1498",
+            "name" : "Automatic Program 3",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "mode",
+            "dmxMax" : 89,
+            "dmxMin" : 70,
+            "id" : "74FCFB44-1DB8-4D5A-A3E8-418F0015E963",
+            "name" : "Automatic Program 4",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "mode",
+            "dmxMax" : 109,
+            "dmxMin" : 90,
+            "id" : "3543DAF4-7937-44D6-8CF3-68EDA633664C",
+            "name" : "Automatic Program 5",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "mode",
+            "dmxMax" : 129,
+            "dmxMin" : 110,
+            "id" : "5C989F9C-8A60-48DE-B2F4-27AD921FD44C",
+            "name" : "Automatic Program 6",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "mode",
+            "dmxMax" : 149,
+            "dmxMin" : 130,
+            "id" : "141326C4-C490-4322-8F53-27ADD52B9770",
+            "name" : "Automatic Program 7",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "mode",
+            "dmxMax" : 169,
+            "dmxMin" : 150,
+            "id" : "7935C43A-D1F6-4A98-BB47-029F51962D54",
+            "name" : "Automatic Program 8",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "mode",
+            "dmxMax" : 189,
+            "dmxMin" : 170,
+            "id" : "7C5BA50C-0616-4B73-B112-9ECFA70BB735",
+            "name" : "Automatic Program 9",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "mode",
+            "dmxMax" : 209,
+            "dmxMin" : 190,
+            "id" : "B245F35C-F33B-49FB-8559-60D9D4C35EE0",
+            "name" : "Automatic Program 10",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "mode",
+            "dmxMax" : 229,
+            "dmxMin" : 210,
+            "id" : "9A10CE13-4C95-4F8E-A81F-D698E0F89A47",
+            "name" : "Automatic Program 11",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "mode",
+            "dmxMax" : 249,
+            "dmxMin" : 230,
+            "id" : "DFBAFECC-A35D-41DE-B75F-405091750936",
+            "name" : "Automatic Program 12",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "mode",
+            "dmxMax" : 255,
+            "dmxMin" : 250,
+            "id" : "028A2FA9-E415-44D5-8199-DABA5DC11084",
+            "name" : "Sound-Active Program",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "F1F19D8E-69E9-4DEA-8A09-D340BE3C8203",
+        "name" : "Mode",
+        "offset" : 1,
+        "resolution" : "eightBit",
+        "semanticKind" : "generic"
+      },
+      {
+        "attribute" : "intensity",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "intensity",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "41C428C3-1DDF-4B90-83FD-51DC80163D9B",
+            "name" : "Function",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 255,
+        "id" : "F5BDCD3A-ECAD-4FE3-802F-BBED7E3B4BE8",
+        "name" : "Intensity",
+        "offset" : 2,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "program_speed_sound_sensitivity_shutter_strobe",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "program_speed",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "384391DA-8FA4-4AAB-8EB8-A200CC290808",
+            "name" : "Slow > Fast",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "sound_sensitivity",
+            "dmxMax" : 10,
+            "dmxMin" : 0,
+            "id" : "F98EE341-3AEE-4369-9B28-939338574C1A",
+            "name" : "Off",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "sound_sensitivity",
+            "dmxMax" : 255,
+            "dmxMin" : 11,
+            "id" : "0E474CC1-E3CF-4F63-B637-4FACE0814EF7",
+            "name" : "Low > High",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "shutter",
+            "dmxMax" : 9,
+            "dmxMin" : 0,
+            "id" : "3FD55DD1-654C-4B90-86BA-4740B96E61CC",
+            "name" : "Function",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "shutter",
+            "dmxMax" : 255,
+            "dmxMin" : 10,
+            "id" : "3EECF638-D5F3-49FF-A46E-077379A36FF0",
+            "name" : "Function",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "5C22C797-2391-4DCE-81EB-E6BAE04CFF50",
+        "name" : "Program Speed \/ Sound Sensitivity \/ Shutter \/ Strobe",
+        "offset" : 3,
+        "resolution" : "eightBit",
+        "semanticKind" : "generic"
+      },
+      {
+        "attribute" : "colorR",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorR",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "E16FC3AE-B07A-4C62-8625-81276094F3C7",
+            "name" : "Red",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-0",
+        "highlightValue" : 0,
+        "id" : "63C3FD48-BE80-4A15-93BA-C0E38CE1AE74",
+        "name" : "Red",
+        "offset" : 4,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorG",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorG",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "3238B5EE-0810-431A-AC06-DF1F7D75CFFA",
+            "name" : "Green",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-0",
+        "highlightValue" : 0,
+        "id" : "E90AAECE-089D-457F-972F-A95D4834C1B6",
+        "name" : "Green",
+        "offset" : 5,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorB",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorB",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "22D32EC3-0445-4F05-A094-5102DEEDAC81",
+            "name" : "Blue",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-0",
+        "highlightValue" : 0,
+        "id" : "EABD3BD7-2150-4586-B936-9BB6A3B0A866",
+        "name" : "Blue",
+        "offset" : 6,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorA",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorA",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "935A8144-88CF-4B1A-B8B5-FDB9C6C5B04E",
+            "name" : "Amber",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-0",
+        "highlightValue" : 0,
+        "id" : "57087DDD-E17E-4B42-8724-00C860BA0CD0",
+        "name" : "Amber",
+        "offset" : 7,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorCoolWhite",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorCoolWhite",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "F886C7CA-331E-4815-9DF5-BA39CCB7DB42",
+            "name" : "CoolWhite",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-0",
+        "highlightValue" : 0,
+        "id" : "95CF9AA4-F471-4EBA-B767-848D15F1CCC5",
+        "name" : "CoolWhite",
+        "offset" : 8,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorUV",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorUV",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "EC37384F-E09D-427C-96BE-EF939DD56CBB",
+            "name" : "Ultraviolet",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-0",
+        "highlightValue" : 0,
+        "id" : "42FE7DAE-FE24-45A3-82BB-972F7820EC2F",
+        "name" : "Ultraviolet",
+        "offset" : 9,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorR",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorR",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "70F6D165-36F8-4427-A969-CB014E6296EA",
+            "name" : "Red",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-1",
+        "highlightValue" : 0,
+        "id" : "20A51F51-BC09-412D-BAB7-52B26197E8E1",
+        "name" : "Red",
+        "offset" : 10,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorG",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorG",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "3AC53AC3-A162-4AE6-A2AA-039F9723BF94",
+            "name" : "Green",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-1",
+        "highlightValue" : 0,
+        "id" : "CF68434B-C940-42E9-B547-6ACC93B0DEFD",
+        "name" : "Green",
+        "offset" : 11,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorB",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorB",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "80C6DF0A-7BCD-46F0-B8DE-3F0E64D9F214",
+            "name" : "Blue",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-1",
+        "highlightValue" : 0,
+        "id" : "8D239FCD-A9B9-4CA1-AE1B-E834AEC64ECA",
+        "name" : "Blue",
+        "offset" : 12,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorA",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorA",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "6BCBBD66-7B7C-407C-8229-5111B1E317AD",
+            "name" : "Amber",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-1",
+        "highlightValue" : 0,
+        "id" : "B4D30F8D-E05E-477B-AA55-BCDE4BBFDA45",
+        "name" : "Amber",
+        "offset" : 13,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorCoolWhite",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorCoolWhite",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "F7C85587-D32E-48ED-AB76-ECAE3D81C947",
+            "name" : "CoolWhite",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-1",
+        "highlightValue" : 0,
+        "id" : "5F41F770-1883-44CE-B947-C1C2B784D8BB",
+        "name" : "CoolWhite",
+        "offset" : 14,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorUV",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorUV",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "CF1F306D-8770-4649-A0C9-F68D3B739378",
+            "name" : "Ultraviolet",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-1",
+        "highlightValue" : 0,
+        "id" : "FAEA6296-D5E1-4781-AD50-B8CD593929C0",
+        "name" : "Ultraviolet",
+        "offset" : 15,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorR",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorR",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "2F30D69F-624B-4EB4-AFD2-DE0AEFFF61E7",
+            "name" : "Red",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-2",
+        "highlightValue" : 0,
+        "id" : "25500684-DDF4-4C52-9904-8307C9784999",
+        "name" : "Red",
+        "offset" : 16,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorG",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorG",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "C6C1EFFC-DDFD-4E17-9B2C-403DDC06BD05",
+            "name" : "Green",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-2",
+        "highlightValue" : 0,
+        "id" : "E21B2B04-8825-4A2B-813F-3E9894E1A5CB",
+        "name" : "Green",
+        "offset" : 17,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorB",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorB",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "C1FF476D-A7F2-4768-8213-6F3C88EFBCB0",
+            "name" : "Blue",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-2",
+        "highlightValue" : 0,
+        "id" : "C5611AD9-E7FF-4C8C-9FD6-E9AD1617873C",
+        "name" : "Blue",
+        "offset" : 18,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorA",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorA",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "66C4188E-0227-4455-8018-8C9DACFEF452",
+            "name" : "Amber",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-2",
+        "highlightValue" : 0,
+        "id" : "9A2529F7-EA8B-400A-B899-4C79D4912525",
+        "name" : "Amber",
+        "offset" : 19,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorCoolWhite",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorCoolWhite",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "F5E47313-B2F3-4E88-AD49-FB6DA728201C",
+            "name" : "CoolWhite",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-2",
+        "highlightValue" : 0,
+        "id" : "B7BF7739-6FCF-46CA-9AD2-09F968D2F814",
+        "name" : "CoolWhite",
+        "offset" : 20,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorUV",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorUV",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "2A756454-E606-4239-A46D-B95EAB129A1F",
+            "name" : "Ultraviolet",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-2",
+        "highlightValue" : 0,
+        "id" : "9197A384-3524-46D7-A1CB-788756649173",
+        "name" : "Ultraviolet",
+        "offset" : 21,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorR",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorR",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "7CDA1F61-86F6-4EF9-A9AC-36891D3F9ECA",
+            "name" : "Red",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-3",
+        "highlightValue" : 0,
+        "id" : "08E12D8C-3779-40BA-B76E-F10F7F5D80C8",
+        "name" : "Red",
+        "offset" : 22,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorG",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorG",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "74299716-B1DD-4939-8190-7710ABAD1E39",
+            "name" : "Green",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-3",
+        "highlightValue" : 0,
+        "id" : "5126B226-7DD2-42F3-B28C-97242CDC721F",
+        "name" : "Green",
+        "offset" : 23,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorB",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorB",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "87403B17-BE1B-4F43-8CEB-AD86E138438D",
+            "name" : "Blue",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-3",
+        "highlightValue" : 0,
+        "id" : "83B5ABF1-952D-42F0-813E-79F0124A174B",
+        "name" : "Blue",
+        "offset" : 24,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorA",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorA",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "33C66DB5-97F5-47C2-99CA-2B6D2646265C",
+            "name" : "Amber",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-3",
+        "highlightValue" : 0,
+        "id" : "01BD3528-F724-4DF4-8797-A2CFE4994615",
+        "name" : "Amber",
+        "offset" : 25,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorCoolWhite",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorCoolWhite",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "1D798A8F-CE49-4181-813B-5A6B8B5C82B0",
+            "name" : "CoolWhite",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-3",
+        "highlightValue" : 0,
+        "id" : "0E904B81-B7AD-47E4-AAB5-37F05EB41396",
+        "name" : "CoolWhite",
+        "offset" : 26,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorUV",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorUV",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "5FC69027-6994-428C-B619-015B2FB2371A",
+            "name" : "Ultraviolet",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "elementID" : "element-3",
+        "highlightValue" : 0,
+        "id" : "7B449712-0FA5-493B-8FD3-BC12031A51D6",
+        "name" : "Ultraviolet",
+        "offset" : 27,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      }
+    ],
+    "colorModel" : "rgbw",
+    "controlElements" : [
+      {
+        "id" : "element-0",
+        "name" : "Element 1"
+      },
+      {
+        "id" : "element-1",
+        "name" : "Element 2"
+      },
+      {
+        "id" : "element-2",
+        "name" : "Element 3"
+      },
+      {
+        "id" : "element-3",
+        "name" : "Element 4"
+      }
+    ],
+    "emitterMappings" : [
+
+    ],
+    "hasPanTilt" : false,
+    "id" : "62BAE228-93A0-5A3F-A2E5-1E8C11FC3BC8",
+    "manufacturer" : "Chauvet",
+    "modeName" : "27 Channel",
+    "model" : "4Bar Hex ILS",
+    "panInvert" : false,
+    "physicalFixtureID" : "5B0612FF-6EA0-506C-A307-CBE84D0082F7",
+    "portablePhysicalDefinition" : {
+      "aspectRatio" : 2.5,
+      "beamSpreadDegrees" : 16,
+      "beamType" : 0,
+      "componentGroups" : [
+
+      ],
+      "emitters" : [
+
+      ],
+      "form" : "linearBar",
+      "id" : "5B0612FF-6EA0-506C-A307-CBE84D0082F7",
+      "manufacturer" : "Chauvet",
+      "model" : "4Bar Hex ILS",
+      "movement" : "unknown",
+      "opticalBehaviors" : [
+
+      ],
+      "schemaVersion" : 1,
+      "source" : "imported",
+      "sourceMetadata" : {
+        "beamLayoutClass" : "LXUndefinedBeamLayout",
+        "beamSpread" : "16.0",
+        "beamType" : "0",
+        "formInference" : "model-name-low-confidence",
+        "numberOfBeams" : "4"
+      }
+    },
+    "tiltInvert" : false,
+    "wheels" : [
+
+    ]
+  },
+  {
+    "category" : "lightkey-type-1",
+    "channelCount" : 6,
+    "channels" : [
+      {
+        "attribute" : "colorR",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorR",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "96407EDE-2CF7-4E37-B210-C4BF7F5671DE",
+            "name" : "Red",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "C21542F5-00C0-498B-8418-A456947A2C6F",
+        "name" : "Red",
+        "offset" : 1,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorG",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorG",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "DFF2073C-8AB8-4BE6-85A0-A27D228BA3F7",
+            "name" : "Green",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "5F87F0F1-8203-4EFF-8CB5-3C4734526453",
+        "name" : "Green",
+        "offset" : 2,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorB",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorB",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "F7520282-F1CF-4CBF-9BB8-12784F627259",
+            "name" : "Blue",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "3EED871C-A5AC-4E83-9F17-5C9B99061D4F",
+        "name" : "Blue",
+        "offset" : 3,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorCoolWhite",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorCoolWhite",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "39D28293-BCFF-4120-8BFE-E821D616071D",
+            "name" : "CoolWhite",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "1E0F7502-5A3C-4853-8475-B97C4DE8DE2C",
+        "name" : "CoolWhite",
+        "offset" : 4,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorA",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorA",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "85D9FC14-C9E9-4871-8035-CAA6C0590C3F",
+            "name" : "Amber",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "0CC3AD97-C548-4D9D-A00E-9F5F46C1EE12",
+        "name" : "Amber",
+        "offset" : 5,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorUV",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorUV",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "214C67A7-4439-497B-880E-02FA67D2EDA2",
+            "name" : "Ultraviolet",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "4597663D-3633-47B5-8AD4-7349C1665C34",
+        "name" : "Ultraviolet",
+        "offset" : 6,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      }
+    ],
+    "colorModel" : "rgbw",
+    "controlElements" : [
+
+    ],
+    "emitterMappings" : [
+
+    ],
+    "hasPanTilt" : false,
+    "id" : "FE585D1C-487D-5E96-9203-22942AC50E15",
+    "manufacturer" : "Eliminator",
+    "modeName" : "6 Channel",
+    "model" : "LP 12 Hex",
+    "panInvert" : false,
+    "physicalFixtureID" : "B2A8D211-856A-552C-97BD-A6DB1AC4A55A",
+    "portablePhysicalDefinition" : {
+      "aspectRatio" : 1,
+      "beamSpreadDegrees" : 0,
+      "beamType" : 0,
+      "componentGroups" : [
+
+      ],
+      "emitters" : [
+
+      ],
+      "form" : "panel",
+      "id" : "B2A8D211-856A-552C-97BD-A6DB1AC4A55A",
+      "manufacturer" : "Eliminator",
+      "model" : "LP 12 Hex",
+      "movement" : "unknown",
+      "opticalBehaviors" : [
+
+      ],
+      "schemaVersion" : 1,
+      "source" : "imported",
+      "sourceMetadata" : {
+        "beamLayoutClass" : "LXGridBeamLayout",
+        "beamSpread" : "0.0",
+        "beamType" : "0",
+        "formInference" : "layout-default",
+        "layout.beamLocations" : "{NS.objects:[{NS.pointval:{0, -1},NS.special:1},{NS.pointval:{1, -1},NS.special:1},{NS.pointval:{-1, 0},NS.special:1},{NS.pointval:{0, 0},NS.special:1},{NS.pointval:{1, 0},NS.special:1},{NS.pointval:{2, 0},NS.special:1},{NS.pointval:{-2, 1},NS.special:1},{NS.pointval:{-1, 1},NS.special:1},{NS.pointval:{0, 1},NS.special:1},{NS.pointval:{1, 1},NS.special:1},{NS.pointval:{2, 1},NS.special:1},{NS.pointval:{0, 2},NS.special:1},{NS.pointval:{1, 2},NS.special:1}]}"
+      }
+    },
+    "tiltInvert" : false,
+    "wheels" : [
+
+    ]
+  },
+  {
+    "category" : "lightkey-type-1",
+    "channelCount" : 12,
+    "channels" : [
+      {
+        "attribute" : "intensity",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "intensity",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "FE9F9870-559F-4848-B387-319AE6054296",
+            "name" : "Function",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 255,
+        "id" : "2A1DAA11-3BCF-4D56-9AB0-26E425ECD123",
+        "name" : "Intensity",
+        "offset" : 1,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorR",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorR",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "7F4781A2-A45F-4651-B8F5-2569ACDC4033",
+            "name" : "Red",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "7D3C611C-B09E-4CDD-A9AE-A283553E78D7",
+        "name" : "Red",
+        "offset" : 2,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorG",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorG",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "A5F721E1-779A-443D-898E-F5FDFA54B561",
+            "name" : "Green",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "0008BBCD-4B91-4371-A2B1-DEA5E3BD0D96",
+        "name" : "Green",
+        "offset" : 3,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorB",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorB",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "245B757F-37BC-4445-B83C-CA8254154158",
+            "name" : "Blue",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "CA24120A-8DD4-45D2-A662-C291C05ECFEB",
+        "name" : "Blue",
+        "offset" : 4,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorCoolWhite",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorCoolWhite",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "62B4F57A-51B9-4F64-AE22-C04FE24A7FF3",
+            "name" : "CoolWhite",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "0CDAFF84-8040-4A51-9A3C-871CB00851E6",
+        "name" : "CoolWhite",
+        "offset" : 5,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorA",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorA",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "5CC55AC3-1AF4-418B-A45B-B33D40FBF2C6",
+            "name" : "Amber",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "C5B9E596-DF37-45D9-B6A4-2349AF426773",
+        "name" : "Amber",
+        "offset" : 6,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "colorUV",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "colorUV",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "9FC90695-4856-400F-8CA2-85B25B127950",
+            "name" : "Ultraviolet",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "2F1DFB38-1945-4CEA-A6BE-2CD4AA4B0908",
+        "name" : "Ultraviolet",
+        "offset" : 7,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "shutter",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "shutter",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "5C8C54F7-F578-471B-9E58-BB5FE22A704E",
+            "name" : "Function",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "5603D900-7E53-45B8-8559-A2A16F0893BB",
+        "name" : "Shutter \/ Strobe",
+        "offset" : 8,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "function",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "function",
+            "dmxMax" : 50,
+            "dmxMin" : 0,
+            "id" : "CD95D380-456B-4D59-9A86-C68F805D30CC",
+            "name" : "None",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "function",
+            "dmxMax" : 100,
+            "dmxMin" : 51,
+            "id" : "3C0E3F97-BA27-40C0-90C5-EC86DF54B2A1",
+            "name" : "Color Mixing",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "function",
+            "dmxMax" : 150,
+            "dmxMin" : 101,
+            "id" : "15674009-EE47-4C97-AD20-C1B76BF1EFC2",
+            "name" : "Color Mode 1",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "function",
+            "dmxMax" : 200,
+            "dmxMin" : 151,
+            "id" : "75A57BE3-FB08-4B94-AEEF-C306B7BF8120",
+            "name" : "Color Mode 2",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "function",
+            "dmxMax" : 250,
+            "dmxMin" : 201,
+            "id" : "E08523E7-D836-4F41-88ED-C31B9BCBFAD6",
+            "name" : "Color Mode 3",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          },
+          {
+            "attribute" : "function",
+            "dmxMax" : 255,
+            "dmxMin" : 251,
+            "id" : "2B6B1631-B113-42B3-B057-6EA8C6BA984A",
+            "name" : "Sound Mode",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "034907D9-EE8E-472C-B9B4-9246083E2630",
+        "name" : "Function",
+        "offset" : 9,
+        "resolution" : "eightBit",
+        "semanticKind" : "generic"
+      },
+      {
+        "attribute" : "zoom",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "zoom",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "C9E0B5F9-02EF-487C-879F-468239CE4C88",
+            "name" : "Function",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "CA9D474D-2DAE-4566-B968-281253106799",
+        "name" : "Zoom",
+        "offset" : 10,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      },
+      {
+        "attribute" : "zoom_speed",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "zoom_speed",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "DFFF9709-74B6-4F2B-9381-C0B04E12B2F2",
+            "name" : "Function",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "71ED6294-6CDB-4C89-97E1-609436FABB5C",
+        "name" : "Zoom Speed",
+        "offset" : 11,
+        "resolution" : "eightBit",
+        "semanticKind" : "generic"
+      }
+    ],
+    "colorModel" : "rgbw",
+    "controlElements" : [
+      {
+        "id" : "fixture-output",
+        "name" : "Fixture Output"
+      }
+    ],
+    "emitterMappings" : [
+      {
+        "combination" : "direct",
+        "controlElementIDs" : [
+          "fixture-output"
+        ],
+        "id" : "map-fixture-output",
+        "physicalEmitterIDs" : [
+          "physical-emitter-10",
+          "physical-emitter-2",
+          "physical-emitter-15",
+          "physical-emitter-13",
+          "physical-emitter-5",
+          "physical-emitter-1",
+          "physical-emitter-11",
+          "physical-emitter-8",
+          "physical-emitter-12",
+          "physical-emitter-0",
+          "physical-emitter-3",
+          "physical-emitter-14",
+          "physical-emitter-9",
+          "physical-emitter-7",
+          "physical-emitter-17",
+          "physical-emitter-6",
+          "physical-emitter-4",
+          "physical-emitter-16"
+        ]
+      }
+    ],
+    "hasPanTilt" : false,
+    "id" : "2E57D13A-8D90-5007-A12B-8E21501D5981",
+    "manufacturer" : "Shehds",
+    "modeName" : "12 Channel",
+    "model" : "LED Zoom PAR 18x18W RGBWA UV Lighting (A)",
+    "panInvert" : false,
+    "physicalFixtureID" : "61AC187A-26A6-572B-A10A-AB50F54C4AEE",
+    "portablePhysicalDefinition" : {
+      "aspectRatio" : 1,
+      "beamShape" : 0,
+      "beamSpreadDegrees" : 0,
+      "beamType" : 0,
+      "componentGroups" : [
+        {
+          "emitterIDs" : [
+            "physical-emitter-0",
+            "physical-emitter-1",
+            "physical-emitter-2",
+            "physical-emitter-3",
+            "physical-emitter-4",
+            "physical-emitter-5",
+            "physical-emitter-6",
+            "physical-emitter-7",
+            "physical-emitter-8",
+            "physical-emitter-9",
+            "physical-emitter-10",
+            "physical-emitter-11",
+            "physical-emitter-12",
+            "physical-emitter-13",
+            "physical-emitter-14",
+            "physical-emitter-15",
+            "physical-emitter-16",
+            "physical-emitter-17"
+          ],
+          "height" : 1,
+          "id" : "primary-emitters",
+          "movement" : "static",
+          "provenance" : "imported",
+          "role" : "emitterArray",
+          "topology" : "rings",
+          "width" : 1,
+          "x" : 0.5,
+          "y" : 0.5
+        }
+      ],
+      "emitters" : [
+        {
+          "height" : 0.11666666666666665,
+          "id" : "physical-emitter-0",
+          "name" : "Emitter 1",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.11666666666666665,
+          "x" : 0.5,
+          "y" : 0.22499999999999998
+        },
+        {
+          "height" : 0.11666666666666665,
+          "id" : "physical-emitter-1",
+          "name" : "Emitter 2",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.11666666666666665,
+          "x" : 0.7381569860407207,
+          "y" : 0.3625
+        },
+        {
+          "height" : 0.11666666666666665,
+          "id" : "physical-emitter-2",
+          "name" : "Emitter 3",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.11666666666666665,
+          "x" : 0.7381569860407207,
+          "y" : 0.6375
+        },
+        {
+          "height" : 0.11666666666666665,
+          "id" : "physical-emitter-3",
+          "name" : "Emitter 4",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.11666666666666665,
+          "x" : 0.5,
+          "y" : 0.775
+        },
+        {
+          "height" : 0.11666666666666665,
+          "id" : "physical-emitter-4",
+          "name" : "Emitter 5",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.11666666666666665,
+          "x" : 0.2618430139592794,
+          "y" : 0.6375000000000001
+        },
+        {
+          "height" : 0.11666666666666665,
+          "id" : "physical-emitter-5",
+          "name" : "Emitter 6",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.11666666666666665,
+          "x" : 0.26184301395927934,
+          "y" : 0.36249999999999993
+        },
+        {
+          "height" : 0.05833333333333333,
+          "id" : "physical-emitter-6",
+          "name" : "Emitter 7",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.05833333333333333,
+          "x" : 0.5,
+          "y" : 0.09999999999999998
+        },
+        {
+          "height" : 0.05833333333333333,
+          "id" : "physical-emitter-7",
+          "name" : "Emitter 8",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.05833333333333333,
+          "x" : 0.7,
+          "y" : 0.15358983848622448
+        },
+        {
+          "height" : 0.05833333333333333,
+          "id" : "physical-emitter-8",
+          "name" : "Emitter 9",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.05833333333333333,
+          "x" : 0.8464101615137755,
+          "y" : 0.3
+        },
+        {
+          "height" : 0.05833333333333333,
+          "id" : "physical-emitter-9",
+          "name" : "Emitter 10",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.05833333333333333,
+          "x" : 0.9,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.05833333333333333,
+          "id" : "physical-emitter-10",
+          "name" : "Emitter 11",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.05833333333333333,
+          "x" : 0.8464101615137756,
+          "y" : 0.7
+        },
+        {
+          "height" : 0.05833333333333333,
+          "id" : "physical-emitter-11",
+          "name" : "Emitter 12",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.05833333333333333,
+          "x" : 0.7,
+          "y" : 0.8464101615137756
+        },
+        {
+          "height" : 0.05833333333333333,
+          "id" : "physical-emitter-12",
+          "name" : "Emitter 13",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.05833333333333333,
+          "x" : 0.5,
+          "y" : 0.9
+        },
+        {
+          "height" : 0.05833333333333333,
+          "id" : "physical-emitter-13",
+          "name" : "Emitter 14",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.05833333333333333,
+          "x" : 0.30000000000000004,
+          "y" : 0.8464101615137756
+        },
+        {
+          "height" : 0.05833333333333333,
+          "id" : "physical-emitter-14",
+          "name" : "Emitter 15",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.05833333333333333,
+          "x" : 0.1535898384862246,
+          "y" : 0.7000000000000002
+        },
+        {
+          "height" : 0.05833333333333333,
+          "id" : "physical-emitter-15",
+          "name" : "Emitter 16",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.05833333333333333,
+          "x" : 0.09999999999999998,
+          "y" : 0.5
+        },
+        {
+          "height" : 0.05833333333333333,
+          "id" : "physical-emitter-16",
+          "name" : "Emitter 17",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.05833333333333333,
+          "x" : 0.15358983848622454,
+          "y" : 0.29999999999999993
+        },
+        {
+          "height" : 0.05833333333333333,
+          "id" : "physical-emitter-17",
+          "name" : "Emitter 18",
+          "opticalBehaviors" : [
+            "wash"
+          ],
+          "shape" : "circle",
+          "width" : 0.05833333333333333,
+          "x" : 0.2999999999999998,
+          "y" : 0.15358983848622465
+        }
+      ],
+      "form" : "par",
+      "id" : "61AC187A-26A6-572B-A10A-AB50F54C4AEE",
+      "manufacturer" : "Shehds",
+      "model" : "LED Zoom PAR 18x18W RGBWA UV Lighting (A)",
+      "movement" : "unknown",
+      "opticalBehaviors" : [
+        "pixel",
+        "wash"
+      ],
+      "schemaVersion" : 1,
+      "source" : "imported",
+      "sourceMetadata" : {
+        "beamLayoutClass" : "LXRingsBeamLayout",
+        "beamShape" : "0",
+        "beamSpread" : "0.0",
+        "beamType" : "0",
+        "beamsByRing" : "6,12,0,0",
+        "formInference" : "layout-default"
+      }
+    },
+    "tiltInvert" : false,
+    "wheels" : [
+
+    ]
+  },
+  {
+    "category" : "lightkey-type-70",
+    "channelCount" : 2,
+    "channels" : [
+      {
+        "attribute" : "fan_speed",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "fan_speed",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "60C7A35A-1147-435A-B2BC-93123DDC8BD4",
+            "name" : "Slow > Fast",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "46CD3ECF-F5DC-4A6A-AB35-1D55AD33539A",
+        "name" : "Fan Speed",
+        "offset" : 1,
+        "resolution" : "eightBit",
+        "semanticKind" : "generic"
+      },
+      {
+        "attribute" : "fogOutput",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "attribute" : "fogOutput",
+            "dmxMax" : 255,
+            "dmxMin" : 0,
+            "id" : "B518DA9B-DA06-4E42-9E3D-77B10DD3B123",
+            "name" : "Function",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 0,
+        "id" : "AD268B93-D195-4A11-9FA3-30A9DE1605E3",
+        "name" : "Fog",
+        "offset" : 2,
+        "resolution" : "eightBit",
+        "semanticKind" : "semantic"
+      }
+    ],
+    "controlElements" : [
+
+    ],
+    "emitterMappings" : [
+
+    ],
+    "hasPanTilt" : false,
+    "id" : "0162C9D0-F0EC-5439-8A02-7ED9FB899EE0",
+    "manufacturer" : "Chauvet",
+    "modeName" : "2 Channel",
+    "model" : "Hurricane Haze 4D",
+    "panInvert" : false,
+    "physicalFixtureID" : "3ED946BB-EBE2-59C0-A8F7-EDF8F861EDCF",
+    "portablePhysicalDefinition" : {
+      "aspectRatio" : 1,
+      "beamSpreadDegrees" : 0,
+      "beamType" : 0,
+      "componentGroups" : [
+
+      ],
+      "emitters" : [
+
+      ],
+      "form" : "atmospheric",
+      "id" : "3ED946BB-EBE2-59C0-A8F7-EDF8F861EDCF",
+      "manufacturer" : "Chauvet",
+      "model" : "Hurricane Haze 4D",
+      "movement" : "unknown",
+      "opticalBehaviors" : [
+
+      ],
+      "schemaVersion" : 1,
+      "source" : "imported",
+      "sourceMetadata" : {
+        "beamLayoutClass" : "LXUndefinedBeamLayout",
+        "beamSpread" : "0.0",
+        "beamType" : "0",
+        "formInference" : "model-name-low-confidence"
+      }
+    },
+    "tiltInvert" : false,
+    "wheels" : [
+
+    ]
+  },
+  {
+    "category" : "fogger",
+    "channelCount" : 1,
+    "channels" : [
+      {
+        "attribute" : "fogOutput",
+        "defaultValue" : 0,
+        "dmxFunctions" : [
+          {
+            "dmxMax" : 5,
+            "dmxMin" : 0,
+            "id" : "0237711E-3D24-4DF3-9931-AE9F4489B439",
+            "name" : "Off",
+            "requiresConfirmation" : false,
+            "semantic" : "generic"
+          },
+          {
+            "attribute" : "fogOutput",
+            "dmxMax" : 255,
+            "dmxMin" : 6,
+            "id" : "D95F91F8-C4E7-411B-BDA9-613915843398",
+            "name" : "Fog Output",
+            "requiresConfirmation" : false,
+            "semantic" : "attribute"
+          }
+        ],
+        "highlightValue" : 255,
+        "id" : "C7D00535-9973-47E2-87BD-7487C2975004",
+        "name" : "Fog Output",
+        "offset" : 1,
+        "resolution" : "eightBit",
+        "semanticKind" : "generic"
+      }
+    ],
+    "controlElements" : [
+
+    ],
+    "emitterMappings" : [
+
+    ],
+    "hasPanTilt" : false,
+    "id" : "45B8396C-6798-4DA2-BBD6-5425052C17B5",
+    "manufacturer" : "Chauvet",
+    "modeName" : "Default",
+    "model" : "Hurricane 1800 Flex",
+    "panInvert" : false,
+    "physicalFixtureID" : "536A73B7-57EC-4D19-943B-16B6079D6537",
+    "portablePhysicalDefinition" : {
+      "componentGroups" : [
+
+      ],
+      "emitters" : [
+
+      ],
+      "form" : "atmospheric",
+      "id" : "536A73B7-57EC-4D19-943B-16B6079D6537",
+      "manufacturer" : "Chauvet",
+      "model" : "Hurricane 1800 Flex",
+      "movement" : "static",
+      "opticalBehaviors" : [
+
+      ],
+      "schemaVersion" : 1,
+      "source" : "explicit",
+      "sourceMetadata" : {
+
+      }
+    },
+    "tiltInvert" : false,
+    "wheels" : [
+
+    ]
+  }
+]

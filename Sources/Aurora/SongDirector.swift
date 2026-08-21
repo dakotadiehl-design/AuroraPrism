@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import AuroraEngine
 import AuroraModel
 import Foundation
@@ -100,6 +101,7 @@ final class SongDirector {
            let song = project.songs.first(where: { $0.id == songID }),
            song.sections.contains(where: { $0.id == sectionID }) {
             self.sectionID = sectionID
+            PrismLog.info(.musicSong, "music.song.section_changed", "The song section changed.")
             return true
         }
         // Section may live on another song — switch song identity without reloading entries.
@@ -108,6 +110,7 @@ final class SongDirector {
         }
         self.songID = song.id
         self.sectionID = sectionID
+        PrismLog.info(.musicSong, "music.song.section_changed", "The song section changed.")
         return true
     }
 

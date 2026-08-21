@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import SwiftUI
 
 /// Dense workspace tab strip (Patch / Groups / Palettes / …).

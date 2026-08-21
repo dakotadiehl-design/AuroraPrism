@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import SwiftUI
 
 /// Columnar table chrome for cue lists and MIDI mappings.

@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import Foundation
 
 /// High-resolution non-UI driver for `MusicalEngine.tick` / scheduler harvest (audit Wave 1 / P0-5).
@@ -50,6 +51,7 @@ public final class MusicalEngineRuntimeDriver: @unchecked Sendable {
         running = true
         lock.unlock()
         armTimer()
+        PrismLog.notice(.musicScheduler, "music.scheduler.rescheduled", "The musical scheduler is running.")
     }
 
     public func stop() {
@@ -78,12 +80,41 @@ public final class MusicalEngineRuntimeDriver: @unchecked Sendable {
         t.resume()
     }
 
+    private var ticksThisSecond = 0
+    private var lastTickSummary = Date.distantPast
+    private var lastTickStarted: Date?
+
     private func tickOnce() {
         lock.lock()
         let eng = engine
         let stillRunning = running
         lock.unlock()
         guard stillRunning, let eng else { return }
+        let started = Date()
+        if let lastTickStarted, started.timeIntervalSince(lastTickStarted) > 0.008 {
+            PrismLog.warning(
+                .musicScheduler,
+                "music.scheduler.deadline_missed",
+                "The musical scheduler missed a tick deadline.",
+                metadata: ["durationMs": .double(started.timeIntervalSince(lastTickStarted) * 1000, privacy: .public)],
+                ratePolicy: .oncePerSecond
+            )
+        }
+        lastTickStarted = started
         eng.tick()
+        ticksThisSecond += 1
+        if started.timeIntervalSince(lastTickSummary) >= 1 {
+            PrismLog.debug(
+                .musicScheduler,
+                "music.scheduler.tick_summary",
+                "Musical scheduler tick summary.",
+                metadata: [
+                    "count": .count(ticksThisSecond),
+                    "sampled": .flag(true),
+                ]
+            )
+            ticksThisSecond = 0
+            lastTickSummary = started
+        }
     }
 }

@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import AppKit
 import AuroraUI
 import SwiftUI
@@ -106,10 +107,96 @@ struct WelcomeEmptyView: View {
     }
 
     private func refreshRecentProjects() {
-        recentProjects = Array(
-            NSDocumentController.shared.recentDocumentURLs
-                .filter { FileManager.default.fileExists(atPath: $0.path) }
-                .prefix(6)
+        recentProjects = Array(RecentProjectStore.urls().prefix(6))
+    }
+}
+
+/// App-owned recent-project history. `NSDocumentController.recentDocumentURLs` is not a
+/// reliable launch-time data source for this non-NSDocument app, and plain paths lose
+/// sandbox access across launches. Persisting security-scoped bookmarks makes both the
+/// welcome list and opening an entry deterministic.
+enum RecentProjectStore {
+    private struct Entry: Codable {
+        var path: String
+        var bookmark: Data?
+        var lastOpened: Date
+    }
+
+    private static let defaultsKey = "prism.recent-projects.v1"
+    private static let maximumEntryCount = 12
+
+    static func note(_ url: URL, defaults: UserDefaults = .standard) {
+        let normalizedURL = url.standardizedFileURL
+        let bookmark = try? normalizedURL.bookmarkData(
+            options: .withSecurityScope,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
         )
+        var entries = load(from: defaults)
+        entries.removeAll { URL(fileURLWithPath: $0.path).standardizedFileURL == normalizedURL }
+        entries.insert(
+            Entry(path: normalizedURL.path, bookmark: bookmark, lastOpened: Date()),
+            at: 0
+        )
+        save(Array(entries.prefix(maximumEntryCount)), to: defaults)
+    }
+
+    static func urls(defaults: UserDefaults = .standard) -> [URL] {
+        var entries = load(from: defaults)
+
+        // Migrate the system list once for users upgrading from the original welcome UI.
+        if entries.isEmpty {
+            for url in NSDocumentController.shared.recentDocumentURLs.reversed() {
+                note(url, defaults: defaults)
+            }
+            entries = load(from: defaults)
+        }
+
+        var changed = false
+        var resolved: [URL] = []
+        resolved.reserveCapacity(entries.count)
+        for index in entries.indices {
+            let entry = entries[index]
+            guard let bookmark = entry.bookmark else {
+                resolved.append(URL(fileURLWithPath: entry.path))
+                continue
+            }
+
+            var stale = false
+            guard let url = try? URL(
+                resolvingBookmarkData: bookmark,
+                options: [.withSecurityScope, .withoutUI],
+                relativeTo: nil,
+                bookmarkDataIsStale: &stale
+            ) else {
+                resolved.append(URL(fileURLWithPath: entry.path))
+                continue
+            }
+
+            if stale,
+               let refreshed = try? url.bookmarkData(
+                   options: .withSecurityScope,
+                   includingResourceValuesForKeys: nil,
+                   relativeTo: nil
+               ) {
+                entries[index].bookmark = refreshed
+                entries[index].path = url.standardizedFileURL.path
+                changed = true
+            }
+            resolved.append(url)
+        }
+
+        if changed { save(entries, to: defaults) }
+        return resolved
+    }
+
+    private static func load(from defaults: UserDefaults) -> [Entry] {
+        guard let data = defaults.data(forKey: defaultsKey) else { return [] }
+        return (try? JSONDecoder().decode([Entry].self, from: data)) ?? []
+    }
+
+    private static func save(_ entries: [Entry], to defaults: UserDefaults) {
+        guard let data = try? JSONEncoder().encode(entries) else { return }
+        defaults.set(data, forKey: defaultsKey)
     }
 }

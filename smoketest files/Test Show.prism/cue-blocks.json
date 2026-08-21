@@ -69,5 +69,26 @@
     "name" : "Blue",
     "notes" : "",
     "type" : "color"
+  },
+  {
+    "cueBlockGroupID" : "93FC41D8-BD70-4CA8-9210-109A178BA374",
+    "id" : "3F29B3ED-E8E2-437F-B002-3CDB273B1245",
+    "levels" : {
+      "fixtures" : [
+        {
+          "attributes" : {
+            "fan_speed" : 1,
+            "fog" : 1
+          },
+          "fixtureId" : "67A037A1-9F57-44FB-811D-698EA59365B6",
+          "paletteRefs" : {
+
+          }
+        }
+      ]
+    },
+    "name" : "Haze Test",
+    "notes" : "",
+    "type" : "general"
   }
 ]

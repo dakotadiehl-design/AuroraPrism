@@ -243,7 +243,69 @@ final class FixtureImporterTests: XCTestCase {
 
     func testUnsupportedFormatHasReadableMessage() {
         let err = FixtureImportError.unsupportedFormat
-        XCTAssertTrue(err.localizedDescription.lowercased().contains("unsupported"))
+        XCTAssertEqual(err.prismErrorCode, "fixture.import.unsupported_format")
         XCTAssertTrue(err.localizedDescription.lowercased().contains("prism"))
+    }
+
+    func testPrismConverterPreservesAndMapsPassTwoPhysicalLayouts() throws {
+        let strip = try importLayout(#"{"_class":"LXStripBeamLayout","length":12,"beamShape":2,"additionalBeamsData":"opaque"}"#)
+        XCTAssertEqual(strip.form, .linearBar)
+        XCTAssertEqual(strip.componentGroups.first?.topology, .linear)
+        XCTAssertEqual(strip.emitters.count, 12)
+        XCTAssertEqual(strip.beamShape, 2)
+        XCTAssertEqual(strip.sourceMetadata["additionalBeamsData"], "opaque")
+
+        let rows = try importLayout(#"{"_class":"LXRowsBeamLayout","rowSegments":[3,5],"rowHeights":[1,2]}"#)
+        XCTAssertEqual(rows.componentGroups.first?.topology, .variableRows)
+        XCTAssertEqual(rows.emitters.count, 8)
+
+        let rings = try importLayout(#"{"_class":"LXRingsBeamLayout","beamsByRing":[1,8]}"#)
+        XCTAssertEqual(rings.componentGroups.first?.topology, .rings)
+        XCTAssertEqual(rings.emitters.count, 9)
+
+        let array = try importLayout(#"{"_class":"LXArrayBeamLayout","numberOfBeams":6}"#)
+        XCTAssertEqual(array.componentGroups.first?.topology, .array)
+        XCTAssertEqual(array.emitters.count, 6)
+
+        let none = try importLayout(#"{"_class":"LXNoBeamLayout"}"#, model: "Hazer")
+        XCTAssertEqual(none.form, .atmospheric)
+        XCTAssertEqual(none.componentGroups.first?.topology, .noBeam)
+        XCTAssertTrue(none.emitters.isEmpty)
+    }
+
+    func testPrismConverterPersonalitiesSharePhysicalTopology() throws {
+        let layout = #"{"_class":"LXStripBeamLayout","length":12}"#
+        let json = """
+        {
+          "schema":"prism-fixture-converter/0.1",
+          "fixture":{"manufacturer":"Synthetic","model":"Shared Bar"},
+          "fixtureDefinitions":[
+            {"modeName":"3ch","channels":[{"offset":0,"name":"Red","attribute":"colorR"}],"sourceBeamLayout":\(layout)},
+            {"modeName":"48ch","channels":[{"offset":0,"name":"Master","attribute":"intensity"},{"offset":1,"name":"Macro","attribute":"generic"}],"sourceBeamLayout":\(layout)}
+          ]
+        }
+        """
+        let definitions = try FixtureImporter.importDefinitions(from: Data(json.utf8))
+        XCTAssertEqual(definitions.count, 2)
+        XCTAssertEqual(Set(definitions.compactMap(\.physicalFixtureID)).count, 1)
+        XCTAssertEqual(Set(definitions.map { $0.resolvedVisualization().physicalTopologySignature }).count, 1)
+    }
+
+    private func importLayout(_ layout: String, model: String = "Fixture") throws -> FixturePhysicalDefinition {
+        let json = """
+        {
+          "schema":"prism-fixture-converter/0.1",
+          "fixture":{"manufacturer":"Synthetic","model":"\(model)"},
+          "fixtureDefinitions":[{
+            "modeName":"Mode",
+            "channels":[{"offset":0,"name":"Intensity","attribute":"intensity"}],
+            "sourceBeamLayout":\(layout),
+            "beamType":1,
+            "beamSpreadDegrees":20
+          }]
+        }
+        """
+        let definition = try XCTUnwrap(FixtureImporter.importDefinitions(from: Data(json.utf8)).first)
+        return try XCTUnwrap(definition.portablePhysicalDefinition)
     }
 }

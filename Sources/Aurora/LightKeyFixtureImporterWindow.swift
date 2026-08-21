@@ -1,4 +1,6 @@
+import AuroraDesignSystem
 import AppKit
+import AuroraDiagnostics
 import AuroraFixtureLib
 import AuroraModel
 import AuroraUI
@@ -17,16 +19,30 @@ final class LightKeyFixtureImporterViewModel: ObservableObject {
     }
 
     @Published var phase: Phase = .empty
-    @Published var result: LightKeyImportResult?
+    @Published var results: [LightKeyImportResult] = []
+    @Published var batchFailures: [LightKeyBatchImportFailure] = []
+    @Published var sourceURL: URL?
+    @Published var sourceURLs: [URL] = []
     @Published var selectedCandidateIDs = Set<UUID>()
     @Published var selectedCandidateID: UUID?
     @Published var selectedChannelID: UUID?
     @Published var alsoSaveToUserLibrary = false
     @Published var acknowledgedReviewIssues = false
+    @Published var warningExportStatus: String?
+
+    var allCandidates: [LightKeyImportCandidate] { results.flatMap(\.candidates) }
+    var allIssues: [FixtureImportIssue] { allCandidates.flatMap(\.issues) }
+
+    var result: LightKeyImportResult? {
+        if let selectedCandidateID {
+            return results.first { result in result.candidates.contains { $0.id == selectedCandidateID } }
+        }
+        return results.first
+    }
 
     var selectedCandidate: LightKeyImportCandidate? {
-        guard let selectedCandidateID else { return result?.candidates.first }
-        return result?.candidates.first { $0.id == selectedCandidateID }
+        guard let selectedCandidateID else { return allCandidates.first }
+        return allCandidates.first { $0.id == selectedCandidateID }
     }
 
     var selectedChannel: ChannelDef? {
@@ -40,11 +56,11 @@ final class LightKeyFixtureImporterViewModel: ObservableObject {
     }
 
     var selectedDefinitions: [FixtureDefinition] {
-        result?.candidates.filter { selectedCandidateIDs.contains($0.id) }.map(\.definition) ?? []
+        allCandidates.filter { selectedCandidateIDs.contains($0.id) }.map(\.definition)
     }
 
     var selectedIssues: [FixtureImportIssue] {
-        result?.candidates.filter { selectedCandidateIDs.contains($0.id) }.flatMap(\.issues) ?? []
+        allCandidates.filter { selectedCandidateIDs.contains($0.id) }.flatMap(\.issues)
     }
 
     var canImport: Bool {
@@ -59,66 +75,112 @@ final class LightKeyFixtureImporterViewModel: ObservableObject {
         return false
     }
 
-    func chooseFile() {
+    var hasExportableWarnings: Bool {
+        !batchFailures.isEmpty || allCandidates.contains { !$0.issues.isEmpty }
+    }
+
+    func chooseSource() {
         let panel = NSOpenPanel()
-        panel.title = "Choose LightKey Fixture"
-        panel.message = "Select a LightKey fixture profile to inspect before importing into Prism."
+        panel.title = "Choose LightKey Fixture or Folder"
+        panel.message = "Select one or more LightKey fixtures or folders. Hold Command or Control to select multiple items. Prism searches folders recursively."
         panel.prompt = "Inspect"
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = true
         if let lightKeyType = UTType(filenameExtension: "lightkeyfxt") {
             panel.allowedContentTypes = [lightKeyType]
         } else {
             panel.allowedContentTypes = [.data]
         }
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        load(url: url)
+        guard panel.runModal() == .OK, !panel.urls.isEmpty else { return }
+        load(sourceURLs: panel.urls)
     }
 
-    func load(url: URL) {
-        phase = .reading(url.lastPathComponent)
-        result = nil
+    func load(sourceURL: URL) {
+        load(sourceURLs: [sourceURL])
+    }
+
+    func load(sourceURLs: [URL]) {
+        let sourceURLs = Array(Dictionary(grouping: sourceURLs, by: \.standardizedFileURL).keys)
+            .sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+        guard !sourceURLs.isEmpty else { return }
+        phase = .reading(sourceURLs.count == 1 ? sourceURLs[0].lastPathComponent : "\(sourceURLs.count) selections")
+        self.sourceURLs = sourceURLs
+        sourceURL = sourceURLs.first
+        results = []
+        batchFailures = []
         selectedCandidateIDs = []
         selectedCandidateID = nil
         selectedChannelID = nil
         acknowledgedReviewIssues = false
+        warningExportStatus = nil
         Task {
             do {
-                let imported = try await Task.detached(priority: .userInitiated) {
-                    try LightKeyFixtureImporter.inspect(url: url)
+                let batches = try await Task.detached(priority: .userInitiated) {
+                    try sourceURLs.map {
+                        try LightKeyFixtureImporter.inspectRecursively(sourceURL: $0)
+                    }
                 }.value
-                result = imported
-                selectedCandidateIDs = Set(imported.candidates.filter { !$0.hasFatalIssues }.map(\.id))
-                selectedCandidateID = imported.candidates.first?.id
-                selectedChannelID = imported.candidates.first?.definition.channels.first?.id
+                let fixtures = batches.flatMap(\.fixtures)
+                let failures = batches.flatMap(\.failures)
+                let uniqueFixtures = Dictionary(grouping: fixtures, by: { $0.sourceURL.standardizedFileURL })
+                    .compactMap { $0.value.first }
+                    .sorted { $0.sourceURL.path.localizedStandardCompare($1.sourceURL.path) == .orderedAscending }
+                guard !uniqueFixtures.isEmpty else {
+                    if failures.isEmpty {
+                        phase = .failed("Those selections do not contain any .lightkeyfxt files.")
+                    } else {
+                        phase = .failed("Prism could not read any LightKey fixtures in those selections.\n\n" + failures.map {
+                            "\($0.sourceURL.lastPathComponent): \($0.message)"
+                        }.joined(separator: "\n"))
+                    }
+                    return
+                }
+                results = uniqueFixtures
+                batchFailures = failures
+                let candidates = uniqueFixtures.flatMap(\.candidates)
+                selectedCandidateIDs = Set(candidates.filter { !$0.hasFatalIssues }.map(\.id))
+                selectedCandidateID = candidates.first?.id
+                selectedChannelID = candidates.first?.definition.channels.first?.id
                 phase = .review
             } catch {
-                phase = .failed(error.localizedDescription)
+                phase = .failed(
+                    PrismErrorReporting.report(
+                        error: error,
+                        context: PrismErrorContext(
+                            operation: "inspect LightKey fixture",
+                            category: .fixtureLightkey,
+                            fallbackTitle: "Prism Couldn't Import That LightKey Fixture",
+                            fallbackMessage: "Prism couldn’t read that LightKey fixture.",
+                            eventCode: "fixture.lightkey.import_failed"
+                        )
+                    ).userMessage
+                )
             }
         }
     }
 
     func selectCandidate(_ id: UUID) {
         selectedCandidateID = id
-        selectedChannelID = result?.candidates.first(where: { $0.id == id })?.definition.channels.first?.id
+        selectedChannelID = allCandidates.first(where: { $0.id == id })?.definition.channels.first?.id
     }
 
     func toggleCandidate(_ id: UUID) {
         if selectedCandidateIDs.contains(id) {
             selectedCandidateIDs.remove(id)
-        } else if let candidate = result?.candidates.first(where: { $0.id == id }), !candidate.hasFatalIssues {
+        } else if let candidate = allCandidates.first(where: { $0.id == id }), !candidate.hasFatalIssues {
             selectedCandidateIDs.insert(id)
         }
         acknowledgedReviewIssues = false
     }
 
     func importSelected(using appModel: AppModel) {
-        guard canImport, let result else { return }
+        guard canImport else { return }
         phase = .importing
         do {
             let count = try appModel.importLightKeyFixtureDefinitions(
                 selectedDefinitions,
-                sourceName: result.sourceURL.lastPathComponent
+                sourceName: sourceURLs.count == 1 ? sourceURLs[0].lastPathComponent : "LightKey batch (\(sourceURLs.count) selections)"
             )
             if alsoSaveToUserLibrary {
                 for definition in selectedDefinitions {
@@ -127,17 +189,126 @@ final class LightKeyFixtureImporterViewModel: ObservableObject {
             }
             phase = .completed(count)
         } catch {
-            phase = .failed(error.localizedDescription)
+            phase = .failed(
+                PrismErrorReporting.report(
+                    error: error,
+                    context: PrismErrorContext(
+                        operation: "import LightKey fixture",
+                        category: .fixtureLightkey,
+                        fallbackTitle: "Prism Couldn't Import That LightKey Fixture",
+                        fallbackMessage: "Prism couldn’t import that LightKey fixture.",
+                        eventCode: "fixture.lightkey.import_failed"
+                    )
+                ).userMessage
+            )
+        }
+    }
+
+    func exportWarnings() {
+        guard hasExportableWarnings else { return }
+
+        let panel = NSSavePanel()
+        panel.title = "Export LightKey Import Warnings"
+        panel.message = "Save the complete LightKey fixture import warning report as a text file."
+        panel.prompt = "Export"
+        panel.allowedContentTypes = [.plainText]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = warningReportFilename
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+
+        do {
+            try warningReport.write(to: destination, atomically: true, encoding: .utf8)
+            warningExportStatus = "Warnings exported to \(destination.lastPathComponent)"
+        } catch {
+            warningExportStatus = "Couldn’t export warnings: \(error.localizedDescription)"
         }
     }
 
     func reset() {
         phase = .empty
-        result = nil
+        results = []
+        batchFailures = []
+        sourceURL = nil
+        sourceURLs = []
         selectedCandidateIDs = []
         selectedCandidateID = nil
         selectedChannelID = nil
         acknowledgedReviewIssues = false
+        warningExportStatus = nil
+    }
+
+    private var warningReportFilename: String {
+        let sourceName = sourceURLs.count > 1
+            ? "LightKey Batch"
+            : (sourceURL?.deletingPathExtension().lastPathComponent ?? "LightKey Import")
+        let invalidCharacters = CharacterSet.alphanumerics.inverted
+        let safeName = sourceName.components(separatedBy: invalidCharacters)
+            .filter { !$0.isEmpty }
+            .joined(separator: "-")
+        return "\(safeName.isEmpty ? "LightKey-Import" : safeName)-warnings.txt"
+    }
+
+    private var warningReport: String {
+        var lines = [
+            "Prism LightKey Fixture Import Warnings",
+            "Generated: \(ISO8601DateFormatter().string(from: Date()))",
+            "Sources: \(sourceURLs.count)",
+            "Fixtures read: \(results.count)",
+            "Personalities inspected: \(allCandidates.count)",
+            "Import issues: \(allIssues.count)",
+            ""
+        ]
+        lines.insert(contentsOf: sourceURLs.map { "- \($0.path)" }, at: 3)
+
+        if !allIssues.isEmpty {
+            lines.append("SUMMARY BY SEVERITY")
+            for severity in FixtureImportIssueSeverity.allCases {
+                let count = allIssues.count { $0.severity == severity }
+                if count > 0 { lines.append("- \(severity.rawValue): \(count)") }
+            }
+            lines.append("")
+            lines.append("SUMMARY BY CODE")
+            for entry in Dictionary(grouping: allIssues, by: \.code)
+                .map({ ($0.key.rawValue, $0.value.count) })
+                .sorted(by: { $0.0 < $1.0 }) {
+                lines.append("- \(entry.0): \(entry.1)")
+            }
+            lines.append("")
+        }
+
+        if !batchFailures.isEmpty {
+            lines.append("FILES THAT COULD NOT BE READ (\(batchFailures.count))")
+            for failure in batchFailures {
+                lines.append("- File: \(failure.sourceURL.path)")
+                lines.append("  Error: \(failure.message)")
+            }
+            lines.append("")
+        }
+
+        let candidatesWithIssues = results.flatMap { result in
+            result.candidates.filter { !$0.issues.isEmpty }.map { (result, $0) }
+        }
+        lines.append("FIXTURE IMPORT WARNINGS (\(candidatesWithIssues.reduce(0) { $0 + $1.1.issues.count }))")
+        if candidatesWithIssues.isEmpty {
+            lines.append("None")
+        } else {
+            for (result, candidate) in candidatesWithIssues {
+                lines.append("")
+                lines.append("Fixture: \(result.manufacturer) \(result.model)")
+                lines.append("File: \(result.sourceURL.path)")
+                lines.append("Personality: \(candidate.definition.modeName) (\(candidate.definition.channelCount) channels)")
+                for issue in candidate.issues {
+                    let severity = issue.severity.rawValue
+                        .replacingOccurrences(of: "requiresReview", with: "requires review")
+                        .uppercased()
+                    let channel = issue.channelOffset.map { " | Channel \($0)" } ?? ""
+                    lines.append("- [\(severity)] [\(issue.code.rawValue)]\(channel) \(issue.message)")
+                }
+            }
+        }
+
+        lines.append("")
+        return lines.joined(separator: "\n")
     }
 }
 
@@ -174,8 +345,8 @@ struct LightKeyFixtureImporterWindowRoot: View {
                     .foregroundStyle(AuroraColor.textTertiary)
             }
             Spacer()
-            if model.result != nil {
-                AuroraButton("Choose Another…", kind: .secondary) { model.chooseFile() }
+            if !model.results.isEmpty {
+                AuroraButton("Choose Another…", kind: .secondary) { model.chooseSource() }
             }
         }
         .padding(.horizontal, AuroraSpacing.lg)
@@ -204,15 +375,15 @@ struct LightKeyFixtureImporterWindowRoot: View {
             Image(systemName: "lightbulb.led.wide")
                 .font(.system(size: 52, weight: .light))
                 .foregroundStyle(AuroraColor.accentBright)
-            Text("Import a LightKey fixture profile")
+            Text("Import LightKey fixture profiles")
                 .font(AuroraTypography.panelTitle)
                 .foregroundStyle(AuroraColor.textPrimary)
-            Text("Prism reads the fixture as data, validates every personality, and lets you review channels before anything is added to the show. You can also drop a .lightkeyfxt file here.")
+            Text("Choose one or more .lightkeyfxt files or folders. Hold Command or Control to select multiple items. Prism searches folders recursively, validates every personality, and lets you review the batch before anything is added to the show. You can also drop a fixture or folder here.")
                 .font(AuroraTypography.secondary)
                 .foregroundStyle(AuroraColor.textSecondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 520)
-            AuroraButton("Choose LightKey Fixture…", kind: .primary) { model.chooseFile() }
+            AuroraButton("Choose Fixture or Folder…", kind: .primary) { model.chooseSource() }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AuroraColor.surfaceWorkspace)
@@ -231,25 +402,45 @@ struct LightKeyFixtureImporterWindowRoot: View {
     private var sourceColumn: some View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader("SOURCE")
-            if let result = model.result {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(result.manufacturer).font(AuroraTypography.primaryValue)
-                    Text(result.model).font(AuroraTypography.secondary)
-                    Text(result.sourceURL.lastPathComponent).font(AuroraTypography.metadata)
-                        .foregroundStyle(AuroraColor.textTertiary).lineLimit(2)
-                    if let beams = result.numberOfBeams {
-                        Text("\(beams) beams" + (result.beamSpreadDegrees.map { " · \($0.formatted())°" } ?? ""))
-                            .font(AuroraTypography.metadata).foregroundStyle(AuroraColor.textSecondary)
-                    }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(model.sourceURLs.count > 1 ? "\(model.sourceURLs.count) selected items" : (model.sourceURL?.lastPathComponent ?? "LightKey Import"))
+                    .font(AuroraTypography.primaryValue)
+                Text("\(model.results.count) fixtures · \(model.allCandidates.count) personalities")
+                    .font(AuroraTypography.metadata).foregroundStyle(AuroraColor.textSecondary)
+                if !model.batchFailures.isEmpty {
+                    Label("\(model.batchFailures.count) files could not be read", systemImage: "exclamationmark.triangle.fill")
+                        .font(AuroraTypography.metadata).foregroundStyle(AuroraColor.warning)
+                        .help(model.batchFailures.map {
+                            "\($0.sourceURL.lastPathComponent): \($0.message)"
+                        }.joined(separator: "\n\n"))
                 }
-                .padding(AuroraSpacing.md)
             }
+            .padding(AuroraSpacing.md)
             Divider().overlay(AuroraColor.separator)
             sectionHeader("PERSONALITIES")
             ScrollView {
-                LazyVStack(spacing: 2) {
-                    ForEach(model.result?.candidates ?? []) { candidate in
-                        personalityRow(candidate)
+                LazyVStack(spacing: 6) {
+                    ForEach(model.results, id: \.sourceURL) { result in
+                        VStack(spacing: 2) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(result.manufacturer) · \(result.model)")
+                                    .font(AuroraTypography.controlLabel)
+                                    .foregroundStyle(AuroraColor.textSecondary)
+                                Text(result.sourceURL.lastPathComponent)
+                                    .font(AuroraTypography.metadata)
+                                    .foregroundStyle(AuroraColor.textTertiary)
+                                    .lineLimit(1)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 8)
+                            .padding(.top, 5)
+                            ForEach(result.candidates) { candidate in
+                                personalityRow(candidate)
+                            }
+                        }
+                        .padding(.bottom, 4)
+                        .background(AuroraColor.surfaceWell.opacity(0.45))
+                        .clipShape(RoundedRectangle(cornerRadius: AuroraMetrics.radiusTight))
                     }
                 }
                 .padding(6)
@@ -363,6 +554,18 @@ struct LightKeyFixtureImporterWindowRoot: View {
                                     .frame(width: 52, alignment: .leading)
                                 Text(function.name).font(AuroraTypography.metadata)
                                     .foregroundStyle(AuroraColor.textSecondary)
+                                if let attribute = function.attribute {
+                                    Text(attribute)
+                                        .font(AuroraTypography.metadata.monospaced())
+                                        .foregroundStyle(AuroraColor.textTertiary)
+                                }
+                                if function.isProtected {
+                                    Image(systemName: "lock.shield.fill")
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .foregroundStyle(AuroraColor.warning)
+                                        .help(protectedFunctionTooltip(function))
+                                        .accessibilityLabel("Protected fixture command")
+                                }
                             }
                         }
                     }
@@ -390,6 +593,11 @@ struct LightKeyFixtureImporterWindowRoot: View {
                 }
             }
             Spacer()
+            if model.hasExportableWarnings {
+                AuroraButton("Export Warnings…", kind: .secondary) {
+                    model.exportWarnings()
+                }
+            }
             footerStatus
             if model.showsImportButton {
                 AuroraButton("Import Selected", kind: .primary, isEnabled: model.canImport) {
@@ -405,11 +613,11 @@ struct LightKeyFixtureImporterWindowRoot: View {
     @ViewBuilder private var footerStatus: some View {
         switch model.phase {
         case .review:
-            Text("\(model.selectedDefinitions.count) selected")
+            Text(model.warningExportStatus ?? "\(model.selectedDefinitions.count) selected")
         case .importing:
             ProgressView().controlSize(.small); Text("Importing…")
         case .completed(let count):
-            Text("Imported \(count) personalities")
+            Text(model.warningExportStatus ?? "Imported \(count) personalities")
         case .failed:
             Text("Import failed").foregroundStyle(AuroraColor.critical)
         default:
@@ -440,7 +648,7 @@ struct LightKeyFixtureImporterWindowRoot: View {
                 .multilineTextAlignment(.center).frame(maxWidth: 540)
             HStack {
                 AuroraButton("Start Over", kind: .secondary) { model.reset() }
-                AuroraButton("Choose Another…", kind: .primary) { model.chooseFile() }
+                AuroraButton("Choose Another…", kind: .primary) { model.chooseSource() }
             }
         }.frame(maxWidth: .infinity, maxHeight: .infinity).background(AuroraColor.surfaceWorkspace)
     }
@@ -509,12 +717,22 @@ struct LightKeyFixtureImporterWindowRoot: View {
         }.joined(separator: "\n\n")
     }
 
+    private func protectedFunctionTooltip(_ function: DMXFunctionRange) -> String {
+        let category = function.commandCategory?.rawValue ?? "custom"
+        let duration = function.holdDurationMilliseconds.map { " Hold for at least \($0) ms." } ?? ""
+        return "Protected \(category) command. Prism excludes this DMX range from normal Programmer, cue, and effect output. Explicit confirmation is required.\(duration)"
+    }
+
     private func resolutionLabel(_ resolution: ChannelResolution) -> String {
         switch resolution { case .eightBit: return "8-bit"; case .coarse: return "coarse"; case .fine: return "fine" }
     }
 
     private var headerDetail: String {
-        model.result.map { "\($0.manufacturer) · \($0.model)" } ?? "Review LightKey personalities before adding them to Prism"
+        if model.results.count > 1 {
+            return "Reviewing \(model.results.count) LightKey fixtures · \(model.allCandidates.count) personalities"
+        }
+        return model.result.map { "\($0.manufacturer) · \($0.model)" }
+            ?? "Review LightKey personalities before adding them to Prism"
     }
 
     private func acceptDrop(_ providers: [NSItemProvider]) -> Bool {
@@ -523,8 +741,10 @@ struct LightKeyFixtureImporterWindowRoot: View {
             let url: URL?
             if let data = item as? Data { url = URL(dataRepresentation: data, relativeTo: nil) }
             else { url = item as? URL }
-            guard let url, url.pathExtension.lowercased() == "lightkeyfxt" else { return }
-            Task { @MainActor in model.load(url: url) }
+            guard let url else { return }
+            let values = try? url.resourceValues(forKeys: [.isDirectoryKey])
+            guard values?.isDirectory == true || url.pathExtension.lowercased() == "lightkeyfxt" else { return }
+            Task { @MainActor in model.load(sourceURL: url) }
         }
         return true
     }

@@ -20,10 +20,12 @@ public enum ProjectValidator {
         let fixtureIDs = Set(project.fixtures.map(\.id))
         let universeIDs = Set(project.universes.map(\.id))
         let definitionIDs = Set(project.fixtureDefinitions.map(\.id))
+        let physicalFixtureIDs = Set((project.physicalFixtureDefinitions ?? []).map(\.id))
         let groupIDs = Set(project.groups.map(\.id))
         let cueBlockGroupIDs = Set(project.cueBlockGroups.map(\.id))
         let paletteIDs = Set(project.palettes.map(\.id))
         let cueListIDs = Set(project.cueLists.map(\.id))
+        let effectIDs = Set(project.effects.map(\.id))
         var cueIDs = Set<UUID>()
         for list in project.cueLists {
             cueIDs.formUnion(list.cues.map(\.id))
@@ -35,6 +37,7 @@ public enum ProjectValidator {
         issues.append(contentsOf: duplicateIDIssues(project.groups.map(\.id), label: "group"))
         issues.append(contentsOf: duplicateIDIssues(project.palettes.map(\.id), label: "palette"))
         issues.append(contentsOf: duplicateIDIssues(project.fixtureDefinitions.map(\.id), label: "fixture-definition"))
+        issues.append(contentsOf: duplicateIDIssues((project.physicalFixtureDefinitions ?? []).map(\.id), label: "physical-fixture-definition"))
         issues.append(contentsOf: duplicateIDIssues(project.presets.map(\.id), label: "preset"))
         issues.append(contentsOf: duplicateIDIssues(project.cueBlocks.map(\.id), label: "cue-block"))
         issues.append(contentsOf: duplicateIDIssues(project.cueBlockGroups.map(\.id), label: "cue-block-group"))
@@ -105,11 +108,52 @@ public enum ProjectValidator {
                     message: "Duplicate effect order \(effect.order) on \(effect.name)"
                 ))
             }
+            if effect.templateLinkMode == .linked {
+                if let templateID = effect.templateEffectID, effectIDs.contains(templateID) {
+                    if templateID == effect.id || effectTemplateCycle(startingAt: effect.id, effects: project.effects) {
+                        issues.append(stableIssue(code: "cyclic-effect-template", entity: effect.id, message: "Effect \(effect.name) has a cyclic template link"))
+                    }
+                } else {
+                    issues.append(stableIssue(code: "missing-effect-template", entity: effect.id, message: "Effect \(effect.name) references a missing template"))
+                }
+            }
+            if effect.mask?.kind == .fixtureGroup,
+               effect.mask?.fixtureGroupID.map({ !groupIDs.contains($0) }) != false {
+                issues.append(stableIssue(code: "missing-effect-mask-group", entity: effect.id, message: "Effect \(effect.name) mask references a missing fixture group"))
+            }
+            for target in effect.cellTargeting?.selectedTargets ?? [] where !fixtureIDs.contains(target.fixtureID) {
+                issues.append(stableIssue(code: "missing-effect-cell-fixture", entity: effect.id, message: "Effect \(effect.name) references a cell on a missing fixture"))
+            }
+            for target in effect.mask?.selectedTargets ?? [] where !fixtureIDs.contains(target.fixtureID) {
+                issues.append(stableIssue(code: "missing-effect-mask-target", entity: effect.id, message: "Effect \(effect.name) mask references a missing target"))
+            }
+            for paletteID in effect.colorGradient?.stops.compactMap(\.paletteID) ?? [] where !paletteIDs.contains(paletteID) {
+                issues.append(stableIssue(code: "missing-effect-gradient-palette", entity: effect.id, message: "Effect \(effect.name) gradient references a missing palette", paletteID: paletteID))
+            }
         }
 
         // Fixture definitions: channel offsets unique and in range; wheels
         for def in project.fixtureDefinitions {
             issues.append(contentsOf: validateDefinition(def))
+            if let physicalID = def.physicalFixtureID,
+               !physicalFixtureIDs.contains(physicalID),
+               def.portablePhysicalDefinition?.id != physicalID {
+                issues.append(stableIssue(
+                    code: "missing-physical-fixture",
+                    entity: def.id,
+                    message: "Personality \(def.displayName) references missing physical fixture \(physicalID.uuidString)"
+                ))
+            }
+        }
+        for physical in project.physicalFixtureDefinitions ?? [] {
+            let emitterIDs = physical.emitters.map(\.id)
+            if Set(emitterIDs).count != emitterIDs.count {
+                issues.append(stableIssue(code: "duplicate-physical-emitter", entity: physical.id, message: "Physical fixture \(physical.manufacturer) \(physical.model) contains duplicate emitter identities"))
+            }
+            let known = Set(emitterIDs)
+            if physical.componentGroups.flatMap(\.emitterIDs).contains(where: { !known.contains($0) }) {
+                issues.append(stableIssue(code: "unknown-component-emitter", entity: physical.id, message: "Physical fixture \(physical.manufacturer) \(physical.model) has a component group referencing an unknown emitter"))
+            }
         }
 
         // Fixtures
@@ -380,6 +424,18 @@ public enum ProjectValidator {
         }
 
         return ProjectValidationSnapshot(issues: issues)
+    }
+
+    private static func effectTemplateCycle(startingAt start: UUID, effects: [EffectDefinition]) -> Bool {
+        var byID: [UUID: EffectDefinition] = [:]
+        for effect in effects where byID[effect.id] == nil { byID[effect.id] = effect }
+        var visited: Set<UUID> = []
+        var current: UUID? = start
+        while let id = current, let effect = byID[id], effect.templateLinkMode == .linked {
+            guard visited.insert(id).inserted else { return true }
+            current = effect.templateEffectID
+        }
+        return false
     }
 
     private static func validateDefinition(_ def: FixtureDefinition) -> [ResolutionIssue] {

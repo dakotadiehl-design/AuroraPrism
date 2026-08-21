@@ -1,9 +1,26 @@
+import AuroraDiagnostics
 import Foundation
 
 /// Schema migration pipeline (P2-9). Current packages are schema v1.
 public enum SchemaMigrationError: Error, Equatable, Sendable {
     case unsupportedVersion(found: Int, supportedMaximum: Int)
     case migrationFailed(String)
+}
+
+extension SchemaMigrationError: LocalizedError, PrismDiagnosableError {
+    public var errorDescription: String? { userMessage }
+    public var prismErrorCode: String {
+        switch self {
+        case .unsupportedVersion: return "project.migration.unsupported_version"
+        case .migrationFailed: return "project.migration.failed"
+        }
+    }
+    public var userTitle: String { "Prism Couldn't Update the Show" }
+    public var userMessage: String { "Prism couldn’t update this show to the current format." }
+    public var recoverySuggestion: String? { "Keep a copy of the original package and contact support with the reference ID." }
+    public var technicalDetails: String { String(reflecting: self) }
+    public var prismCategory: PrismLogCategory { .projectMigration }
+    public var prismSeverity: PrismLogLevel { .error }
 }
 
 /// Migrates raw package version numbers toward the current domain model.
@@ -14,6 +31,7 @@ public enum SchemaMigration {
     public static func migrate(_ project: ShowProject) throws -> ShowProject {
         var result = project
         var version = result.schemaVersion
+        let startedAt = version
         if version <= 0 {
             throw SchemaMigrationError.unsupportedVersion(found: version, supportedMaximum: currentVersion)
         }
@@ -24,6 +42,14 @@ public enum SchemaMigration {
         }
         if version > currentVersion {
             throw SchemaMigrationError.unsupportedVersion(found: version, supportedMaximum: currentVersion)
+        }
+        if startedAt < currentVersion {
+            PrismLog.notice(
+                .projectMigration,
+                "project.document.migrated",
+                "Prism updated this show to the current format.",
+                metadata: ["schemaVersion": .int(currentVersion, privacy: .public)]
+            )
         }
         return result
     }

@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import AuroraEngine
 import AuroraModel
 import SwiftUI
@@ -7,6 +8,8 @@ public struct ProgrammerColorEngineView: View {
     public var color: ProgrammerColorPresentation
     public var programmer: Programmer
     public var project: ShowProject
+    public var targets: [FixtureTarget]
+    public var resolvedIntensityValues: [UUID: Double]
     public var onChanged: () -> Void
 
     @Environment(\.auroraDensity) private var density
@@ -22,11 +25,15 @@ public struct ProgrammerColorEngineView: View {
         color: ProgrammerColorPresentation,
         programmer: Programmer,
         project: ShowProject,
+        targets: [FixtureTarget]? = nil,
+        resolvedIntensityValues: [UUID: Double] = [:],
         onChanged: @escaping () -> Void = {}
     ) {
         self.color = color
         self.programmer = programmer
         self.project = project
+        self.targets = targets ?? color.orderedFixtureIDs.map { FixtureTarget(fixtureID: $0) }
+        self.resolvedIntensityValues = resolvedIntensityValues
         self.onChanged = onChanged
     }
 
@@ -55,6 +62,7 @@ public struct ProgrammerColorEngineView: View {
             .onAppear { rebuildDrafts(from: color) }
             .onChange(of: color.orderedFixtureIDs) { _, _ in rebuildDrafts(from: color) }
             .onChange(of: presentationIdentity) { _, _ in rebuildDrafts(from: color) }
+            .onChange(of: resolvedIntensityValues) { _, _ in rebuildDrafts(from: color) }
     }
 
     /// Rebuild drafts when selection / support set changes — not on every live emitter sample.
@@ -180,7 +188,7 @@ public struct ProgrammerColorEngineView: View {
             label: "Dimmer",
             iconName: AuroraLightingIcon.intensity.rawValue,
             showsOwnedChrome: !state.isUntouched && !state.isMixed,
-            display: displayValue(for: state),
+            display: .value(resolvedIntensityAverage),
             channelHeight: m.channelHeight,
             accent: nil
         )
@@ -307,10 +315,12 @@ public struct ProgrammerColorEngineView: View {
             whiteBalance: draftWB
         )
         let attrs = ColorMath.programmerColorBatch(from: authoring)
-        var batch: [UUID: [String: Double]] = [:]
-        for id in capable {
-            batch[id] = attrs
-        }
+        let capableSet = Set(capable)
+        let batch = FixtureTargetResolver.batch(
+            targets: targets.filter { capableSet.contains($0.fixtureID) },
+            attributes: attrs,
+            project: project
+        )
         programmer.setMany(batch)
         onChanged()
     }
@@ -324,16 +334,31 @@ public struct ProgrammerColorEngineView: View {
     }
 
     private func applyEmitterOrDimmer(attribute: String, value: Double) {
+        if attribute == "intensity", !resolvedIntensityValues.isEmpty {
+            let shifted = ProgrammerIntensityGroup.shiftedValues(
+                resolvedIntensityValues,
+                toAverage: value
+            )
+            draftDimmer = ProgrammerIntensityGroup.average(shifted) ?? value
+            programmer.setMany(
+                attribute: attribute,
+                values: shifted
+            )
+            onChanged()
+            return
+        }
         let capable = ProgrammerAttributePresentationResolver.capableFixtureIDs(
             attribute: attribute,
             orderedFixtureIDs: orderedIDs,
             project: project
         )
         guard !capable.isEmpty else { return }
-        var batch: [UUID: [String: Double]] = [:]
-        for id in capable {
-            batch[id] = [attribute: value]
-        }
+        let capableSet = Set(capable)
+        let batch = FixtureTargetResolver.batch(
+            targets: targets.filter { capableSet.contains($0.fixtureID) },
+            attributes: [attribute: value],
+            project: project
+        )
         programmer.setMany(batch)
         onChanged()
     }
@@ -343,7 +368,7 @@ public struct ProgrammerColorEngineView: View {
         draftSat = presentation.saturation ?? (presentation.hasRGB ? 0.85 : 0)
         draftVal = presentation.brightness ?? (presentation.hasRGB ? 1 : 0)
         draftWB = presentation.whiteBalance ?? 0
-        draftDimmer = presentation.dimmer.displayValue ?? (presentation.dimmer.isSupported ? 1.0 : 0)
+        draftDimmer = resolvedIntensityAverage
         draftEmitters = [:]
         for emitter in presentation.emitters {
             if let v = emitter.state.displayValue, !emitter.state.isMixed {
@@ -352,6 +377,12 @@ public struct ProgrammerColorEngineView: View {
                 draftEmitters[emitter.attribute] = 0
             }
         }
+    }
+
+    private var resolvedIntensityAverage: Double {
+        ProgrammerIntensityGroup.average(resolvedIntensityValues)
+            ?? color.dimmer.displayValue
+            ?? 0
     }
 
     private func displayValue(for state: ProgrammerAttributeState) -> AuroraControlDisplayValue {

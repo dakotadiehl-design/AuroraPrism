@@ -1,3 +1,4 @@
+import AuroraDiagnostics
 import AuroraModel
 import AuroraMusical
 import Foundation
@@ -244,10 +245,12 @@ public final class AMERuntime: @unchecked Sendable {
         lock.unlock()
 
         if old == .armed && newMode != .armed {
+            PrismLog.notice(.ameIngress, "ame.ingress.disarmed", "AME is disarmed.")
             // Unwind live output that was actually armed.
             return releaseDomain(liveDomain, reason: .modeChange, forceExecute: true)
         }
         if old != .armed && newMode == .armed {
+            PrismLog.notice(.ameIngress, "ame.ingress.armed", "AME is armed.")
             // Simulation must not poison live state.
             lock.lock()
             simDomain.clearAllEphemeral()
@@ -282,6 +285,7 @@ public final class AMERuntime: @unchecked Sendable {
         liveDomain.clearAllEphemeral()
         simDomain.clearAllEphemeral()
         lock.unlock()
+        PrismLog.notice(.ameIngress, "ame.ingress.config_accepted", "AME accepted the show configuration.")
         return batch
     }
 
@@ -1336,6 +1340,37 @@ public final class AMERuntime: @unchecked Sendable {
         lock.lock()
         appendDiagnosticsUnlocked(events)
         lock.unlock()
+        for event in events {
+            PrismLog.shared.log(
+                PrismLogEvent(
+                    level: event.kind.prismLevel,
+                    category: event.kind.prismCategory,
+                    code: event.kind.prismCode,
+                    humanMessage: event.message,
+                    metadata: [
+                        "kind": .string(event.kind.rawValue, privacy: .public),
+                    ],
+                    correlationID: event.latencyID,
+                    ratePolicy: event.kind.ratePolicy
+                )
+            )
+            if event.kind == .quantizeImmediate {
+                PrismLog.info(
+                    .ameQuantization,
+                    "ame.quantization.fallback",
+                    "AME fired immediately because musical time was not available.",
+                    correlationID: event.latencyID
+                )
+            }
+            if event.kind == .invalidRuntimeConfiguration {
+                PrismLog.error(
+                    .ameIngress,
+                    "ame.ingress.config_rejected",
+                    "AME rejected an invalid runtime configuration.",
+                    correlationID: event.latencyID
+                )
+            }
+        }
     }
 
     // MARK: - Behavior (fire path only)

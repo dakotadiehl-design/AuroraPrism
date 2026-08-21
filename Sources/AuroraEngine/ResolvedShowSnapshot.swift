@@ -7,6 +7,10 @@ public struct ResolvedShowSnapshot: Equatable, Sendable {
     public var timestamp: TimeInterval
     /// Fully resolved ActiveLook after playback → effects → programmer → global (pre-freeze hold).
     public var look: ActiveLook
+    /// Fixture-authored look after playback → effects → programmer, before global
+    /// master/blackout. Programmer controls use this so editing does not apply the
+    /// global scale twice.
+    public var programmerLook: ActiveLook
     /// Look used for physical presentation (equals `look` unless freeze is holding a prior frame's look).
     public var presentationLook: ActiveLook
     public var playback: PlaybackSnapshot
@@ -17,6 +21,7 @@ public struct ResolvedShowSnapshot: Equatable, Sendable {
         frameIndex: UInt64 = 0,
         timestamp: TimeInterval = 0,
         look: ActiveLook = .empty,
+        programmerLook: ActiveLook = .empty,
         presentationLook: ActiveLook = .empty,
         playback: PlaybackSnapshot = .idle,
         global: GlobalShowControlState = .default,
@@ -25,6 +30,7 @@ public struct ResolvedShowSnapshot: Equatable, Sendable {
         self.frameIndex = frameIndex
         self.timestamp = timestamp
         self.look = look
+        self.programmerLook = programmerLook
         self.presentationLook = presentationLook
         self.playback = playback
         self.global = global

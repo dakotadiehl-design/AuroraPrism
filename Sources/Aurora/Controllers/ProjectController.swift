@@ -1,5 +1,6 @@
 import AppKit
 import AuroraCore
+import AuroraDiagnostics
 import AuroraFixtureLib
 import AuroraModel
 import AuroraUI
@@ -15,6 +16,8 @@ final class ProjectController: ObservableObject {
 
     /// Serializes all package writes (manual, Save As, autosave) per destination.
     let saveCoordinator = ProjectSaveCoordinator()
+    private var consecutiveAutosaveFailures = 0
+    private(set) var autosaveDisabledAfterFailures = false
 
     private(set) var fixtureLibrary: FixtureLibrary?
     private(set) var userFixtureDefinitions: [FixtureDefinition] = []
@@ -23,7 +26,6 @@ final class ProjectController: ObservableObject {
     /// Called after document mutations (engine/input should refresh).
     var onProjectModified: (() -> Void)?
     var onSelectionChanged: ((SelectionSnapshot) -> Void)?
-    var onLog: ((String) -> Void)?
 
     init(project: ShowProject = .empty(name: "Untitled Show")) {
         self.session = DocumentSession(project: project)
@@ -81,19 +83,28 @@ final class ProjectController: ObservableObject {
             let library = try FixtureLibrary.loadBundledSeed()
             fixtureLibrary = library
             statusMessage = "Loaded \(library.definitions.count) seed personalities"
-            onLog?("Loaded fixture library (\(library.definitions.count) personalities)")
         } catch {
             fixtureLibrary = nil
-            statusMessage = "Fixture library failed: \(error.localizedDescription)"
-            onLog?("Fixture library error: \(error.localizedDescription)")
+            statusMessage = PrismErrorReporting.userFacingMessage(for: error)
+            PrismLog.error(
+                .fixtureLibrary,
+                "fixture.library.load_failed",
+                "Prism couldn't load the fixture library.",
+                technical: String(reflecting: error)
+            )
             return
         }
         do {
             try reloadUserFixtureLibrary()
         } catch {
             userFixtureDefinitions = []
-            statusMessage = "User Fixture Library failed: \(error.localizedDescription)"
-            onLog?(statusMessage)
+            statusMessage = "User Fixture Library failed: \(PrismErrorReporting.userFacingMessage(for: error))"
+            PrismLog.error(
+                .fixtureLibrary,
+                "fixture.library.load_failed",
+                statusMessage,
+                technical: String(reflecting: error)
+            )
         }
     }
 
@@ -108,6 +119,7 @@ final class ProjectController: ObservableObject {
         try UserFixtureLibraryStore.setDirectory(url)
         try reloadUserFixtureLibrary()
         statusMessage = "Fixture Library: \(userFixtureLibraryDirectory.path)"
+        PrismLog.notice(.fixtureLibrary, "fixture.library.directory_changed", "The User Fixture Library folder changed.")
     }
 
     func removeUserFixtureDefinitions(_ ids: Set<UUID>) throws {
@@ -177,7 +189,7 @@ final class ProjectController: ObservableObject {
         statusMessage = "Loaded demo: Summer Night Show"
         wireEvents()
         objectWillChange.send()
-        onLog?("Loaded UI-02A demo Summer Night Show")
+        PrismLog.notice(.projectDocument, "project.document.created", "Loaded the Summer Night Show demo.")
     }
 
     /// Manual Save / Save As through the shared coordinator (BLOCKER-1).
@@ -252,6 +264,7 @@ final class ProjectController: ObservableObject {
                 statusMessage = "Saved \(destination.lastPathComponent) (document edited since save)"
             }
             NSDocumentController.shared.noteNewRecentDocumentURL(destination)
+            RecentProjectStore.note(destination)
             objectWillChange.send()
         case .skippedStale:
             // Manual save should not skip; treat as soft failure.
@@ -289,6 +302,8 @@ final class ProjectController: ObservableObject {
                     session.applySavedMetadata(modifiedAt: writtenAt)
                     statusMessage = "Autosaved \(destination.lastPathComponent)"
                     objectWillChange.send()
+                    PrismLog.info(.projectAutosave, "project.autosave.succeeded", "Prism autosaved the show.")
+                    consecutiveAutosaveFailures = 0
                     return true
                 }
                 return false
@@ -296,7 +311,22 @@ final class ProjectController: ObservableObject {
                 return false
             }
         } catch {
-            onLog?("Autosave failed: \(error.localizedDescription)")
+            consecutiveAutosaveFailures += 1
+            _ = PrismErrorReporting.report(error: error, context: PrismErrorContext(
+                operation: "autosave",
+                category: .projectAutosave,
+                fallbackTitle: "Prism Couldn't Autosave",
+                fallbackMessage: "Prism couldn't autosave the show.",
+                eventCode: "project.autosave.failed"
+            ))
+            if consecutiveAutosaveFailures >= 3, !autosaveDisabledAfterFailures {
+                autosaveDisabledAfterFailures = true
+                PrismLog.notice(
+                    .projectAutosave,
+                    "project.autosave.disabled",
+                    "Prism turned off autosave after repeated failures."
+                )
+            }
             return false
         }
     }
@@ -334,6 +364,9 @@ final class ProjectController: ObservableObject {
     /// Validates and embeds a fixture import as one undoable, rollback-safe operation.
     func importFixtureDefinitions(_ defs: [FixtureDefinition], sourceName: String) throws -> Int {
         guard !defs.isEmpty else { return 0 }
+        for definition in defs {
+            try FixtureDefinitionValidation.validate(definition)
+        }
         let existing = (fixtureLibrary?.definitions ?? []) + userFixtureDefinitions
         var identities = Set(existing.map(Self.fixtureModeIdentity))
         var ids = Set((existing + session.project.fixtureDefinitions).map(\.id))
@@ -355,7 +388,12 @@ final class ProjectController: ObservableObject {
         try UserFixtureLibraryStore.add(defs)
         try reloadUserFixtureLibrary()
         statusMessage = "Imported \(defs.count) mode(s) into User Library from \(sourceName)"
-        onLog?(statusMessage)
+        PrismLog.notice(
+            .fixtureImport,
+            "fixture.import.completed",
+            statusMessage,
+            metadata: ["count": .count(defs.count)]
+        )
         objectWillChange.send()
         return defs.count
     }
@@ -367,10 +405,43 @@ final class ProjectController: ObservableObject {
     }
 
     func presentError(_ error: Error, title: String) {
-        let alert = NSAlert()
-        alert.messageText = title
-        alert.informativeText = error.localizedDescription
-        alert.alertStyle = .warning
-        alert.runModal()
+        let lowered = title.lowercased()
+        let style: NSAlert.Style = (lowered.contains("save") || lowered.contains("open") || lowered.contains("import"))
+            ? .critical : .warning
+        let context: PrismErrorContext
+        if lowered.contains("save") && !lowered.contains("autosave") {
+            context = .projectSave()
+        } else if lowered.contains("open") {
+            context = .projectOpen()
+        } else if lowered.contains("import") && lowered.contains("library") {
+            context = PrismErrorContext(
+                operation: title,
+                category: .fixtureLibrary,
+                fallbackTitle: title,
+                fallbackMessage: PrismErrorReporting.userFacingMessage(for: error),
+                eventCode: "fixture.library.import_failed"
+            )
+        } else if lowered.contains("export") && lowered.contains("library") {
+            context = PrismErrorContext(
+                operation: title,
+                category: .fixtureLibrary,
+                fallbackTitle: title,
+                fallbackMessage: PrismErrorReporting.userFacingMessage(for: error),
+                eventCode: "fixture.library.export_failed"
+            )
+        } else if lowered.contains("import") {
+            context = .projectImport()
+        } else if lowered.contains("effects") {
+            context = .command(operation: "update effects", category: .engineEffects)
+        } else {
+            context = PrismErrorContext(
+                operation: title,
+                category: .projectDocument,
+                fallbackTitle: title,
+                fallbackMessage: PrismErrorReporting.userFacingMessage(for: error),
+                eventCode: "project.command.failed"
+            )
+        }
+        ErrorPresenter.present(error: error, context: context, style: style)
     }
 }

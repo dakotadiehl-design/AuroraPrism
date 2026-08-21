@@ -194,6 +194,12 @@ public enum PerformanceCuePresentation {
                 if playback.cueIndex >= 0, list.cues.indices.contains(playback.cueIndex) {
                     return playback.cueIndex
                 }
+                // A loaded playback list parks at -1 before its first GO. The
+                // list identity is authoritative, so cue 0 is safely NEXT;
+                // this is not a fallback to an unrelated project list.
+                if playback.cueIndex == -1, playback.cueID == nil, current.cueID == nil {
+                    return -1
+                }
                 return nil
             }()
             if let currentIndex, currentIndex + 1 < list.cues.count {

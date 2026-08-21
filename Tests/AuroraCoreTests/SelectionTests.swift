@@ -84,6 +84,33 @@ final class SelectionTests: XCTestCase {
         XCTAssertEqual(manager.snapshot.orderedFixtureIDs, [a, c, b])
     }
 
+    func testElementSelectionKeepsPhysicalFixtureProjection() {
+        let manager = SelectionManager()
+        let fixture = UUID()
+        let first = FixtureTarget.cell(fixtureID: fixture, index: 0)
+        let fourth = FixtureTarget.cell(fixtureID: fixture, index: 3)
+
+        manager.selectFixtureTargetsOrdered([first, fourth])
+
+        XCTAssertEqual(manager.snapshot.orderedFixtureTargets, [first, fourth])
+        XCTAssertEqual(manager.snapshot.orderedFixtureIDs, [fixture])
+        XCTAssertEqual(manager.snapshot.fixtureIDs, [fixture])
+    }
+
+    func testElementAndWholeFixtureTargetsCanNeverCoexistForOneFixture() {
+        let manager = SelectionManager()
+        let fixture = UUID()
+        let first = FixtureTarget(fixtureID: fixture, elementID: "element-0")
+        let second = FixtureTarget(fixtureID: fixture, elementID: "element-1")
+
+        manager.selectFixtureTargetsOrdered([FixtureTarget(fixtureID: fixture)])
+        manager.selectFixtureTargetsOrdered([first, second], extending: true)
+        XCTAssertEqual(manager.snapshot.fixtureTargets, [first, second])
+
+        manager.selectFixtureTargetsOrdered([FixtureTarget(fixtureID: fixture)], extending: true)
+        XCTAssertEqual(manager.snapshot.fixtureTargets, [FixtureTarget(fixtureID: fixture)])
+    }
+
     func testRemoveSelectedFixturePrunesSelection() throws {
         let (project, fixtureID) = projectWithFixture()
         let session = DocumentSession(project: project)

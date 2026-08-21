@@ -8,7 +8,7 @@
 	<!-- Art-Net, sACN, OSC client, remote, RTP-MIDI outbound -->
 	<key>com.apple.security.network.client</key>
 	<true/>
-	<!-- OSC :9000, remote TCP :8742, web :8743, sACN multicast, RTP-MIDI -->
+	<!-- OSC :9000, ACP WebSocket :27421, sACN multicast, RTP-MIDI -->
 	<key>com.apple.security.network.server</key>
 	<true/>
 	<!-- Open/Save .aurora packages and fixture JSON via panels -->

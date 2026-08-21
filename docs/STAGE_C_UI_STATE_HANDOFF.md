@@ -16,7 +16,7 @@
 | `ShowControlController` | `ShowControlController.swift` | `LightingEngine`, `ControlActionRouter`, `SongDirector`, transport, `PerformanceSnapshot` |
 | `InputController` | `InputController.swift` | CoreMIDI, learn, RTP-MIDI, OSC, MIDI log/status |
 | `OutputController` | `OutputController.swift` | `OutputManager`, Art-Net/sACN drivers & config, output status line |
-| `RemoteController` | `RemoteController.swift` | TCP/web remote host, PIN enable, lock, kick, remote snapshots |
+| `PrismACPController` | `PrismACPController.swift` | ACP lifecycle, identity, Bonjour, WebSocket, no PIN/TCP/HTTP |
 | `DiagnosticsController` | `DiagnosticsController.swift` | `DiagnosticsStore`, console log, validation issue count |
 | `WorkspaceController` | `WorkspaceController.swift` | Panel layout, Build/Perform mode |
 | `AppSettingsStore` | `AppSettingsStore.swift` | App-global prefs (frame rate, console timestamps) |
@@ -33,7 +33,7 @@ Built ~4 Hz (status timer) and after transport — **not** every engine frame.
 
 Fields: show name, dirty, engine running, frame index/rate, cue index/name/list, playback phase, `SongPerformanceSnapshot`, validation issue count, output status line, active channel count.
 
-**Consumers:** Mac Perform chrome, status bar, remote `RemoteSnapshot` construction.
+**Consumers:** Mac Perform chrome, status bar, ACP `prism.*` state projections.
 
 ### `SongPerformanceSnapshot`
 

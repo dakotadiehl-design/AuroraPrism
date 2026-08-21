@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import SwiftUI
 
 /// Rich look / preset tile — creative object, not a settings button.

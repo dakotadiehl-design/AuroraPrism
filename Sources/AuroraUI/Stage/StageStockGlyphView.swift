@@ -1,3 +1,4 @@
+import AuroraDesignSystem
 import SwiftUI
 #if canImport(AppKit)
 import AppKit
@@ -33,11 +34,12 @@ public struct StageStockGlyphView: View {
             if let asset, let nsImage = catalog.image(for: asset) {
                 Image(nsImage: nsImage)
                     .resizable()
+                    .renderingMode(.template)
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fit)
                     .frame(width: size.width, height: size.height)
+                    .foregroundStyle(Color(red: 0.52, green: 0.59, blue: 0.66))
                     .opacity(opacity)
-                    .colorMultiply(Color.white)
             } else {
                 missingPlaceholder
             }
