@@ -654,8 +654,8 @@ struct AuroraApp: App {
                 Button(appModel.settings.remoteAccessEnabled ? "Disable ACP Remote" : "Enable ACP Remote") {
                     appModel.applyRemoteFromSettings(enabled: !appModel.settings.remoteAccessEnabled)
                 }
-                Button("Revoke All ACP Clients") {
-                    appModel.kickAllRemoteClients()
+                Button("Disable ACP and Disconnect Clients") {
+                    appModel.disconnectAllACPClients()
                 }
             }
 

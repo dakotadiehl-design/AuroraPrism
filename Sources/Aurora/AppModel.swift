@@ -1155,8 +1155,8 @@ final class AppModel: ObservableObject {
         let node = await acp.service.diagnostics().nodeID
         guard !node.isEmpty else { return }
         let state = PrismACPAuthoritativeState(
-            authorityEpoch: 1,
-            revision: 1,
+            authorityEpoch: acp.authorityEpoch,
+            revision: acp.nextAuthoritativeRevision(),
             showID: session.project.workspaceLayoutId?.uuidString.lowercased()
                 ?? PrismACPDiagnosticIdentifier.stableUUID(seed: document.documentURL?.standardizedFileURL.path ?? session.project.metadata.name),
             showName: session.project.metadata.name
@@ -1191,12 +1191,11 @@ final class AppModel: ObservableObject {
         applyRemoteFromSettings(enabled: enabled)
     }
 
-    func kickAllRemoteClients() {
+    func disconnectAllACPClients() {
         Task { @MainActor in
             await acp.stop()
-            if settings.remoteAccessEnabled {
-                await acp.setEnabled(true)
-            }
+            settings.remoteAccessEnabled = false
+            settings.save()
             notifyUI()
         }
     }

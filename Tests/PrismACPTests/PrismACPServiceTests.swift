@@ -12,44 +12,80 @@ final class PrismACPServiceTests: XCTestCase {
         XCTAssertTrue(silent)
     }
 
-    func testEnabledServiceWithoutACPProvisionedIdentityFailsClosed() async {
+    func testEnabledServiceWithoutQualifiedProviderManifestFailsClosed() async {
         let service = PrismACPService(configuration: PrismACPConfiguration(enabled: true))
         do {
             try await service.start()
-            XCTFail("Secure startup must not succeed without ACP-owned identity material")
+            XCTFail("Secure startup must not succeed without qualified provenance")
         } catch {
-            XCTAssertEqual(error as? PrismACPBlocker, .secureIdentityUnavailable)
+            XCTAssertEqual(error as? PrismACPBlocker, .providerManifestMissing)
         }
         let diagnostics = await service.diagnostics()
         XCTAssertEqual(diagnostics.listenerState, .blocked)
-        XCTAssertEqual(diagnostics.blocker, .secureIdentityUnavailable)
+        XCTAssertEqual(diagnostics.blocker, .providerManifestMissing)
         let silent = await service.isNetworkSilent()
         XCTAssertTrue(silent)
     }
 
-    func testRepeatedStopIsIdempotentAndClearsPendingEnrollment() async {
+    func testRepeatedStopIsIdempotentAndNetworkSilent() async {
         let service = PrismACPService(configuration: PrismACPConfiguration(enabled: false))
         await service.stop()
         await service.stop()
         let silent = await service.isNetworkSilent()
         XCTAssertTrue(silent)
         let state = await service.enrollment.state
-        XCTAssertEqual(state, .unavailable(.enrollmentBootstrapUnavailable))
+        XCTAssertEqual(state, .idle)
     }
 
-    func testEnrollmentCannotApproveOrRejectWithoutACPProtocolCoordinator() async {
-        let model = PrismACPEnrollmentPresentationModel()
+    func testInvalidProviderManifestFailsClosedBeforeHostBootstrap() async {
+        let service = PrismACPService(configuration: PrismACPConfiguration(
+            enabled: true,
+            providerProvenanceJSON: Data("{}".utf8),
+            expectedProviderSourceRevision: String(repeating: "a", count: 40)))
         do {
-            try await model.approve(UUID())
-            XCTFail("Approval must remain unavailable")
+            try await service.start()
+            XCTFail("Malformed provenance must not reach host bootstrap")
         } catch {
-            XCTAssertEqual(error as? PrismACPBlocker, .enrollmentBootstrapUnavailable)
+            XCTAssertEqual(error as? PrismACPBlocker, .providerManifestInvalid)
         }
+        let silent = await service.isNetworkSilent()
+        XCTAssertTrue(silent)
+    }
+
+    func testQualifiedProviderRevisionMismatchFailsClosed() async {
+        let manifest = """
+        {"schema_version":"1.0","adapter_id":"apple-full","source_revision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","provider":{"name":"Apple","version":"1"},"target_triple":"arm64-apple-macosx14.0","profiles":["full"],"key_storage_classes":["secure_enclave","keychain"],"qualification":{"status":"PASS","artifact_sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}
+        """
+        let service = PrismACPService(configuration: PrismACPConfiguration(
+            enabled: true,
+            providerProvenanceJSON: Data(manifest.utf8),
+            expectedProviderSourceRevision: String(repeating: "c", count: 40)))
         do {
-            try await model.reject(UUID())
-            XCTFail("Rejection must remain unavailable")
+            try await service.start()
+            XCTFail("Mismatched qualification revision must fail closed")
         } catch {
-            XCTAssertEqual(error as? PrismACPBlocker, .enrollmentBootstrapUnavailable)
+            XCTAssertEqual(error as? PrismACPBlocker, .providerRevisionMismatch)
+        }
+        let silent = await service.isNetworkSilent()
+        XCTAssertTrue(silent)
+    }
+
+    func testEveryRegisteredMessageHasDeterministicDisposition() {
+        XCTAssertFalse(ACPRegistry.rows.isEmpty)
+        for type in ACPRegistry.rows.keys {
+            switch PrismACPService.disposition(for: type) {
+            case .allowedReadOnly, .reject, .protocolInternal, .close: break
+            }
+        }
+        XCTAssertEqual(PrismACPService.disposition(for: "future.unknown") == .close, true)
+        let mutations = [
+            "remote.control.invoke", "remote.momentary.begin",
+            "remote.momentary.refresh", "remote.momentary.end",
+            "remote.navigation.song", "remote.navigation.section",
+            "remote.navigation.cue", "remote.transport", "remote.busking",
+        ]
+        for type in mutations where ACPRegistry.lookup(type) != nil {
+            XCTAssertEqual(PrismACPService.disposition(for: type), .reject, type)
         }
     }
 

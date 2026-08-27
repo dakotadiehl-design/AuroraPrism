@@ -1,36 +1,55 @@
+import AuroraACP
+import AuroraACPAppleSecurity
 import Foundation
 
+public enum PrismACPEnrollmentCode: Sendable, Equatable {
+    case highEntropy(String)
+    case manualNumeric(String)
+
+    func secret() throws -> ACPAppleEnrollmentBootstrapSecret {
+        switch self {
+        case .highEntropy(let value): return try .highEntropyCode(value)
+        case .manualNumeric(let value): return try .manualNumericCode(value)
+        }
+    }
+}
+
 public struct PrismACPEnrollmentRequest: Sendable, Equatable, Identifiable {
-    public let id: UUID
+    public let id: ACPEnrollmentAttemptID
     public let displayName: String?
-    public let nodeID: String?
-    public let expiresAt: Date?
+    public let nodeID: ACPSecurityNodeID
+    public let requestedRole: String
+    public let expiresAt: Date
+
+    init(_ request: ACPAppleEnrollmentRequestSummary) {
+        id = request.requestID
+        displayName = request.displayName
+        nodeID = request.candidateNodeID
+        requestedRole = request.requestedRole
+        expiresAt = request.expiresAt
+    }
 }
 
 public enum PrismACPEnrollmentPresentationState: Sendable, Equatable {
     case unavailable(PrismACPBlocker)
     case idle
     case pending([PrismACPEnrollmentRequest])
-    case resolving(UUID)
+    case resolving(ACPEnrollmentAttemptID)
 }
 
-/// Human-decision boundary only. ACP must supply the cryptographic coordinator
-/// before requests can enter this model; Prism never auto-approves a peer.
+/// Presentation-only projection. The original ACP attempt identifier is
+/// retained; all durable decisions and cryptographic work remain host-owned.
 public actor PrismACPEnrollmentPresentationModel {
-    public private(set) var state: PrismACPEnrollmentPresentationState =
-        .unavailable(.enrollmentBootstrapUnavailable)
+    public private(set) var state: PrismACPEnrollmentPresentationState = .idle
 
     public init() {}
 
-    public func serviceStopped() {
-        state = .unavailable(.enrollmentBootstrapUnavailable)
+    func update(_ requests: [ACPAppleEnrollmentRequestSummary]) {
+        let values = requests.map(PrismACPEnrollmentRequest.init)
+        state = values.isEmpty ? .idle : .pending(values)
     }
 
-    public func approve(_ id: UUID) throws {
-        throw PrismACPBlocker.enrollmentBootstrapUnavailable
-    }
-
-    public func reject(_ id: UUID) throws {
-        throw PrismACPBlocker.enrollmentBootstrapUnavailable
-    }
+    func resolving(_ id: ACPEnrollmentAttemptID) { state = .resolving(id) }
+    func unavailable(_ blocker: PrismACPBlocker) { state = .unavailable(blocker) }
+    func serviceStopped() { state = .idle }
 }

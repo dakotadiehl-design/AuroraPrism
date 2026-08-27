@@ -517,6 +517,10 @@ private struct SettingsRemoteTab: View {
     @EnvironmentObject private var appModel: AppModel
     @State private var draftPort: String = "27421"
     @State private var portError: String?
+    @State private var enrollmentID = ""
+    @State private var candidateNodeID = ""
+    @State private var candidateName = ""
+    @State private var bootstrapCode = ""
 
     var body: some View {
         Form {
@@ -575,11 +579,63 @@ private struct SettingsRemoteTab: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
-            Section("Clients") {
-                Button("Revoke all clients") {
-                    appModel.kickAllRemoteClients()
+            Section("Enrollment") {
+                TextField("Enrollment ID", text: $enrollmentID)
+                TextField("Candidate node ID", text: $candidateNodeID)
+                TextField("Device name (optional)", text: $candidateName)
+                SecureField("Bootstrap code", text: $bootstrapCode)
+                Button("Begin secure enrollment") {
+                    let id = enrollmentID
+                    let node = candidateNodeID
+                    let name = candidateName.isEmpty ? nil : candidateName
+                    let code = bootstrapCode
+                    bootstrapCode = ""
+                    Task { await appModel.acp.beginEnrollment(
+                        enrollmentID: id, candidateNodeID: node,
+                        displayName: name, code: code) }
                 }
-                .controlSize(.small)
+                .disabled(!appModel.acp.isRunning || enrollmentID.isEmpty
+                          || candidateNodeID.isEmpty || bootstrapCode.isEmpty)
+                ForEach(appModel.acp.pendingEnrollments) { request in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(request.displayName ?? request.nodeID.rawValue)
+                        Text("Role: \(request.requestedRole) · expires \(request.expiresAt.formatted())")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        HStack {
+                            Button("Approve") {
+                                Task { await appModel.acp.approveEnrollment(request.id) }
+                            }
+                            Button("Reject", role: .destructive) {
+                                Task { await appModel.acp.rejectEnrollment(request.id) }
+                            }
+                            Button("Cancel") {
+                                Task { await appModel.acp.cancelEnrollment(request.id) }
+                            }
+                        }
+                    }
+                }
+            }
+            Section("Clients") {
+                if appModel.acp.trustedPeers.isEmpty {
+                    Text("No trusted ACP clients")
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(appModel.acp.trustedPeers) { peer in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(peer.displayName ?? peer.nodeID)
+                            Text(peer.state)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Revoke", role: .destructive) {
+                            Task { await appModel.acp.revokePeer(peer.credentialID) }
+                        }
+                        .disabled(peer.state == "revoked")
+                    }
+                }
             }
         }
         .formStyle(.grouped)

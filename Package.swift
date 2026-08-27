@@ -109,6 +109,7 @@ let package = Package(
                 "AuroraMusical",
                 "AuroraDiagnostics",
                 "PrismACP",
+                .product(name: "AuroraACP", package: "AuroraCommunicationsProtocol"),
                 .product(name: "AuroraDesignSystem", package: "AuroraDesignSystem"),
             ]
         ),
