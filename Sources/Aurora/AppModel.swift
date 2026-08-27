@@ -128,14 +128,6 @@ final class AppModel: ObservableObject {
                 await self?.publishACPState()
             }
         }
-        Task {
-            await acp.service.installHostExecutor { request in
-                await MainActor.run {
-                    showControl.executeACPControl(request)
-                }
-            }
-        }
-
         // C5.1: wire float window coordinator → workspace frame / redock policy.
         floatWindows.isTerminating = { [weak self] in self?.isTerminating == true }
         floatWindows.onFrameChanged = { [weak self] surface, frame, screenID, screenName in
@@ -1162,24 +1154,12 @@ final class AppModel: ObservableObject {
     func publishACPState() async {
         let node = await acp.service.diagnostics().nodeID
         guard !node.isEmpty else { return }
-        let perf = showControl.performance
-        // Use the same live playback projection used by ACP precondition
-        // evaluation. Presentation/frame snapshots may lag a semantic GO.
-        let cues = showControl.authoritativeCueState()
         let state = PrismACPAuthoritativeState(
-            authorityEpoch: showControl.authorityEpoch,
-            revision: showControl.stateRevision,
+            authorityEpoch: 1,
+            revision: 1,
             showID: session.project.workspaceLayoutId?.uuidString.lowercased()
-                ?? PrismACPRemoteProfile.stableUUID(seed: document.documentURL?.standardizedFileURL.path ?? session.project.metadata.name),
-            showName: session.project.metadata.name,
-            engineRunning: engine.isRunning,
-            currentCueID: cues.current.cueID?.uuidString.lowercased() ?? "",
-            currentCueName: cues.current.name,
-            nextCueID: cues.next.cueID?.uuidString.lowercased() ?? "",
-            nextCueName: cues.next.name,
-            outputStatus: output.outputStatus,
-            masterIntensity: engine.globalShowControl.masterIntensity,
-            blackout: perf.blackout
+                ?? PrismACPDiagnosticIdentifier.stableUUID(seed: document.documentURL?.standardizedFileURL.path ?? session.project.metadata.name),
+            showName: session.project.metadata.name
         )
         _ = node
         await acp.service.noteAuthoritativeState(state)
@@ -1193,25 +1173,12 @@ final class AppModel: ObservableObject {
         }
         let on = settings.remoteAccessEnabled
         let discovery = settings.acpDiscoveryEnabled
-        let port = settings.acpWebSocketPort
-        let loopback = settings.remoteAccessMode == .thisMacOnly
-        let operatorNodeIDs = Set(settings.acpOperatorNodeIDsText
-            .split(whereSeparator: { $0 == "," || $0.isWhitespace })
-            .map { String($0).lowercased() })
-        let blackoutClearNodeIDs = Set(settings.acpBlackoutClearNodeIDsText
-            .split(whereSeparator: { $0 == "," || $0.isWhitespace })
-            .map { String($0).lowercased() })
-            .intersection(operatorNodeIDs)
-        let controlEnabled = settings.acpShowControlEnabled && !operatorNodeIDs.isEmpty
+        let port = settings.acpPort
         Task { @MainActor in
             await acp.apply(
                 enabled: on,
                 discovery: discovery,
-                port: port,
-                loopbackOnly: loopback,
-                advertiseControl: controlEnabled,
-                operatorNodeIDs: operatorNodeIDs,
-                blackoutClearNodeIDs: blackoutClearNodeIDs
+                port: port
             )
             if on {
                 await publishACPState()

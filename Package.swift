@@ -91,6 +91,7 @@ let package = Package(
             dependencies: [
                 "AuroraDiagnostics",
                 .product(name: "AuroraACP", package: "AuroraCommunicationsProtocol"),
+                .product(name: "AuroraACPAppleSecurity", package: "AuroraCommunicationsProtocol"),
             ]
         ),
 
@@ -161,6 +162,7 @@ let package = Package(
                 "PrismACP",
                 "AuroraDiagnostics",
                 .product(name: "AuroraACP", package: "AuroraCommunicationsProtocol"),
+                .product(name: "AuroraACPAppleSecurity", package: "AuroraCommunicationsProtocol"),
             ]
         ),
         .testTarget(

@@ -2,74 +2,57 @@ import Combine
 import Foundation
 import PrismACP
 
-/// App-owned ACP lifecycle. Does not construct snapshots on a timer.
+/// Main-actor presentation bridge for the secure, read-only ACP host.
 @MainActor
 final class PrismACPController: ObservableObject {
     @Published private(set) var status: String = "ACP: off"
-    @Published private(set) var isRunning: Bool = false
-    @Published private(set) var nodeID: String = ""
+    @Published private(set) var isRunning = false
+    @Published private(set) var nodeID = ""
+    @Published private(set) var enrollmentStatus = "Enrollment unavailable: ACP public bootstrap API required"
 
     let service: PrismACPService
+    private let secureHostMaterial: PrismACPSecureHostMaterial?
 
-    init(applicationSupportDirectory: URL? = nil) {
-        let support = applicationSupportDirectory ?? FileManager.default.urls(
-            for: .applicationSupportDirectory, in: .userDomainMask
-        ).first!.appendingPathComponent("Prism/ACP", isDirectory: true)
-        service = PrismACPService(
-            configuration: PrismACPConfiguration(
-                enabled: false,
-                discoveryEnabled: false,
-                advertiseControl: false,
-                applicationSupportDirectory: support
-            )
-        )
+    init(secureHostMaterial: PrismACPSecureHostMaterial? = nil) {
+        self.secureHostMaterial = secureHostMaterial
+        service = PrismACPService(configuration: PrismACPConfiguration())
     }
 
     func setEnabled(_ enabled: Bool) async {
-        await apply(enabled: enabled, discovery: false, port: 27421, loopbackOnly: true)
+        await apply(enabled: enabled, discovery: false, port: 27421)
     }
 
-    func apply(
-        enabled: Bool,
-        discovery: Bool,
-        port: UInt16,
-        loopbackOnly: Bool,
-        advertiseControl: Bool = false,
-        operatorNodeIDs: Set<String> = [],
-        blackoutClearNodeIDs: Set<String> = []
-    ) async {
+    func apply(enabled: Bool, discovery: Bool, port: UInt16) async {
         do {
-            // A claimed node ID is sufficient for local integration testing,
-            // but not for LAN control until ACP transport trust/pairing binds
-            // that identity cryptographically. Keep LAN mutation fail-closed.
-            let trustedControl = advertiseControl && loopbackOnly && !operatorNodeIDs.isEmpty
-            try await service.applyConfiguration(
-                PrismACPConfiguration(
-                    enabled: enabled,
-                    discoveryEnabled: discovery,
-                    advertiseControl: trustedControl,
-                    operatorNodeIDs: operatorNodeIDs,
-                    blackoutClearNodeIDs: blackoutClearNodeIDs,
-                    webSocketPort: port,
-                    loopbackOnly: loopbackOnly,
-                    applicationSupportDirectory: FileManager.default.urls(
-                        for: .applicationSupportDirectory, in: .userDomainMask
-                    ).first!.appendingPathComponent("Prism/ACP", isDirectory: true)
-                )
-            )
-            let diag = await service.diagnostics()
-            isRunning = diag.listenerState == .ready
-            nodeID = diag.nodeID
-            status = isRunning ? (trustedControl ? "ACP: ready · GO enabled" : "ACP: ready · view only") : "ACP: off"
+            try await service.applyConfiguration(PrismACPConfiguration(
+                enabled: enabled,
+                discoveryEnabled: discovery,
+                port: port,
+                secureHostMaterial: secureHostMaterial
+            ))
+            await refresh()
+        } catch let blocker as PrismACPBlocker {
+            await refresh()
+            status = "ACP: blocked · \(blocker.rawValue)"
         } catch {
-            isRunning = false
-            status = "ACP: failed"
+            await refresh()
+            status = "ACP: failed securely"
         }
     }
 
     func stop() async {
         await service.stop()
-        isRunning = false
-        status = "ACP: off"
+        await refresh()
+    }
+
+    private func refresh() async {
+        let diagnostics = await service.diagnostics()
+        isRunning = diagnostics.isRunning
+        nodeID = diagnostics.nodeID
+        if let blocker = diagnostics.blocker {
+            status = "ACP: blocked · \(blocker.rawValue)"
+        } else {
+            status = isRunning ? "ACP: secure · read only" : "ACP: off"
+        }
     }
 }

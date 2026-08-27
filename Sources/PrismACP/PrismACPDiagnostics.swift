@@ -1,26 +1,43 @@
 import Foundation
 
 public struct PrismACPDiagnostics: Sendable, Equatable {
-    public var enabled: Bool
     public var listenerState: PrismACPListenerState
-    public var sessionCount: Int
+    public var discoveryActive: Bool
+    public var enrollmentAvailable: Bool
+    public var authenticatedSessionCount: Int
     public var nodeID: String
     public var instanceID: String
-    public var advertisedCapabilities: [String]
+    public var boundPort: UInt16?
+    public var lastConnectionFailure: String?
+    public var lastAuthenticationFailure: String?
+    public var lastDisconnectReason: String?
+    public var blocker: PrismACPBlocker?
+
+    public var isRunning: Bool { listenerState == .ready }
 
     public init(
-        enabled: Bool,
-        listenerState: PrismACPListenerState,
-        sessionCount: Int,
-        nodeID: String,
-        instanceID: String,
-        advertisedCapabilities: [String]
+        listenerState: PrismACPListenerState = .stopped,
+        discoveryActive: Bool = false,
+        enrollmentAvailable: Bool = false,
+        authenticatedSessionCount: Int = 0,
+        nodeID: String = "",
+        instanceID: String = "",
+        boundPort: UInt16? = nil,
+        lastConnectionFailure: String? = nil,
+        lastAuthenticationFailure: String? = nil,
+        lastDisconnectReason: String? = nil,
+        blocker: PrismACPBlocker? = nil
     ) {
-        self.enabled = enabled
         self.listenerState = listenerState
-        self.sessionCount = sessionCount
+        self.discoveryActive = discoveryActive
+        self.enrollmentAvailable = enrollmentAvailable
+        self.authenticatedSessionCount = authenticatedSessionCount
         self.nodeID = nodeID
         self.instanceID = instanceID
-        self.advertisedCapabilities = advertisedCapabilities
+        self.boundPort = boundPort
+        self.lastConnectionFailure = lastConnectionFailure
+        self.lastAuthenticationFailure = lastAuthenticationFailure
+        self.lastDisconnectReason = lastDisconnectReason
+        self.blocker = blocker
     }
 }

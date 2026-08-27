@@ -548,21 +548,8 @@ private struct SettingsRemoteTab: View {
                         }
                     }
                 ))
-                Picker("Network scope", selection: Binding(
-                    get: { appModel.settings.remoteAccessMode },
-                    set: { mode in
-                        appModel.settings.remoteAccessMode = mode
-                        appModel.settings.save()
-                        if appModel.settings.remoteAccessEnabled {
-                            appModel.applyRemoteFromSettings()
-                        }
-                    }
-                )) {
-                    Text("This Mac only").tag(RemoteAccessMode.thisMacOnly)
-                    Text("Local network").tag(RemoteAccessMode.localNetwork)
-                }
                 HStack {
-                    Text("ACP WebSocket port")
+                    Text("Secure ACP port")
                     Spacer()
                     TextField("", text: $draftPort, prompt: Text("27421"))
                         .frame(width: 72)
@@ -578,37 +565,13 @@ private struct SettingsRemoteTab: View {
                     commitPort(apply: true)
                 }
                 .controlSize(.small)
-                Divider()
-                Toggle("Allow enrolled Remotes to control shows", isOn: Binding(
-                    get: { appModel.settings.acpShowControlEnabled },
-                    set: { enabled in
-                        appModel.settings.acpShowControlEnabled = enabled
-                        appModel.settings.save()
-                        if appModel.settings.remoteAccessEnabled { appModel.applyRemoteFromSettings() }
-                    }
-                ))
-                TextField("Enrolled ACP node ID", text: Binding(
-                    get: { appModel.settings.acpOperatorNodeIDsText },
-                    set: { appModel.settings.acpOperatorNodeIDsText = $0 }
-                ))
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit {
-                        appModel.settings.save()
-                        if appModel.settings.remoteAccessEnabled { appModel.applyRemoteFromSettings() }
-                    }
-                TextField("Node IDs separately authorized to clear blackout", text: Binding(
-                    get: { appModel.settings.acpBlackoutClearNodeIDsText },
-                    set: { appModel.settings.acpBlackoutClearNodeIDsText = $0 }
-                ))
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit {
-                        appModel.settings.save()
-                        if appModel.settings.remoteAccessEnabled { appModel.applyRemoteFromSettings() }
-                    }
-                Text("Show control remains unavailable until control is enabled, at least one Remote node ID is enrolled, the network scope is This Mac only, and ACP is applied/restarted. Clearing blackout requires the same node ID to be explicitly listed in the separate blackout-clear field. LAN control remains closed until ACP transport trust binds the enrolled identity.")
+                Text("This qualification host is read-only. ACP has no path to show control, blackout, output, or the lighting engine.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("Discovery never authenticates a client. Legacy PIN/TCP/HTTP remote is removed.")
+                Text(appModel.acp.enrollmentStatus)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                Text("Discovery is an endpoint hint only. TLS 1.3 mutual authentication is mandatory; no plaintext fallback is available.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -622,7 +585,7 @@ private struct SettingsRemoteTab: View {
         .formStyle(.grouped)
         .padding()
         .onAppear {
-            draftPort = String(appModel.settings.acpWebSocketPort)
+            draftPort = String(appModel.settings.acpPort)
         }
     }
 
@@ -633,7 +596,7 @@ private struct SettingsRemoteTab: View {
             return
         }
         portError = nil
-        if let p = parsed.0 { appModel.settings.acpWebSocketPort = p }
+        if let p = parsed.0 { appModel.settings.acpPort = p }
         appModel.settings.save()
         if apply, appModel.settings.remoteAccessEnabled {
             appModel.applyRemoteFromSettings()
