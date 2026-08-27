@@ -85,7 +85,6 @@ final class AppModel: ObservableObject {
     var consoleLog: [String] { diagnostics.consoleLog }
     var oscStatus: String { input.oscStatus }
     var isOSCEnabled: Bool { input.isOSCEnabled }
-    var remoteStatus: String { "Remote networking unavailable" }
     var engine: LightingEngine { showControl.engine }
     var songDirector: SongDirector { showControl.songDirector }
     var midiLearn: MIDILearnSession { input.midiLearn }

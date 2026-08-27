@@ -103,18 +103,4 @@ final class AppSettingsStore: ObservableObject {
         save()
     }
 
-    /// SET-01: validate port without silent coercion. Returns error message or nil.
-    static func validatePort(_ text: String) -> (UInt16?, String?) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return (nil, "Port is required")
-        }
-        guard let value = Int(trimmed) else {
-            return (nil, "Port must be a number")
-        }
-        guard value >= 1, value <= 65535 else {
-            return (nil, "Port must be 1–65535")
-        }
-        return (UInt16(value), nil)
-    }
 }

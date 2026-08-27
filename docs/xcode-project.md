@@ -88,7 +88,7 @@ File: `App/Aurora.entitlements`
 | Entitlement | Value | Justification |
 |-------------|-------|----------------|
 | `com.apple.security.app-sandbox` | `true` | Production isolation; path toward notarization |
-| `com.apple.security.network.client` | `true` | Outbound Art-Net, sACN, OSC, remote, RTP-MIDI |
+| `com.apple.security.network.client` | `true` | Outbound Art-Net, sACN, OSC, and RTP-MIDI |
 | `com.apple.security.network.server` | `true` | Listen for OSC, sACN multicast, and RTP-MIDI sessions |
 | `com.apple.security.files.user-selected.read-write` | `true` | Open/Save `.aurora` and fixture import via panels |
 | `com.apple.security.files.bookmarks.app-scope` | `true` | **Reserved** for future security-scoped bookmark persistence. **Not implemented yet** — open/save use the panel sandbox extension for the current session only. Do not document Recent Shows as bookmark-backed until a store exists. |
