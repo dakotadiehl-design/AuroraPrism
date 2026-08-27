@@ -123,14 +123,13 @@
 	<false/>
 	<key>NSSupportsSuddenTermination</key>
 	<false/>
-	<!-- Local network: Art-Net, sACN, remote companion, OSC, RTP-MIDI -->
+	<!-- Local network: Art-Net, sACN, OSC, RTP-MIDI -->
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Prism uses the local network for Art-Net and sACN lighting output, OSC control, RTP-MIDI, and ACP remote access.</string>
+	<string>Prism uses the local network for Art-Net and sACN lighting output, OSC control, and RTP-MIDI.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_osc._udp</string>
 		<string>_apple-midi._udp</string>
-		<string>_acp._tcp</string>
 	</array>
 </dict>
 </plist>

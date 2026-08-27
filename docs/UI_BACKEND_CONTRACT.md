@@ -18,7 +18,7 @@ Do **not** invent controls for unimplemented behavior. Do **not** bypass command
 | Transport, programmer, song, performance chrome | `ShowControlController` (`showControl`) |
 | MIDI / OSC / RTP / learn / MIDI log | `InputController` (`input`) |
 | Art-Net / sACN / output health | `OutputController` (`output`) |
-| ACP remote | `PrismACPController` (`acp`) |
+| Remote control | Temporarily unavailable; no network adapter is attached |
 | Console / typed events | `DiagnosticsController` (`diagnostics`) |
 | Build vs Perform, panel layout | `WorkspaceController` (`workspace`) |
 | App frame rate, console prefs | `AppSettingsStore` (`settings`) |

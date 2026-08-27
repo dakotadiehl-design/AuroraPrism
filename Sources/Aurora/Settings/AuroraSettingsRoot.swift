@@ -514,149 +514,18 @@ private struct SettingsOutputTab: View {
 // MARK: - Remote
 
 private struct SettingsRemoteTab: View {
-    @EnvironmentObject private var appModel: AppModel
-    @State private var draftPort: String = "27421"
-    @State private var portError: String?
-    @State private var enrollmentID = ""
-    @State private var candidateNodeID = ""
-    @State private var candidateName = ""
-    @State private var bootstrapCode = ""
-
     var body: some View {
         Form {
             settingsScopeHeader("APPLICATION")
-            Section("ACP remote access") {
-                Text(appModel.acp.status)
-                    .font(.body.monospaced())
-                Text(appModel.acp.isRunning ? "Runtime: running" : "Runtime: stopped")
-                    .font(.caption)
-                    .foregroundStyle(appModel.acp.isRunning ? Color.secondary : Color.orange)
-                if !appModel.acp.nodeID.isEmpty {
-                    Text("Identity: \(appModel.acp.nodeID)")
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
-                }
-                Toggle("Enable ACP remote access", isOn: Binding(
-                    get: { appModel.settings.remoteAccessEnabled },
-                    set: { on in
-                        appModel.applyRemoteFromSettings(enabled: on)
-                    }
-                ))
-                Toggle("Bonjour discovery", isOn: Binding(
-                    get: { appModel.settings.acpDiscoveryEnabled },
-                    set: { on in
-                        appModel.settings.acpDiscoveryEnabled = on
-                        appModel.settings.save()
-                        if appModel.settings.remoteAccessEnabled {
-                            appModel.applyRemoteFromSettings()
-                        }
-                    }
-                ))
-                HStack {
-                    Text("Secure ACP port")
-                    Spacer()
-                    TextField("", text: $draftPort, prompt: Text("27421"))
-                        .frame(width: 72)
-                        .multilineTextAlignment(.trailing)
-                        .onSubmit { commitPort(apply: appModel.settings.remoteAccessEnabled) }
-                }
-                if let portError {
-                    Text(portError)
-                        .font(.caption)
-                        .foregroundStyle(Color.red)
-                }
-                Button("Apply / Restart ACP") {
-                    commitPort(apply: true)
-                }
-                .controlSize(.small)
-                Text("This qualification host is read-only. ACP has no path to show control, blackout, output, or the lighting engine.")
+            Section("Remote control") {
+                Label("Remote networking is temporarily unavailable", systemImage: "network.slash")
+                Text("Local lighting control and output remain available. A future rACP adapter will connect through Prism's existing semantic control boundary.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text(appModel.acp.enrollmentStatus)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                Text("Discovery is an endpoint hint only. TLS 1.3 mutual authentication is mandatory; no plaintext fallback is available.")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            Section("Enrollment") {
-                TextField("Enrollment ID", text: $enrollmentID)
-                TextField("Candidate node ID", text: $candidateNodeID)
-                TextField("Device name (optional)", text: $candidateName)
-                SecureField("Bootstrap code", text: $bootstrapCode)
-                Button("Begin secure enrollment") {
-                    let id = enrollmentID
-                    let node = candidateNodeID
-                    let name = candidateName.isEmpty ? nil : candidateName
-                    let code = bootstrapCode
-                    bootstrapCode = ""
-                    Task { await appModel.acp.beginEnrollment(
-                        enrollmentID: id, candidateNodeID: node,
-                        displayName: name, code: code) }
-                }
-                .disabled(!appModel.acp.isRunning || enrollmentID.isEmpty
-                          || candidateNodeID.isEmpty || bootstrapCode.isEmpty)
-                ForEach(appModel.acp.pendingEnrollments) { request in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(request.displayName ?? request.nodeID.rawValue)
-                        Text("Role: \(request.requestedRole) · expires \(request.expiresAt.formatted())")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        HStack {
-                            Button("Approve") {
-                                Task { await appModel.acp.approveEnrollment(request.id) }
-                            }
-                            Button("Reject", role: .destructive) {
-                                Task { await appModel.acp.rejectEnrollment(request.id) }
-                            }
-                            Button("Cancel") {
-                                Task { await appModel.acp.cancelEnrollment(request.id) }
-                            }
-                        }
-                    }
-                }
-            }
-            Section("Clients") {
-                if appModel.acp.trustedPeers.isEmpty {
-                    Text("No trusted ACP clients")
-                        .foregroundStyle(.secondary)
-                }
-                ForEach(appModel.acp.trustedPeers) { peer in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(peer.displayName ?? peer.nodeID)
-                            Text(peer.state)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button("Revoke", role: .destructive) {
-                            Task { await appModel.acp.revokePeer(peer.credentialID) }
-                        }
-                        .disabled(peer.state == "revoked")
-                    }
-                }
             }
         }
         .formStyle(.grouped)
         .padding()
-        .onAppear {
-            draftPort = String(appModel.settings.acpPort)
-        }
-    }
-
-    private func commitPort(apply: Bool) {
-        let parsed = AppSettingsStore.validatePort(draftPort)
-        if let err = parsed.1 {
-            portError = err
-            return
-        }
-        portError = nil
-        if let p = parsed.0 { appModel.settings.acpPort = p }
-        appModel.settings.save()
-        if apply, appModel.settings.remoteAccessEnabled {
-            appModel.applyRemoteFromSettings()
-        }
     }
 }
 

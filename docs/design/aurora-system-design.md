@@ -1,5 +1,7 @@
 # Aurora Lighting Control System — System Design
 
+> Historical architecture baseline: the ACP remote sections below describe the retired integration and are superseded by `AURORA_ACP_REMOVAL.md`. Prism currently has no remote network adapter. The protocol-neutral `ControlActionRouter` boundary remains the future rACP integration point.
+
 | Field | Value |
 |-------|--------|
 | **Status** | Draft (implementation-ready) |

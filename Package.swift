@@ -17,12 +17,10 @@ let package = Package(
         .library(name: "AuroraFixtureLib", targets: ["AuroraFixtureLib"]),
         .library(name: "AuroraDiagnostics", targets: ["AuroraDiagnostics"]),
         .library(name: "AuroraUI", targets: ["AuroraUI"]),
-        .library(name: "PrismACP", targets: ["PrismACP"]),
         .executable(name: "Aurora", targets: ["Aurora"]),
     ],
     dependencies: [
         .package(name: "AuroraDesignSystem", path: "../AuroraDesignSystem"),
-        .package(name: "AuroraCommunicationsProtocol", path: "../AuroraCommunicationsProtocol"),
     ],
     targets: [
         // MARK: - Libraries (dependency edges match system design §3.2 / PR1 doc §6)
@@ -86,15 +84,6 @@ let package = Package(
                 .copy("Resources/StageAssets"),
             ]
         ),
-        .target(
-            name: "PrismACP",
-            dependencies: [
-                "AuroraDiagnostics",
-                .product(name: "AuroraACP", package: "AuroraCommunicationsProtocol"),
-                .product(name: "AuroraACPAppleSecurity", package: "AuroraCommunicationsProtocol"),
-            ]
-        ),
-
         // MARK: - App (design name: AuroraApp)
         .executableTarget(
             name: "Aurora",
@@ -108,8 +97,6 @@ let package = Package(
                 "AuroraMIDI",
                 "AuroraMusical",
                 "AuroraDiagnostics",
-                "PrismACP",
-                .product(name: "AuroraACP", package: "AuroraCommunicationsProtocol"),
                 .product(name: "AuroraDesignSystem", package: "AuroraDesignSystem"),
             ]
         ),
@@ -158,15 +145,6 @@ let package = Package(
             dependencies: ["AuroraMIDI", "AuroraMusical", "AuroraDiagnostics"]
         ),
         .testTarget(
-            name: "PrismACPTests",
-            dependencies: [
-                "PrismACP",
-                "AuroraDiagnostics",
-                .product(name: "AuroraACP", package: "AuroraCommunicationsProtocol"),
-                .product(name: "AuroraACPAppleSecurity", package: "AuroraCommunicationsProtocol"),
-            ]
-        ),
-        .testTarget(
             name: "AuroraPackageSmokeTests",
             dependencies: [
                 "AuroraModel",
@@ -178,7 +156,6 @@ let package = Package(
                 "AuroraFixtureLib",
                 "AuroraDiagnostics",
                 "AuroraUI",
-                "PrismACP",
             ]
         ),
     ]

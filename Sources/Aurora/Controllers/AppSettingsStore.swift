@@ -18,14 +18,6 @@ struct LocalDMXPersistedPreference: Equatable, Codable, Sendable {
     )
 }
 
-/// Remote access preference (UI-08 A5 / REM-07).
-enum RemoteAccessMode: String, Codable, Sendable, CaseIterable {
-    /// Loopback only.
-    case thisMacOnly
-    /// All interfaces (presented honestly — not private-LAN-only filtering).
-    case localNetwork
-}
-
 /// True application-global preferences (not show-document settings).
 @MainActor
 final class AppSettingsStore: ObservableObject {
@@ -33,10 +25,6 @@ final class AppSettingsStore: ObservableObject {
     @Published var showConsoleTimestamps: Bool = true
     @Published var preferredDensity: String = "standard"
     @Published var localDMX: LocalDMXPersistedPreference = .empty
-    /// Remote remains off until operator enables (A5).
-    @Published var remoteAccessEnabled: Bool = false
-    @Published var acpPort: UInt16 = 27421
-    @Published var acpDiscoveryEnabled: Bool = false
     @Published var loggingConfiguration: PrismLogConfiguration = .productionDefaults
     /// Set when saved logging JSON is corrupt. Consumed after logger bootstrap.
     private(set) var pendingLoggingFallbackWarning = false
@@ -46,9 +34,6 @@ final class AppSettingsStore: ObservableObject {
     private let consoleTsKey = "aurora.app.showConsoleTimestamps"
     private let densityKey = "aurora.app.preferredDensity"
     private let localDMXKey = "aurora.app.localDMX.v1"
-    private let remoteEnabledKey = "aurora.app.remote.enabled"
-    private let acpPortKey = "prism.app.acp.port"
-    private let acpDiscoveryKey = "prism.app.acp.discovery"
     private let loggingKey = "prism.logging.configuration.v1"
 
     init(defaults: UserDefaults = .standard) {
@@ -66,19 +51,6 @@ final class AppSettingsStore: ObservableObject {
            let decoded = try? JSONDecoder().decode(LocalDMXPersistedPreference.self, from: data) {
             localDMX = decoded
         }
-        remoteAccessEnabled = defaults.bool(forKey: remoteEnabledKey)
-        if defaults.object(forKey: acpPortKey) != nil {
-            let p = defaults.integer(forKey: acpPortKey)
-            if p > 0, p < 65536 { acpPort = UInt16(p) }
-        }
-        acpDiscoveryEnabled = defaults.bool(forKey: acpDiscoveryKey)
-        defaults.removeObject(forKey: "aurora.app.remote.accessMode")
-        defaults.removeObject(forKey: "prism.app.acp.showControl")
-        defaults.removeObject(forKey: "prism.app.acp.operatorNodes")
-        defaults.removeObject(forKey: "prism.app.acp.blackoutClearNodes")
-        defaults.removeObject(forKey: "aurora.app.remote.port")
-        defaults.removeObject(forKey: "aurora.app.remote.webPort")
-        defaults.removeObject(forKey: "aurora.app.remote.pin")
         loadLoggingConfiguration()
     }
 
@@ -121,16 +93,6 @@ final class AppSettingsStore: ObservableObject {
         if let data = try? JSONEncoder().encode(localDMX) {
             defaults.set(data, forKey: localDMXKey)
         }
-        defaults.set(remoteAccessEnabled, forKey: remoteEnabledKey)
-        defaults.set(Int(acpPort), forKey: acpPortKey)
-        defaults.set(acpDiscoveryEnabled, forKey: acpDiscoveryKey)
-        defaults.removeObject(forKey: "aurora.app.remote.accessMode")
-        defaults.removeObject(forKey: "prism.app.acp.showControl")
-        defaults.removeObject(forKey: "prism.app.acp.operatorNodes")
-        defaults.removeObject(forKey: "prism.app.acp.blackoutClearNodes")
-        defaults.removeObject(forKey: "aurora.app.remote.port")
-        defaults.removeObject(forKey: "aurora.app.remote.webPort")
-        defaults.removeObject(forKey: "aurora.app.remote.pin")
         if let data = try? JSONEncoder().encode(loggingConfiguration) {
             defaults.set(data, forKey: loggingKey)
         }

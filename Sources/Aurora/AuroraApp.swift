@@ -650,15 +650,6 @@ struct AuroraApp: App {
                 }
             }
 
-            CommandMenu("Remote") {
-                Button(appModel.settings.remoteAccessEnabled ? "Disable ACP Remote" : "Enable ACP Remote") {
-                    appModel.applyRemoteFromSettings(enabled: !appModel.settings.remoteAccessEnabled)
-                }
-                Button("Disable ACP and Disconnect Clients") {
-                    appModel.disconnectAllACPClients()
-                }
-            }
-
             CommandMenu("Output") {
                 Button("DMX Monitor…") {
                     NotificationCenter.default.post(name: .openDMXMonitor, object: nil)

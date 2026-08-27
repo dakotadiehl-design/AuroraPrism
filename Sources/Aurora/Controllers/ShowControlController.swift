@@ -6,7 +6,6 @@ import AuroraModel
 import AuroraMusical
 import AuroraOutput
 import Foundation
-import PrismACP
 
 /// Engine transport, action dispatch, programmer, song, performance presentation (Stage C).
 @MainActor
@@ -24,7 +23,7 @@ final class ShowControlController: ObservableObject {
     @Published private(set) var engineStatus: String = "Engine stopped"
     @Published var songStatus: String = ""
     @Published private(set) var performance: PerformanceSnapshot = .empty
-    /// ACP authority epoch / revision. Advances only at semantic commits.
+    /// Protocol-neutral observation epoch / revision. Advances only at semantic commits.
     private(set) var authorityEpoch: UInt64 = 1
     private(set) var stateRevision: UInt64 = 0
     var onSemanticCommit: (() -> Void)?
@@ -373,7 +372,7 @@ final class ShowControlController: ObservableObject {
 
     /// Rebuild presentation immediately from the playback controller after a
     /// semantic transport command. The frame snapshot is intentionally
-    /// throttled and can still describe the prior cue when ACP publishes the
+    /// throttled and can still describe the prior cue when an observer reads the
     /// resulting revision.
     private func refreshSemanticPresentation() {
         var engineSnapshot = engine.currentSnapshot()
@@ -389,7 +388,7 @@ final class ShowControlController: ObservableObject {
         )
     }
 
-    /// Single authoritative cue projection for ACP admission and publication.
+    /// Single authoritative cue projection for control admission and state observation.
     /// This deliberately reads PlaybackController directly; the engine frame
     /// snapshot and SwiftUI presentation snapshot are both throttled views.
     func authoritativeCueState() -> (current: PerformanceCueSummary, next: PerformanceCueSummary) {

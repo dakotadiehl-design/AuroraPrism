@@ -108,8 +108,6 @@ targets:
         product: AuroraMusical
       - package: AuroraPackage
         product: AuroraDiagnostics
-      - package: AuroraPackage
-        product: PrismACP
       - package: AuroraDesignSystem
         product: AuroraDesignSystem
       - sdk: AppKit.framework

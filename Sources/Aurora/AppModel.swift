@@ -7,7 +7,6 @@ import AuroraModel
 import AuroraDiagnostics
 import AuroraOutput
 import AuroraUI
-import PrismACP
 import Combine
 import Foundation
 import SwiftUI
@@ -26,7 +25,6 @@ final class AppModel: ObservableObject {
     let showControl: ShowControlController
     let input: InputController
     let output: OutputController
-    let acp: PrismACPController
     let diagnostics: DiagnosticsController
     let settings: AppSettingsStore
     let autosave = AutosaveController()
@@ -87,7 +85,7 @@ final class AppModel: ObservableObject {
     var consoleLog: [String] { diagnostics.consoleLog }
     var oscStatus: String { input.oscStatus }
     var isOSCEnabled: Bool { input.isOSCEnabled }
-    var remoteStatus: String { acp.status }
+    var remoteStatus: String { "Remote networking unavailable" }
     var engine: LightingEngine { showControl.engine }
     var songDirector: SongDirector { showControl.songDirector }
     var midiLearn: MIDILearnSession { input.midiLearn }
@@ -111,7 +109,6 @@ final class AppModel: ObservableObject {
         let output = OutputController(settings: settings)
         let showControl = ShowControlController(output: output.outputManager)
         let input = InputController()
-        let acp = PrismACPController()
         let diagnostics = DiagnosticsController(memorySink: memorySink)
         let workspace = WorkspaceController()
 
@@ -119,15 +116,9 @@ final class AppModel: ObservableObject {
         self.output = output
         self.showControl = showControl
         self.input = input
-        self.acp = acp
         self.diagnostics = diagnostics
         self.workspace = workspace
         self.settings = settings
-        showControl.onSemanticCommit = { [weak self] in
-            Task { @MainActor in
-                await self?.publishACPState()
-            }
-        }
         // C5.1: wire float window coordinator → workspace frame / redock policy.
         floatWindows.isTerminating = { [weak self] in self?.isTerminating == true }
         floatWindows.onFrameChanged = { [weak self] surface, frame, screenID, screenName in
@@ -159,7 +150,6 @@ final class AppModel: ObservableObject {
             showControl.objectWillChange,
             input.objectWillChange,
             output.objectWillChange,
-            acp.objectWillChange,
             diagnostics.objectWillChange,
             settings.objectWillChange,
             programmerPresentation.objectWillChange,
@@ -264,9 +254,6 @@ final class AppModel: ObservableObject {
             }
         }
         autosave.start()
-        if settings.remoteAccessEnabled {
-            applyRemoteFromSettings(enabled: true)
-        }
         // DIAG-01: live throttled diagnostics (not only Settings refresh).
         diagnostics.startLiveUpdates { [weak self] in
             self?.buildDiagnosticsSnapshot() ?? .empty
@@ -1149,57 +1136,6 @@ final class AppModel: ObservableObject {
         notifyUI()
     }
 
-    // MARK: - Remote
-
-    func publishACPState() async {
-        let node = await acp.service.diagnostics().nodeID
-        guard !node.isEmpty else { return }
-        let state = PrismACPAuthoritativeState(
-            authorityEpoch: acp.authorityEpoch,
-            revision: acp.nextAuthoritativeRevision(),
-            showID: session.project.workspaceLayoutId?.uuidString.lowercased()
-                ?? PrismACPDiagnosticIdentifier.stableUUID(seed: document.documentURL?.standardizedFileURL.path ?? session.project.metadata.name),
-            showName: session.project.metadata.name
-        )
-        _ = node
-        await acp.service.noteAuthoritativeState(state)
-    }
-
-    /// Authoritative remote enable path. Starts ACP only; never the legacy TCP/HTTP stack.
-    func applyRemoteFromSettings(enabled: Bool? = nil) {
-        if let enabled {
-            settings.remoteAccessEnabled = enabled
-            settings.save()
-        }
-        let on = settings.remoteAccessEnabled
-        let discovery = settings.acpDiscoveryEnabled
-        let port = settings.acpPort
-        Task { @MainActor in
-            await acp.apply(
-                enabled: on,
-                discovery: discovery,
-                port: port
-            )
-            if on {
-                await publishACPState()
-            }
-            notifyUI()
-        }
-    }
-
-    func setRemoteEnabled(_ enabled: Bool) {
-        applyRemoteFromSettings(enabled: enabled)
-    }
-
-    func disconnectAllACPClients() {
-        Task { @MainActor in
-            await acp.stop()
-            settings.remoteAccessEnabled = false
-            settings.save()
-            notifyUI()
-        }
-    }
-
     /// Orderly teardown (PRE-UI-3). Idempotent.
     private var didShutdown = false
 
@@ -1216,7 +1152,6 @@ final class AppModel: ObservableObject {
         showControl.stopTimers()
         input.stopAll()
         output.stopAll()
-        Task { await acp.stop() }
     }
 
     // MARK: - C5.1 unified undock / redock (state + exact window)
@@ -1279,8 +1214,8 @@ final class AppModel: ObservableObject {
             midiStatus: midiHealth.statusLine,
             midiState: midiHealth.state.rawValue,
             midiSourceCount: midiHealth.connectedSourceCount,
-            remoteStatus: acp.status,
-            remoteActuallyRunning: acp.isRunning,
+            remoteStatus: "Remote networking unavailable",
+            remoteActuallyRunning: false,
             remoteClientCount: 0,
             validationIssueCount: performance.validationIssueCount,
             driverHealth: health.map {
