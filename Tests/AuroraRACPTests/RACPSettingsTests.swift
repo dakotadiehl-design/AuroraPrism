@@ -12,6 +12,12 @@ final class RACPSettingsTests: XCTestCase {
         let initial = AppSettingsStore(defaults: defaults)
         XCTAssertFalse(initial.racpRemoteControl.enabled)
         XCTAssertEqual(initial.racpRemoteControl.port, 9_000)
+        let generatedPeerID = initial.racpRemoteControl.peerID
+
+        // Initialization persists the generated identity before rACP is ever
+        // enabled, so repeated launches share one authoritative identity.
+        let repeated = AppSettingsStore(defaults: defaults)
+        XCTAssertEqual(repeated.racpRemoteControl.peerID, generatedPeerID)
 
         let saved = RACPRemoteControlPreference(
             enabled: true,

@@ -4,11 +4,48 @@ import Foundation
 import ReasonableACP
 
 struct PrismRACPConfiguration: Equatable, Sendable {
+    static let peerType = "prism"
+    static let fallbackInstanceName = "Prism"
+    static let defaultInstanceName: String = {
+        resolvedInstanceName(Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleDisplayName"
+        ) as? String)
+    }()
+
     var enabled: Bool
     var port: UInt16
     var peerID: String
+    var instanceName: String = Self.defaultInstanceName
     var maximumConnections: Int = 16
     var binding: RACPNetworkServerBinding = .allInterfaces
+
+    static func resolvedInstanceName(_ displayName: String?) -> String {
+        guard let displayName,
+              (try? RACPNetworkAdvertisement(
+                  instanceName: displayName,
+                  peerID: "prism",
+                  peerType: peerType
+              )) != nil else {
+            return fallbackInstanceName
+        }
+        return displayName
+    }
+
+    func makeHello() throws -> RACPHello {
+        try RACPHello(
+            peerType: Self.peerType,
+            peerID: peerID,
+            capabilities: PrismRACPCapability.all
+        )
+    }
+
+    func makeAdvertisement() throws -> RACPNetworkAdvertisement {
+        try RACPNetworkAdvertisement(
+            instanceName: instanceName,
+            peerID: peerID,
+            peerType: Self.peerType
+        )
+    }
 }
 
 @MainActor
@@ -131,16 +168,14 @@ private actor PrismRACPRuntime {
         let runID = UUID()
         activeRunID = runID
         do {
-            let hello = try RACPHello(
-                peerType: "prism",
-                peerID: configuration.peerID,
-                capabilities: PrismRACPCapability.all
-            )
+            let hello = try configuration.makeHello()
+            let advertisement = try configuration.makeAdvertisement()
             let execute = self.execute
             let networkServer = try RACPNetworkServer(
                 port: configuration.port,
                 binding: configuration.binding,
                 maximumConnections: configuration.maximumConnections,
+                advertisement: advertisement,
                 connectionHandler: { [weak self] connection in
                     Task { await self?.accept(connection, runID: runID) }
                 },

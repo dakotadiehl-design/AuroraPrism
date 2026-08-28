@@ -107,8 +107,8 @@ File: `App/Aurora.entitlements`
 
 | Key | Justification |
 |-----|----------------|
-| `NSLocalNetworkUsageDescription` | Art-Net, sACN, stage remote, OSC, RTP-MIDI on LAN |
-| `NSBonjourServices` (`_osc._udp`, `_apple-midi._udp`) | Local discovery patterns used by control stack |
+| `NSLocalNetworkUsageDescription` | Art-Net, sACN, stage remote, OSC, RTP-MIDI, and rACP on LAN |
+| `NSBonjourServices` (`_osc._udp`, `_apple-midi._udp`, `_racp._tcp`) | Local discovery and advertisement patterns used by control stack |
 
 ### System frameworks (via SPM modules)
 

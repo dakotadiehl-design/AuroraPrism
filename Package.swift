@@ -23,7 +23,7 @@ let package = Package(
         .package(name: "AuroraDesignSystem", path: "../AuroraDesignSystem"),
         .package(
             url: "https://github.com/dakotadiehl-design/rACP.git",
-            revision: "730eb8a6bf540a871ea311d0b60007bc0be488bc"
+            revision: "b023590b926c2c4c3a111275d847c997fd511514"
         ),
     ],
     targets: [

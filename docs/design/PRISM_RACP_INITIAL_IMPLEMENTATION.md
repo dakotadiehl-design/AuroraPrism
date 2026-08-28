@@ -8,6 +8,19 @@ The service is disabled by default. Operators can enable it and select a port in
 Settings → Remote. rACP uses plain TCP without authentication or encryption, so
 the listener is intended for trusted production networks only.
 
+When enabled, the same TCP listener is advertised as `_racp._tcp.local.`. The
+DNS-SD instance name uses the app's display name, falling back to `Prism`, and is
+presentation-only. Its TXT record
+contains the discovery profile version plus the same persistent peer ID and peer
+type used by Prism's rACP `HELLO`; TXT metadata is an untrusted discovery hint,
+and `HELLO` remains authoritative. Capabilities are negotiated only through rACP
+and are never included in DNS-SD metadata.
+
+Static host/port connections remain supported. Discovery depends on multicast
+DNS availability and may not cross VLANs or routed network boundaries without
+additional network infrastructure. Failure to discover Prism therefore does not
+imply that direct rACP connectivity has failed.
+
 ## Commands
 
 - `cue.go`, `cue.back`, and `cue.stop`

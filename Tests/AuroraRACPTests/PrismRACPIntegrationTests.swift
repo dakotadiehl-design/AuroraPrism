@@ -24,6 +24,57 @@ private final class StateRecorder: @unchecked Sendable {
 
 @MainActor
 final class PrismRACPIntegrationTests: XCTestCase {
+    func testAdvertisementAndHelloShareAuthoritativeIdentity() throws {
+        let configuration = PrismRACPConfiguration(
+            enabled: true,
+            port: 9_000,
+            peerID: "stable-prism-id"
+        )
+
+        let advertisement = try configuration.makeAdvertisement()
+        let hello = try configuration.makeHello()
+
+        XCTAssertEqual(advertisement.instanceName, "Prism")
+        XCTAssertEqual(advertisement.peerID, hello.peerID)
+        XCTAssertEqual(advertisement.peerType, hello.peerType)
+        XCTAssertEqual(advertisement.peerType, "prism")
+        XCTAssertEqual(
+            advertisement.txtValues,
+            ["v": "1", "id": "stable-prism-id", "type": "prism"]
+        )
+        XCTAssertFalse(advertisement.txtValues.keys.contains("capabilities"))
+    }
+
+    func testInstanceNameUsesValidDisplayNameAndFallsBackSafely() {
+        XCTAssertEqual(
+            PrismRACPConfiguration.resolvedInstanceName("Prism Stage Left"),
+            "Prism Stage Left"
+        )
+        XCTAssertEqual(PrismRACPConfiguration.resolvedInstanceName(nil), "Prism")
+        XCTAssertEqual(PrismRACPConfiguration.resolvedInstanceName(""), "Prism")
+        XCTAssertEqual(
+            PrismRACPConfiguration.resolvedInstanceName(String(repeating: "é", count: 32)),
+            "Prism"
+        )
+        XCTAssertEqual(
+            PrismRACPConfiguration.resolvedInstanceName("Prism\nHidden"),
+            "Prism"
+        )
+    }
+
+    func testAdvertisementValidationDoesNotMutateIdentity() throws {
+        let invalid = PrismRACPConfiguration(
+            enabled: true,
+            port: 9_000,
+            peerID: "stable-prism-id",
+            instanceName: String(repeating: "é", count: 32)
+        )
+
+        XCTAssertThrowsError(try invalid.makeAdvertisement())
+        XCTAssertEqual(invalid.peerID, "stable-prism-id")
+        XCTAssertEqual(try invalid.makeHello().peerID, "stable-prism-id")
+    }
+
     func testCapabilitiesAreCanonicalAndAdapterValidatesCommands() throws {
         XCTAssertEqual(PrismRACPCapability.all, PrismRACPCapability.all.sorted())
         XCTAssertEqual(Set(PrismRACPCapability.all).count, PrismRACPCapability.all.count)
@@ -301,6 +352,64 @@ final class PrismRACPIntegrationTests: XCTestCase {
         await service.stopAndWait()
     }
 
+    func testMulticastAdvertisementDiscoveryConnectionAndRemoval() async throws {
+        guard ProcessInfo.processInfo.environment["PRISM_RUN_MULTICAST_TESTS"] == "1" else {
+            throw XCTSkip("Set PRISM_RUN_MULTICAST_TESTS=1 where multicast DNS is available")
+        }
+
+        let peerID = "prism-multicast-\(UUID().uuidString.lowercased())"
+        let instanceName = "Prism Test \(UUID().uuidString)"
+        let discovery = RACPNetworkDiscovery()
+        let observation = await discovery.observe()
+        try await discovery.start()
+
+        let fixture = makeController()
+        let service = PrismRACPService(controller: fixture.controller)
+        await service.startAndWait(configuration: .init(
+            enabled: true,
+            port: 0,
+            peerID: peerID,
+            instanceName: instanceName
+        ))
+
+        do {
+            let discovered = try await discover(
+                peerID: peerID,
+                observation: observation
+            )
+            XCTAssertEqual(discovered.instanceName, instanceName)
+            XCTAssertEqual(discovered.peerTypeHint, PrismRACPConfiguration.peerType)
+
+            let connection = RACPConnection(
+                stream: try await NetworkByteStream.connect(endpoint: discovered.endpoint),
+                session: RACPSession(
+                    local: try RACPHello(peerType: "remote", peerID: "multicast-client")
+                )
+            )
+            let run = Task { await connection.run() }
+            let hello = try await connection.waitUntilReady()
+            XCTAssertEqual(hello.peerID, peerID)
+            XCTAssertEqual(hello.peerType, PrismRACPConfiguration.peerType)
+            XCTAssertEqual(discovered.validate(peer: hello).peerID, .matches)
+            XCTAssertEqual(discovered.validate(peer: hello).peerType, .matches)
+            try await connection.command(PrismRACPCapability.cueGo)
+            await connection.close(reason: "test_complete")
+            await run.value
+
+            await service.stopAndWait()
+            let removed = try await eventuallyAsync(timeout: .seconds(10)) {
+                let services = await discovery.discoveredServices()
+                return services.contains(where: { $0.peerIDHint == peerID }) ? nil : true
+            }
+            XCTAssertTrue(removed)
+            await discovery.stop()
+        } catch {
+            await service.stopAndWait()
+            await discovery.stop()
+            throw error
+        }
+    }
+
     private func connectClient(
         port: UInt16,
         peerID: String,
@@ -344,6 +453,45 @@ final class PrismRACPIntegrationTests: XCTestCase {
             code: 1,
             userInfo: [NSLocalizedDescriptionKey: "Timed out waiting for asynchronous integration state"]
         )
+    }
+
+    private func eventuallyAsync<T>(
+        timeout: Duration,
+        value: () async -> T?
+    ) async throws -> T {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: timeout)
+        while clock.now < deadline {
+            if let result = await value() { return result }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        throw RACPNetworkDiscoveryError.unavailable
+    }
+
+    private func discover(
+        peerID: String,
+        observation: RACPDiscoveryObservation
+    ) async throws -> RACPDiscoveredService {
+        try await withThrowingTaskGroup(of: RACPDiscoveredService.self) { group in
+            group.addTask {
+                for try await event in observation.events {
+                    switch event {
+                    case .added(let service) where service.peerIDHint == peerID,
+                         .updated(let service) where service.peerIDHint == peerID:
+                        return service
+                    default:
+                        continue
+                    }
+                }
+                throw RACPNetworkDiscoveryError.unavailable
+            }
+            group.addTask {
+                try await Task.sleep(for: .seconds(10))
+                throw RACPNetworkDiscoveryError.unavailable
+            }
+            defer { group.cancelAll() }
+            return try await group.next()!
+        }
     }
 
     private func makeController() -> (controller: ShowControlController, cues: [Cue]) {

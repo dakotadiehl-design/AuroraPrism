@@ -67,8 +67,13 @@ final class AppSettingsStore: ObservableObject {
         if let data = defaults.data(forKey: racpRemoteControlKey),
            let decoded = try? JSONDecoder().decode(RACPRemoteControlPreference.self, from: data),
            decoded.port > 0,
-           (try? RACPHello(peerType: "prism", peerID: decoded.peerID)) != nil {
+           (try? RACPHello(
+               peerType: PrismRACPConfiguration.peerType,
+               peerID: decoded.peerID
+           )) != nil {
             racpRemoteControl = decoded
+        } else {
+            persistRACPRemoteControl()
         }
         loadLoggingConfiguration()
     }
@@ -115,9 +120,7 @@ final class AppSettingsStore: ObservableObject {
         if let data = try? JSONEncoder().encode(loggingConfiguration) {
             defaults.set(data, forKey: loggingKey)
         }
-        if let data = try? JSONEncoder().encode(racpRemoteControl) {
-            defaults.set(data, forKey: racpRemoteControlKey)
-        }
+        persistRACPRemoteControl()
     }
 
     func updateLocalDMX(_ value: LocalDMXPersistedPreference) {
@@ -128,6 +131,12 @@ final class AppSettingsStore: ObservableObject {
     func updateRACPRemoteControl(_ value: RACPRemoteControlPreference) {
         racpRemoteControl = value
         save()
+    }
+
+    private func persistRACPRemoteControl() {
+        if let data = try? JSONEncoder().encode(racpRemoteControl) {
+            defaults.set(data, forKey: racpRemoteControlKey)
+        }
     }
 
 }
