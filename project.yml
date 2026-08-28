@@ -46,10 +46,14 @@ packages:
     path: .
   AuroraDesignSystem:
     path: ../AuroraDesignSystem
+  ReasonableACP:
+    url: https://github.com/dakotadiehl-design/rACP.git
+    revision: 730eb8a6bf540a871ea311d0b60007bc0be488bc
 
 targets:
   Aurora:
     type: application
+    productName: Prism
     platform: macOS
     deploymentTarget: "14.0"
     sources:
@@ -110,12 +114,35 @@ targets:
         product: AuroraDiagnostics
       - package: AuroraDesignSystem
         product: AuroraDesignSystem
+      - package: ReasonableACP
+        product: ReasonableACP
       - sdk: AppKit.framework
       - sdk: SwiftUI.framework
     scheme:
-      testTargets: []
+      testTargets:
+        - AuroraRACPTests
       gatherCoverageData: false
       commandLineArguments: {}
+
+  AuroraRACPTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Tests/AuroraRACPTests
+        type: group
+    dependencies:
+      - target: Aurora
+      - package: AuroraPackage
+        product: AuroraModel
+      - package: AuroraPackage
+        product: AuroraOutput
+      - package: ReasonableACP
+        product: ReasonableACP
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aurora.lighting.racp-tests
+        GENERATE_INFOPLIST_FILE: YES
 
 schemes:
   Aurora:

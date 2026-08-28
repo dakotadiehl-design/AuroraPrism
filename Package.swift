@@ -21,6 +21,10 @@ let package = Package(
     ],
     dependencies: [
         .package(name: "AuroraDesignSystem", path: "../AuroraDesignSystem"),
+        .package(
+            url: "https://github.com/dakotadiehl-design/rACP.git",
+            revision: "730eb8a6bf540a871ea311d0b60007bc0be488bc"
+        ),
     ],
     targets: [
         // MARK: - Libraries (dependency edges match system design §3.2 / PR1 doc §6)
@@ -97,11 +101,21 @@ let package = Package(
                 "AuroraMIDI",
                 "AuroraMusical",
                 "AuroraDiagnostics",
+                .product(name: "ReasonableACP", package: "rACP"),
                 .product(name: "AuroraDesignSystem", package: "AuroraDesignSystem"),
             ]
         ),
 
         // MARK: - Tests
+        .testTarget(
+            name: "AuroraRACPTests",
+            dependencies: [
+                "Aurora",
+                "AuroraModel",
+                "AuroraOutput",
+                .product(name: "ReasonableACP", package: "rACP"),
+            ]
+        ),
         .testTarget(
             name: "AuroraDiagnosticsTests",
             dependencies: ["AuroraDiagnostics", "AuroraEngine", "AuroraModel", "AuroraOutput"]

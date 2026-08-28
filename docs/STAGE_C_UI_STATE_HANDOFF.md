@@ -16,7 +16,7 @@
 | `ShowControlController` | `ShowControlController.swift` | `LightingEngine`, `ControlActionRouter`, `SongDirector`, transport, `PerformanceSnapshot` |
 | `InputController` | `InputController.swift` | CoreMIDI, learn, RTP-MIDI, OSC, MIDI log/status |
 | `OutputController` | `OutputController.swift` | `OutputManager`, Art-Net/sACN drivers & config, output status line |
-| Remote adapter | Not attached | Remote networking is temporarily unavailable pending future rACP work |
+| Remote adapter | Attached through rACP | Commands enter the authoritative show-control boundary; subscribed state is published from committed Prism revisions |
 | `DiagnosticsController` | `DiagnosticsController.swift` | `DiagnosticsStore`, console log, validation issue count |
 | `WorkspaceController` | `WorkspaceController.swift` | Panel layout, Build/Perform mode |
 | `AppSettingsStore` | `AppSettingsStore.swift` | App-global prefs (frame rate, console timestamps) |

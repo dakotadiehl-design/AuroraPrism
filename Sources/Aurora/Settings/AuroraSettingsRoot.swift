@@ -514,18 +514,52 @@ private struct SettingsOutputTab: View {
 // MARK: - Remote
 
 private struct SettingsRemoteTab: View {
+    @EnvironmentObject private var appModel: AppModel
+    @State private var portText = "9000"
+
     var body: some View {
         Form {
             settingsScopeHeader("APPLICATION")
-            Section("Remote control") {
-                Label("Remote networking is temporarily unavailable", systemImage: "network.slash")
-                Text("Local lighting control and output remain available. A future rACP adapter will connect through Prism's existing semantic control boundary.")
+            Section("rACP remote control") {
+                Toggle("Enable remote control", isOn: Binding(
+                    get: { appModel.settings.racpRemoteControl.enabled },
+                    set: { appModel.setRACPRemoteControlEnabled($0) }
+                ))
+                HStack {
+                    TextField("Port", text: $portText)
+                        .frame(width: 100)
+                    Button("Apply") {
+                        guard let value = UInt16(portText), value > 0 else {
+                            portText = String(appModel.settings.racpRemoteControl.port)
+                            return
+                        }
+                        appModel.setRACPRemoteControlPort(value)
+                    }
+                }
+                Text(appModel.racpService.snapshot.statusLine)
+                    .font(.caption.monospaced())
+                Text("Connected clients: \(appModel.racpService.snapshot.clientCount)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let error = appModel.racpService.snapshot.lastError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+            Section("Security") {
+                Label("Plain TCP — trusted networks only", systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+                Text("rACP v1 does not provide encryption or peer authentication. Do not expose this listener to an untrusted network or the public internet.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
         .padding()
+        .onAppear {
+            portText = String(appModel.settings.racpRemoteControl.port)
+        }
     }
 }
 

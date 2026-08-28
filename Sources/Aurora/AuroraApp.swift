@@ -41,10 +41,12 @@ final class AuroraAppDelegate: NSObject, NSApplicationDelegate {
         if !dirty {
             MainActor.assumeIsolated {
                 appModel.noteTerminationAccepted()
-                // Shut down hardware *before* replying so ENTTEC blackout/close completes.
-                appModel.shutdown()
             }
-            NSApp.reply(toApplicationShouldTerminate: true)
+            Task { @MainActor in
+                // Shut down hardware and await remote sockets before replying.
+                await appModel.shutdownAndWait()
+                NSApp.reply(toApplicationShouldTerminate: true)
+            }
             return
         }
 
@@ -74,7 +76,7 @@ final class AuroraAppDelegate: NSObject, NSApplicationDelegate {
             let saved = await appModel.saveShowAsync(presentErrorsAsModal: true)
             if saved {
                 appModel.noteTerminationAccepted()
-                appModel.shutdown()
+                await appModel.shutdownAndWait()
                 NSApp.reply(toApplicationShouldTerminate: true)
             } else {
                 // Stay alive so the user can retry or discard explicitly.
@@ -82,7 +84,7 @@ final class AuroraAppDelegate: NSObject, NSApplicationDelegate {
             }
         case .alertSecondButtonReturn:
             appModel.noteTerminationAccepted()
-            appModel.shutdown()
+            await appModel.shutdownAndWait()
             NSApp.reply(toApplicationShouldTerminate: true)
         default:
             NSApp.reply(toApplicationShouldTerminate: false)

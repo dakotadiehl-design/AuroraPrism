@@ -35,6 +35,9 @@ final class ShowControlController: ObservableObject {
     private var lastAppliedMusicalConfig: MusicalAppliedProjectConfig?
     /// Last show-context snapshot applied (avoid re-layering on every edit).
     private var lastAppliedShowContext: ShowMusicalContext?
+    /// Last advertised values at a semantic commit. External MIDI/OSC/AME
+    /// actions execute off MainActor, then reconcile against this projection.
+    private var lastCommittedRACPProjection: PrismRACPStateSnapshot?
 
     init(output: OutputManager) {
         self.engine = LightingEngine(output: output)
@@ -101,6 +104,7 @@ final class ShowControlController: ObservableObject {
     }
 
     private func hostSelectSong(_ songID: UUID) -> AuroraActionExecutionOutcome {
+        let before = racpStateSnapshot()
         let project = controlRouterProject()
         guard songDirector.selectSong(id: songID, project: project, engine: engine) else {
             return .unsupported
@@ -108,11 +112,13 @@ final class ShowControlController: ObservableObject {
         let section = songDirector.activeSection(project: project)
         enterAMESection(songID: songID, sectionID: section?.id, sectionLabel: section?.name)
         songStatus = project.songs.first(where: { $0.id == songID })?.title ?? ""
+        noteCommitIfRACPStateChanged(from: before)
         objectWillChange.send()
         return .executed
     }
 
     private func hostEnterSection(_ sectionID: UUID) -> AuroraActionExecutionOutcome {
+        let before = racpStateSnapshot()
         let project = controlRouterProject()
         guard songDirector.enterSection(sectionID: sectionID, project: project) else {
             return .unsupported
@@ -120,11 +126,13 @@ final class ShowControlController: ObservableObject {
         let songID = songDirector.songID
         let section = songDirector.activeSection(project: project)
         enterAMESection(songID: songID, sectionID: section?.id ?? sectionID, sectionLabel: section?.name)
+        noteCommitIfRACPStateChanged(from: before)
         objectWillChange.send()
         return .executed
     }
 
     private func hostNextSection() -> AuroraActionExecutionOutcome {
+        let before = racpStateSnapshot()
         let project = controlRouterProject()
         guard songDirector.nextSection(project: project) else { return .partial }
         let section = songDirector.activeSection(project: project)
@@ -133,11 +141,13 @@ final class ShowControlController: ObservableObject {
             sectionID: section?.id,
             sectionLabel: section?.name
         )
+        noteCommitIfRACPStateChanged(from: before)
         objectWillChange.send()
         return .executed
     }
 
     private func hostPreviousSection() -> AuroraActionExecutionOutcome {
+        let before = racpStateSnapshot()
         let project = controlRouterProject()
         guard songDirector.previousSection(project: project) else { return .partial }
         let section = songDirector.activeSection(project: project)
@@ -146,6 +156,7 @@ final class ShowControlController: ObservableObject {
             sectionID: section?.id,
             sectionLabel: section?.name
         )
+        noteCommitIfRACPStateChanged(from: before)
         objectWillChange.send()
         return .executed
     }
@@ -215,6 +226,7 @@ final class ShowControlController: ObservableObject {
         controlRouter.updateMappings(project.midiMappings, project: project)
         controlRouter.updateOrderedSelection(orderedSelection)
         applyMusicalEngineFromProject(project, availableSources: lastMIDIInventory)
+        lastCommittedRACPProjection = normalizedRACPProjection()
         objectWillChange.send()
     }
 
@@ -354,7 +366,23 @@ final class ShowControlController: ObservableObject {
         } else {
             stateRevision += 1
         }
+        lastCommittedRACPProjection = normalizedRACPProjection()
         onSemanticCommit?()
+    }
+
+    /// Called after a router-originated action that bypassed the typed local
+    /// methods (MIDI, OSC, or AME). It commits only if advertised state changed.
+    func reconcileExternalRACPMutation() {
+        let current = normalizedRACPProjection()
+        guard let previous = lastCommittedRACPProjection else {
+            lastCommittedRACPProjection = current
+            return
+        }
+        guard current != previous else { return }
+        refreshSemanticPresentation()
+        noteAuthoritativeCommit()
+        refreshEngineStatus()
+        objectWillChange.send()
     }
 
     @discardableResult
@@ -406,18 +434,139 @@ final class ShowControlController: ObservableObject {
         )
     }
 
-    func back() {
-        engine.back()
-        noteAuthoritativeCommit()
-        refreshEngineStatus()
-        objectWillChange.send()
+    /// Immutable projection consumed by the rACP service. Protocol publication
+    /// remains downstream of this authoritative application snapshot.
+    func racpStateSnapshot() -> PrismRACPStateSnapshot {
+        let cues = authoritativeCueState()
+        let playback = engine.playback.snapshot()
+        let global = engine.globalShowControl
+        return PrismRACPStateSnapshot(
+            authorityEpoch: authorityEpoch,
+            revision: stateRevision,
+            engineRunning: engine.isRunning,
+            playbackPhase: playback.phase.rawValue,
+            currentCue: cues.current,
+            nextCue: cues.next,
+            song: songDirector.snapshot(project: projectMirror),
+            sectionID: songDirector.sectionID,
+            sectionName: songDirector.activeSection(project: projectMirror)?.name,
+            grandMaster: global.masterIntensity,
+            blackout: global.blackout
+        )
     }
 
-    func stopPlayback() {
-        engine.stopPlayback()
+    /// Compares only advertised semantic state. Authority metadata is restored
+    /// before comparison because it describes the commit rather than its value.
+    private func noteCommitIfRACPStateChanged(from before: PrismRACPStateSnapshot) {
+        var after = racpStateSnapshot()
+        after.authorityEpoch = before.authorityEpoch
+        after.revision = before.revision
+        guard after != before else { return }
+        refreshSemanticPresentation()
         noteAuthoritativeCommit()
         refreshEngineStatus()
+    }
+
+    private func normalizedRACPProjection() -> PrismRACPStateSnapshot {
+        var projection = racpStateSnapshot()
+        projection.authorityEpoch = 0
+        projection.revision = 0
+        return projection
+    }
+
+    @discardableResult
+    func back(origin: ControlActionOrigin = .localUI) -> Bool {
+        let before = engine.playback.snapshot()
+        guard before.cueIndex > 0 else { return false }
+        controlRouter.dispatch(.back, origin: origin)
+        let changed = engine.playback.snapshot() != before
+        refreshSemanticPresentation()
+        if changed { noteAuthoritativeCommit() }
+        refreshEngineStatus()
         objectWillChange.send()
+        return changed
+    }
+
+    @discardableResult
+    func stopPlayback(origin: ControlActionOrigin = .localUI) -> Bool {
+        let before = engine.playback.snapshot()
+        controlRouter.dispatch(.stop, origin: origin)
+        let changed = engine.playback.snapshot() != before
+        refreshSemanticPresentation()
+        if changed { noteAuthoritativeCommit() }
+        refreshEngineStatus()
+        objectWillChange.send()
+        return changed
+    }
+
+    @discardableResult
+    func setMasterIntensity(_ value: Double, origin: ControlActionOrigin = .localUI) -> Bool {
+        let before = engine.globalShowControl.masterIntensity
+        controlRouter.dispatch(
+            .masterIntensity,
+            control: MIDIControlValue(normalized: value, isTrigger: false),
+            origin: origin
+        )
+        let changed = engine.globalShowControl.masterIntensity != before
+        refreshSemanticPresentation()
+        if changed { noteAuthoritativeCommit() }
+        objectWillChange.send()
+        return changed
+    }
+
+    @discardableResult
+    func setBlackout(_ enabled: Bool, origin: ControlActionOrigin = .localUI) -> Bool {
+        let before = engine.globalShowControl.blackout
+        controlRouter.dispatch(
+            enabled ? .blackout : .blackoutOff,
+            notifySummary: "Blackout",
+            origin: origin
+        )
+        let changed = engine.globalShowControl.blackout != before
+        refreshSemanticPresentation()
+        if changed { noteAuthoritativeCommit() }
+        objectWillChange.send()
+        return changed
+    }
+
+    @discardableResult
+    func toggleBlackout(origin: ControlActionOrigin = .localUI) -> Bool {
+        setBlackout(!engine.globalShowControl.blackout, origin: origin)
+    }
+
+    // MARK: - Authoritative remote command boundary
+
+    func executeRemoteGo(origin: ControlActionOrigin) -> PrismRACPCommandOutcome {
+        go(origin: origin) ? .executed : .noNextCue
+    }
+
+    func executeRemoteBack(origin: ControlActionOrigin) -> PrismRACPCommandOutcome {
+        guard engine.playback.snapshot().cueIndex > 0 else { return .noPreviousCue }
+        return back(origin: origin) ? .executed : .unchanged
+    }
+
+    func executeRemoteStop(origin: ControlActionOrigin) -> PrismRACPCommandOutcome {
+        stopPlayback(origin: origin) ? .executed : .unchanged
+    }
+
+    func executeRemoteGrandMaster(value: Double, origin: ControlActionOrigin) -> PrismRACPCommandOutcome {
+        guard value.isFinite, (0 ... 1).contains(value) else { return .invalidValue }
+        return setMasterIntensity(value, origin: origin) ? .executed : .unchanged
+    }
+
+    func executeRemoteBlackout(enabled: Bool, origin: ControlActionOrigin) -> PrismRACPCommandOutcome {
+        setBlackout(enabled, origin: origin) ? .executed : .unchanged
+    }
+
+    func executeRemoteSongSelection(id: UUID, origin: ControlActionOrigin) -> PrismRACPCommandOutcome {
+        guard projectMirror.songs.contains(where: { $0.id == id }) else { return .invalidTarget }
+        guard songDirector.songID != id else { return .unchanged }
+        switch controlRouter.dispatchSongSelection(id: id, origin: origin) {
+        case .executed:
+            return .executed
+        case .unsupported, .partial:
+            return .unavailable
+        }
     }
 
     @discardableResult
@@ -441,6 +590,7 @@ final class ShowControlController: ObservableObject {
         controlRouter.updateOrderedSelection(orderedSelection)
         controlRouter.updateMappings(project.midiMappings, project: project)
         controlRouter.dispatch(action, midiValue: midiValue)
+        reconcileExternalRACPMutation()
         refreshEngineStatus()
         objectWillChange.send()
     }
@@ -451,6 +601,7 @@ final class ShowControlController: ObservableObject {
     }
 
     func loadSong(_ song: Song, project: ShowProject) {
+        let before = racpStateSnapshot()
         projectMirror = project
         songDirector.load(song: song, project: project, engine: engine)
         songStatus = song.title
@@ -459,20 +610,25 @@ final class ShowControlController: ObservableObject {
             sectionID: songDirector.sectionID,
             sectionLabel: songDirector.activeSection(project: project)?.name
         )
+        noteCommitIfRACPStateChanged(from: before)
         objectWillChange.send()
     }
 
     func songNext(project: ShowProject) {
+        let before = racpStateSnapshot()
         projectMirror = project
         songDirector.next(project: project, engine: engine)
         syncAMEContextFromSongDirector(project: project)
+        noteCommitIfRACPStateChanged(from: before)
         objectWillChange.send()
     }
 
     func songPrevious(project: ShowProject) {
+        let before = racpStateSnapshot()
         projectMirror = project
         songDirector.previous(project: project, engine: engine)
         syncAMEContextFromSongDirector(project: project)
+        noteCommitIfRACPStateChanged(from: before)
         objectWillChange.send()
     }
 
@@ -487,9 +643,11 @@ final class ShowControlController: ObservableObject {
     }
 
     func resetSong() {
+        let before = racpStateSnapshot()
         songDirector.reset()
         songStatus = ""
         enterAMESection(songID: nil, sectionID: nil, sectionLabel: nil)
+        noteCommitIfRACPStateChanged(from: before)
         objectWillChange.send()
     }
 

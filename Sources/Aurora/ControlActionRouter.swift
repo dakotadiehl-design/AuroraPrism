@@ -933,6 +933,32 @@ final class ControlActionRouter: @unchecked Sendable {
         }
     }
 
+    /// Select a song through the same host callback used by AME. Keeping this
+    /// API narrow prevents callers from using the host executor as a second,
+    /// generic path to LightingEngine actions.
+    @discardableResult
+    func dispatchSongSelection(
+        id: UUID,
+        origin: ControlActionOrigin = .localUI
+    ) -> AuroraActionExecutionOutcome {
+        lock.lock()
+        lastControlOrigin = origin
+        let eng = engine
+        let proj = project
+        lock.unlock()
+        guard let eng else { return .unsupported }
+
+        let executor = makeExecutor(lighting: eng, project: proj)
+        return executor.execute(
+            .selectSong(id),
+            context: AuroraActionExecutionContext(
+                controlValue: 0,
+                orderedFixtureIDs: [],
+                selectedFixtureIDs: []
+            )
+        )
+    }
+
     func controlOriginSnapshot() -> ControlActionOrigin {
         lock.lock()
         defer { lock.unlock() }

@@ -27,6 +27,7 @@ final class AppModel: ObservableObject {
     let output: OutputController
     let diagnostics: DiagnosticsController
     let settings: AppSettingsStore
+    let racpService: PrismRACPService
     let autosave = AutosaveController()
     /// UI-03: derived Programmer attribute presentation (projection only).
     let programmerPresentation = ProgrammerPresentationStore()
@@ -107,6 +108,7 @@ final class AppModel: ObservableObject {
         let document = ProjectController(project: project)
         let output = OutputController(settings: settings)
         let showControl = ShowControlController(output: output.outputManager)
+        let racpService = PrismRACPService(controller: showControl)
         let input = InputController()
         let diagnostics = DiagnosticsController(memorySink: memorySink)
         let workspace = WorkspaceController()
@@ -118,6 +120,7 @@ final class AppModel: ObservableObject {
         self.diagnostics = diagnostics
         self.workspace = workspace
         self.settings = settings
+        self.racpService = racpService
         // C5.1: wire float window coordinator → workspace frame / redock policy.
         floatWindows.isTerminating = { [weak self] in self?.isTerminating == true }
         floatWindows.onFrameChanged = { [weak self] surface, frame, screenID, screenName in
@@ -151,6 +154,7 @@ final class AppModel: ObservableObject {
             output.objectWillChange,
             diagnostics.objectWillChange,
             settings.objectWillChange,
+            racpService.objectWillChange,
             programmerPresentation.objectWillChange,
             externalControl.objectWillChange,
             launchSplash.objectWillChange,
@@ -173,6 +177,7 @@ final class AppModel: ObservableObject {
                     result: isUnmatched ? "no match" : "ok",
                     isError: isUnmatched
                 )
+                self.showControl.reconcileExternalRACPMutation()
             }
         }
 
@@ -257,6 +262,7 @@ final class AppModel: ObservableObject {
         diagnostics.startLiveUpdates { [weak self] in
             self?.buildDiagnosticsSnapshot() ?? .empty
         }
+        applyRACPRemoteControlPreference()
         PrismLog.notice(
             .appLifecycle,
             "app.lifecycle.launch",
@@ -919,8 +925,8 @@ final class AppModel: ObservableObject {
         output.refreshOutputStatus()
         notifyUI()
     }
-    func back() { showControl.back(); notifyUI() }
-    func stopPlayback() { showControl.stopPlayback(); notifyUI() }
+    func back() { _ = showControl.back(); notifyUI() }
+    func stopPlayback() { _ = showControl.stopPlayback(); notifyUI() }
     func fireCue(id: UUID) { showControl.fireCue(id: id); notifyUI() }
 
     func exportAuroraLibrary(to url: URL) throws {
@@ -978,12 +984,12 @@ final class AppModel: ObservableObject {
     // MARK: - Global show control (P0-I)
 
     func setMasterIntensity(_ value: Double) {
-        engine.setMasterIntensity(value)
+        _ = showControl.setMasterIntensity(value)
         notifyUI()
     }
 
     func toggleBlackout() {
-        showControl.controlRouter.dispatch(.toggleBlackout, notifySummary: "Blackout")
+        _ = showControl.toggleBlackout()
         notifyUI()
     }
 
@@ -1140,6 +1146,23 @@ final class AppModel: ObservableObject {
 
     func shutdown() {
         guard !didShutdown else { return }
+        prepareSynchronousShutdown()
+        racpService.stop()
+    }
+
+    /// Termination path used before AppKit receives its final quit reply. This
+    /// guarantees the listener and accepted sockets close while the process is
+    /// still alive instead of relying on process teardown.
+    func shutdownAndWait() async {
+        guard !didShutdown else {
+            await racpService.stopAndWait()
+            return
+        }
+        prepareSynchronousShutdown()
+        await racpService.stopAndWait()
+    }
+
+    private func prepareSynchronousShutdown() {
         didShutdown = true
         isTerminating = true
         PrismLog.notice(.appLifecycle, "app.lifecycle.terminate", "Prism is quitting.")
@@ -1213,9 +1236,9 @@ final class AppModel: ObservableObject {
             midiStatus: midiHealth.statusLine,
             midiState: midiHealth.state.rawValue,
             midiSourceCount: midiHealth.connectedSourceCount,
-            remoteStatus: "Remote networking unavailable",
-            remoteActuallyRunning: false,
-            remoteClientCount: 0,
+            remoteStatus: racpService.snapshot.statusLine,
+            remoteActuallyRunning: racpService.snapshot.state == .listening,
+            remoteClientCount: racpService.snapshot.clientCount,
             validationIssueCount: performance.validationIssueCount,
             driverHealth: health.map {
                 DiagnosticsSnapshot.DriverHealthRow(
@@ -1348,5 +1371,31 @@ final class AppModel: ObservableObject {
 
     func refreshDiagnosticsSnapshot() {
         diagnostics.refreshNow()
+    }
+
+    // MARK: - rACP remote control
+
+    func setRACPRemoteControlEnabled(_ enabled: Bool) {
+        var preference = settings.racpRemoteControl
+        preference.enabled = enabled
+        settings.updateRACPRemoteControl(preference)
+        applyRACPRemoteControlPreference()
+    }
+
+    func setRACPRemoteControlPort(_ port: UInt16) {
+        guard port > 0 else { return }
+        var preference = settings.racpRemoteControl
+        preference.port = port
+        settings.updateRACPRemoteControl(preference)
+        if preference.enabled { applyRACPRemoteControlPreference() }
+    }
+
+    private func applyRACPRemoteControlPreference() {
+        let preference = settings.racpRemoteControl
+        racpService.apply(configuration: PrismRACPConfiguration(
+            enabled: preference.enabled,
+            port: preference.port,
+            peerID: preference.peerID
+        ))
     }
 }

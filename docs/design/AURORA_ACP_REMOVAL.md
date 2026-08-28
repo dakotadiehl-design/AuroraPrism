@@ -1,7 +1,7 @@
 # AuroraACP removal boundary
 
 Prism temporarily provides local lighting control only. No remote network adapter is
-attached while the retired AuroraACP integration is removed and rACP remains future
+attached while the retired AuroraACP integration was removed and rACP remained future
 work.
 
 ## Cleanup map
@@ -18,8 +18,8 @@ work.
 | Art-Net, sACN, OSC, RTP-MIDI, and local DMX configuration | Keep | Active local/output functionality unrelated to AuroraACP |
 | Historical ACP design records under `docs/design` and `FutureReference` | Keep as history | Non-production records; they are not compiled or shipped as runtime integration |
 
-## Future rACP attachment point
+## rACP attachment point
 
-A future adapter should validate rACP input and dispatch through the existing
+The rACP adapter validates protocol input and dispatches through the existing
 `ControlActionRouter` and controller-level semantic methods. It must not mutate the
 lighting engine, programmer, output drivers, or DMX buffers directly.
