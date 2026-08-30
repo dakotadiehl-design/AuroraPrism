@@ -9,7 +9,8 @@ Settings → Remote. rACP uses plain TCP without authentication or encryption, s
 the listener is intended for trusted production networks only.
 
 When enabled, the same TCP listener is advertised as `_racp._tcp.local.`. The
-DNS-SD instance name uses the app's display name, falling back to `Prism`, and is
+DNS-SD instance name is `Prism - <computer name>`, using the Mac's friendly
+computer name and falling back to `Prism` when unavailable or invalid. It is
 presentation-only. Its TXT record
 contains the discovery profile version plus the same persistent peer ID and peer
 type used by Prism's rACP `HELLO`; TXT metadata is an untrusted discovery hint,
@@ -35,11 +36,14 @@ map rejected operations to rACP error codes.
 ## State
 
 Clients can subscribe to `cue.current`, `cue.next`, `playback.state`,
-`output.grand_master`, `output.blackout`, `song.current`, and `prism.status`.
+`output.grand_master`, `output.blackout`, `song.current`, `song.list`, and
+`prism.status`.
 Every payload carries Prism's authority epoch and semantic revision. A current
 snapshot is sent after subscription and subsequent committed changes are pushed
 event-first; frame polling is not used as the source of protocol state. The
 `song.current` payload also includes the current section and entry position.
+`song.list` contains each song's ID, title, and artist, and is republished after
+project edits change the song inventory (including song creation and removal).
 Transport revisions remain monotonic across authority-epoch changes, even though
 Prism's semantic revision intentionally restarts for a replacement show.
 

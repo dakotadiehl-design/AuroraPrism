@@ -6,11 +6,9 @@ import ReasonableACP
 struct PrismRACPConfiguration: Equatable, Sendable {
     static let peerType = "prism"
     static let fallbackInstanceName = "Prism"
-    static let defaultInstanceName: String = {
-        resolvedInstanceName(Bundle.main.object(
-            forInfoDictionaryKey: "CFBundleDisplayName"
-        ) as? String)
-    }()
+    static let defaultInstanceName = resolvedInstanceName(
+        computerName: Host.current().localizedName
+    )
 
     var enabled: Bool
     var port: UInt16
@@ -19,16 +17,23 @@ struct PrismRACPConfiguration: Equatable, Sendable {
     var maximumConnections: Int = 16
     var binding: RACPNetworkServerBinding = .allInterfaces
 
-    static func resolvedInstanceName(_ displayName: String?) -> String {
-        guard let displayName,
-              (try? RACPNetworkAdvertisement(
-                  instanceName: displayName,
-                  peerID: "prism",
-                  peerType: peerType
-              )) != nil else {
+    static func resolvedInstanceName(computerName: String?) -> String {
+        guard let computerName else {
             return fallbackInstanceName
         }
-        return displayName
+        let normalizedComputerName = computerName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedComputerName.isEmpty else {
+            return fallbackInstanceName
+        }
+        let instanceName = "Prism - \(normalizedComputerName)"
+        guard (try? RACPNetworkAdvertisement(
+            instanceName: instanceName,
+            peerID: "prism",
+            peerType: peerType
+        )) != nil else {
+            return fallbackInstanceName
+        }
+        return instanceName
     }
 
     func makeHello() throws -> RACPHello {

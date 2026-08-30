@@ -448,6 +448,9 @@ final class ShowControlController: ObservableObject {
             currentCue: cues.current,
             nextCue: cues.next,
             song: songDirector.snapshot(project: projectMirror),
+            songs: projectMirror.songs.map {
+                PrismRACPSongSummary(id: $0.id, title: $0.title, artist: $0.artist)
+            },
             sectionID: songDirector.sectionID,
             sectionName: songDirector.activeSection(project: projectMirror)?.name,
             grandMaster: global.masterIntensity,

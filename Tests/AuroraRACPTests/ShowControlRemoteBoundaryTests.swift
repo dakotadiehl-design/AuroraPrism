@@ -132,6 +132,29 @@ final class ShowControlRemoteBoundaryTests: XCTestCase {
         XCTAssertNil(controller.racpStateSnapshot().song.songID)
     }
 
+    func testSongInventoryChangesAreIncludedInCommittedRACPState() {
+        let fixture = makeController()
+        let controller = fixture.controller
+        var project = fixture.project
+
+        XCTAssertEqual(controller.racpStateSnapshot().songs.map(\.id), [fixture.song.id])
+
+        let added = Song(title: "Added Song", artist: "New Artist")
+        project.songs.append(added)
+        controller.applyProjectUpdate(project, orderedSelection: [])
+        controller.noteAuthoritativeCommit()
+
+        XCTAssertEqual(controller.stateRevision, 1)
+        XCTAssertEqual(controller.racpStateSnapshot().songs.map(\.id), [fixture.song.id, added.id])
+
+        project.songs.removeAll { $0.id == fixture.song.id }
+        controller.applyProjectUpdate(project, orderedSelection: [])
+        controller.noteAuthoritativeCommit()
+
+        XCTAssertEqual(controller.stateRevision, 2)
+        XCTAssertEqual(controller.racpStateSnapshot().songs.map(\.id), [added.id])
+    }
+
     func testGenericControlSurfaceActionsReconcileAdvertisedState() {
         let fixture = makeController()
         let controller = fixture.controller

@@ -34,7 +34,10 @@ final class PrismRACPIntegrationTests: XCTestCase {
         let advertisement = try configuration.makeAdvertisement()
         let hello = try configuration.makeHello()
 
-        XCTAssertEqual(advertisement.instanceName, "Prism")
+        XCTAssertEqual(
+            advertisement.instanceName,
+            PrismRACPConfiguration.defaultInstanceName
+        )
         XCTAssertEqual(advertisement.peerID, hello.peerID)
         XCTAssertEqual(advertisement.peerType, hello.peerType)
         XCTAssertEqual(advertisement.peerType, "prism")
@@ -45,20 +48,58 @@ final class PrismRACPIntegrationTests: XCTestCase {
         XCTAssertFalse(advertisement.txtValues.keys.contains("capabilities"))
     }
 
-    func testInstanceNameUsesValidDisplayNameAndFallsBackSafely() {
+    func testInstanceNameUsesFriendlyComputerName() {
         XCTAssertEqual(
-            PrismRACPConfiguration.resolvedInstanceName("Prism Stage Left"),
-            "Prism Stage Left"
+            PrismRACPConfiguration.resolvedInstanceName(computerName: "Stage Left Mac"),
+            "Prism - Stage Left Mac"
         )
-        XCTAssertEqual(PrismRACPConfiguration.resolvedInstanceName(nil), "Prism")
-        XCTAssertEqual(PrismRACPConfiguration.resolvedInstanceName(""), "Prism")
         XCTAssertEqual(
-            PrismRACPConfiguration.resolvedInstanceName(String(repeating: "é", count: 32)),
+            PrismRACPConfiguration.resolvedInstanceName(computerName: "  Stage Left Mac  "),
+            "Prism - Stage Left Mac"
+        )
+    }
+
+    func testInstanceNameFallsBackForMissingComputerName() {
+        XCTAssertEqual(
+            PrismRACPConfiguration.resolvedInstanceName(computerName: nil),
             "Prism"
         )
         XCTAssertEqual(
-            PrismRACPConfiguration.resolvedInstanceName("Prism\nHidden"),
+            PrismRACPConfiguration.resolvedInstanceName(computerName: ""),
             "Prism"
+        )
+        XCTAssertEqual(
+            PrismRACPConfiguration.resolvedInstanceName(computerName: "  \n\t"),
+            "Prism"
+        )
+    }
+
+    func testInstanceNameFallsBackForInvalidComputerName() {
+        XCTAssertEqual(
+            PrismRACPConfiguration.resolvedInstanceName(computerName: "Stage\nHidden"),
+            "Prism"
+        )
+    }
+
+    func testInstanceNameFallsBackWhenCombinedNameExceedsDNSByteLimit() {
+        let oversizedComputerName = String(repeating: "é", count: 28)
+        XCTAssertEqual("Prism - \(oversizedComputerName)".utf8.count, 64)
+        XCTAssertEqual(
+            PrismRACPConfiguration.resolvedInstanceName(
+                computerName: oversizedComputerName
+            ),
+            "Prism"
+        )
+    }
+
+    func testInstanceNameAllowsDNSByteLimitBoundary() {
+        let computerName = String(repeating: "a", count: 55)
+        let expected = "Prism - \(computerName)"
+
+        XCTAssertEqual(expected.utf8.count, 63)
+        XCTAssertEqual(
+            PrismRACPConfiguration.resolvedInstanceName(computerName: computerName),
+            expected
         )
     }
 
@@ -166,12 +207,29 @@ final class PrismRACPIntegrationTests: XCTestCase {
         }
         XCTAssertEqual(initial.revision, 0)
 
+        try await connection.subscribe(PrismRACPCapability.songList)
+        let initialSongList = try await eventually {
+            recorder.messages(named: PrismRACPCapability.songList).last
+        }
+        XCTAssertEqual(initialSongList.revision, initial.revision)
+
+        var projectWithAddedSong = fixture.project
+        let addedSong = Song(title: "New Remote Song", artist: "Test Artist")
+        projectWithAddedSong.songs.append(addedSong)
+        fixture.controller.applyProjectUpdate(projectWithAddedSong, orderedSelection: [])
+        fixture.controller.noteAuthoritativeCommit()
+        let changedSongList = try await eventually {
+            recorder.messages(named: PrismRACPCapability.songList)
+                .last(where: { $0.revision > initialSongList.revision })
+        }
+        XCTAssertTrue(try changedSongList.value.encoded().contains(addedSong.id.uuidString.lowercased()))
+
         try await connection.command(PrismRACPCapability.cueGo)
         let changed = try await eventually {
             recorder.messages(named: PrismRACPCapability.cueCurrent)
-                .last(where: { $0.revision > initial.revision })
+                .last(where: { $0.revision > changedSongList.revision })
         }
-        XCTAssertEqual(changed.revision, 1)
+        XCTAssertEqual(changed.revision, changedSongList.revision + 1)
         XCTAssertEqual(fixture.controller.engine.playback.snapshot().cueID, fixture.cues[0].id)
         XCTAssertEqual(service.snapshot.clientCount, 1)
 
@@ -494,13 +552,17 @@ final class PrismRACPIntegrationTests: XCTestCase {
         }
     }
 
-    private func makeController() -> (controller: ShowControlController, cues: [Cue]) {
+    private func makeController() -> (
+        controller: ShowControlController,
+        cues: [Cue],
+        project: ShowProject
+    ) {
         let cues = [Cue(number: 1, name: "One"), Cue(number: 2, name: "Two")]
         let list = CueList(name: "Main", cues: cues)
         var project = ShowProject.empty()
         project.cueLists = [list]
         let controller = ShowControlController(output: OutputManager())
         controller.reloadFromProject(project, orderedSelection: [])
-        return (controller, cues)
+        return (controller, cues, project)
     }
 }

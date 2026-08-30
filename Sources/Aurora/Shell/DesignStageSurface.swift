@@ -66,6 +66,7 @@ struct DesignStageSurface: View {
                 selectedIDs: appModel.session.selection.snapshot.fixtureIDs,
                 selectedTargets: appModel.session.selection.snapshot.fixtureTargets,
                 orderedSelectedTargets: appModel.session.selection.snapshot.orderedFixtureTargets,
+                glyphStyle: appModel.settings.stageGlyphStyle,
                 selectedObjectIDs: $designSelectedObjectIDs,
                 scale: scaleBinding,
                 pan: panBinding,

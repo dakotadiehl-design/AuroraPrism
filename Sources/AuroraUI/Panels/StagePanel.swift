@@ -14,6 +14,7 @@ public struct StagePanel: View {
     public var onLayoutChanged: () -> Void
     public var onSelectFixtures: ([UUID]) -> Void
     public var revealFixtureID: UUID?
+    public var glyphStyle: StageGlyphStyle
 
     @State private var mode: Mode = .live
     @State private var scale: CGFloat = 1
@@ -38,13 +39,15 @@ public struct StagePanel: View {
         preview: StagePreviewSnapshot,
         onLayoutChanged: @escaping () -> Void,
         onSelectFixtures: @escaping ([UUID]) -> Void,
-        revealFixtureID: UUID? = nil
+        revealFixtureID: UUID? = nil,
+        glyphStyle: StageGlyphStyle = .legacyV1
     ) {
         self.context = context
         self.preview = preview
         self.onLayoutChanged = onLayoutChanged
         self.onSelectFixtures = onSelectFixtures
         self.revealFixtureID = revealFixtureID
+        self.glyphStyle = glyphStyle
     }
 
     private var layout: StageLayout { context.project.stageLayout }
@@ -87,6 +90,7 @@ public struct StagePanel: View {
                     selectedIDs: selectedIDs,
                     selectedTargets: context.session.selection.snapshot.fixtureTargets,
                     orderedSelectedTargets: context.session.selection.snapshot.orderedFixtureTargets,
+                    glyphStyle: glyphStyle,
                     scale: $scale,
                     pan: $pan,
                     onSelectFixtures: onSelectFixtures,

@@ -203,6 +203,10 @@ struct AuroraApp: App {
                         CheckpointC3ScreenshotExporter.runIfRequested()
                         return
                     }
+                    if ProcessInfo.processInfo.arguments.contains("--export-glyph-v3-acceptance") {
+                        GlyphV3AcceptanceExporter.runIfRequested()
+                        return
+                    }
                     // UI-02 C1: no DEBUG auto-demo. Explicit File / Welcome only.
                     // Optional automation: --load-demo-show launch argument.
                     if ProcessInfo.processInfo.arguments.contains("--load-demo-show") {

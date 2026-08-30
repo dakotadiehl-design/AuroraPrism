@@ -19,6 +19,7 @@ enum PrismRACPCapability {
     static let playbackState = "playback.state"
     static let prismStatus = "prism.status"
     static let songCurrent = "song.current"
+    static let songList = "song.list"
     static let songSelect = "song.select"
     static let stateSubscribe = "state.subscribe"
 
@@ -26,12 +27,12 @@ enum PrismRACPCapability {
         cueBack, cueCurrent, cueGo, cueNext, cueStop,
         outputBlackout, outputBlackoutSet,
         outputGrandMaster, outputGrandMasterSet,
-        playbackState, prismStatus, songCurrent, songSelect, stateSubscribe,
+        playbackState, prismStatus, songCurrent, songList, songSelect, stateSubscribe,
     ].sorted()
 
     static let stateNames: Set<String> = [
         cueCurrent, cueNext, outputBlackout, outputGrandMaster,
-        playbackState, prismStatus, songCurrent,
+        playbackState, prismStatus, songCurrent, songList,
     ]
 }
 
@@ -57,6 +58,7 @@ struct PrismRACPStateSnapshot: Equatable, Sendable {
     var currentCue: PerformanceCueSummary
     var nextCue: PerformanceCueSummary
     var song: SongPerformanceSnapshot
+    var songs: [PrismRACPSongSummary]
     var sectionID: UUID?
     var sectionName: String?
     var grandMaster: Double
@@ -86,6 +88,16 @@ struct PrismRACPStateSnapshot: Equatable, Sendable {
                 JSONMember("section_name", sectionName.map(JSONValue.string) ?? .null),
                 JSONMember("entry_index", .integer(Int64(song.entryIndex))),
                 JSONMember("entry_count", .integer(Int64(song.entryCount))),
+            ])
+        case PrismRACPCapability.songList:
+            value = envelope([
+                JSONMember("songs", .array(songs.map { song in
+                    .object([
+                        JSONMember("id", .string(song.id.uuidString.lowercased())),
+                        JSONMember("title", .string(song.title)),
+                        JSONMember("artist", .string(song.artist)),
+                    ])
+                })),
             ])
         default:
             return nil
@@ -123,6 +135,12 @@ struct PrismRACPStateSnapshot: Equatable, Sendable {
     private func safeInteger(_ value: UInt64) -> Int64 {
         Int64(min(value, racpMaximumSafeInteger))
     }
+}
+
+struct PrismRACPSongSummary: Equatable, Sendable {
+    var id: UUID
+    var title: String
+    var artist: String
 }
 
 struct PrismRACPServiceSnapshot: Equatable, Sendable {

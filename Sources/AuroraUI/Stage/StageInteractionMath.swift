@@ -28,6 +28,32 @@ public enum StageFixtureDragSelection {
     }
 }
 
+/// Renderer-independent reducer for parent, child, grouped-control, and
+/// modifier-assisted Stage selection.
+public enum StageFixtureTargetSelection {
+    public static func applying(
+        _ targets: [FixtureTarget],
+        to current: [FixtureTarget],
+        extending: Bool
+    ) -> [FixtureTarget] {
+        guard extending else { return targets }
+        var next = current
+        for target in targets {
+            if target.elementID == nil {
+                next.removeAll { $0.fixtureID == target.fixtureID }
+            } else {
+                next.removeAll { $0 == FixtureTarget(fixtureID: target.fixtureID) }
+            }
+            if let index = next.firstIndex(of: target) {
+                next.remove(at: index)
+            } else {
+                next.append(target)
+            }
+        }
+        return next
+    }
+}
+
 /// Stable, testable content for the native Stage fixture hover tooltip.
 public enum StageFixtureHoverInfo {
     public static func text(

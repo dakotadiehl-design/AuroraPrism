@@ -1,6 +1,7 @@
 import AuroraDiagnostics
 import Foundation
 import ReasonableACP
+import AuroraUI
 
 /// Persisted Local DMX preference (UI-08 A1).
 /// Prefers stable hardware identity over `/dev/cu.*` path alone.
@@ -35,6 +36,7 @@ final class AppSettingsStore: ObservableObject {
     @Published var preferredFrameRateHz: Double = 40
     @Published var showConsoleTimestamps: Bool = true
     @Published var preferredDensity: String = "standard"
+    @Published var stageGlyphStyle: StageGlyphStyle = .legacyV1
     @Published var localDMX: LocalDMXPersistedPreference = .empty
     @Published var loggingConfiguration: PrismLogConfiguration = .productionDefaults
     @Published var racpRemoteControl: RACPRemoteControlPreference = .defaults()
@@ -45,6 +47,7 @@ final class AppSettingsStore: ObservableObject {
     private let frameRateKey = "aurora.app.preferredFrameRateHz"
     private let consoleTsKey = "aurora.app.showConsoleTimestamps"
     private let densityKey = "aurora.app.preferredDensity"
+    private let stageGlyphStyleKey = "prism.stage.glyphStyle.v1"
     private let localDMXKey = "aurora.app.localDMX.v1"
     private let loggingKey = "prism.logging.configuration.v1"
     private let racpRemoteControlKey = "prism.remote.racp.v1"
@@ -59,6 +62,12 @@ final class AppSettingsStore: ObservableObject {
         }
         if let d = defaults.string(forKey: densityKey) {
             preferredDensity = d
+        }
+        if let rawStyle = defaults.string(forKey: stageGlyphStyleKey),
+           let style = StageGlyphStyle(rawValue: rawStyle) {
+            stageGlyphStyle = style
+        } else {
+            stageGlyphStyle = .legacyV1
         }
         if let data = defaults.data(forKey: localDMXKey),
            let decoded = try? JSONDecoder().decode(LocalDMXPersistedPreference.self, from: data) {
@@ -114,6 +123,7 @@ final class AppSettingsStore: ObservableObject {
         defaults.set(preferredFrameRateHz, forKey: frameRateKey)
         defaults.set(showConsoleTimestamps, forKey: consoleTsKey)
         defaults.set(preferredDensity, forKey: densityKey)
+        defaults.set(stageGlyphStyle.rawValue, forKey: stageGlyphStyleKey)
         if let data = try? JSONEncoder().encode(localDMX) {
             defaults.set(data, forKey: localDMXKey)
         }

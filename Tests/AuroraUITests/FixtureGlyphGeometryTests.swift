@@ -4,6 +4,18 @@ import CoreGraphics
 import XCTest
 
 final class FixtureGlyphGeometryTests: XCTestCase {
+    func testRendererStylesShareTheSameSemanticGeometryContract() {
+        let descriptor = linearDescriptor(count: 4)
+        let geometry = FixtureGlyphGeometryBuilder.build(descriptor: descriptor, baseHeight: 40, detailLevel: 2)
+        for _ in StageGlyphStyle.allCases {
+            XCTAssertEqual(geometry.interactionApertures.map(\.id), descriptor.emitters.map(\.id))
+            XCTAssertEqual(geometry.opticalOrigins.count, descriptor.emitters.count)
+            XCTAssertEqual(geometry.interactionApertures.map(\.center), descriptor.emitters.map {
+                CGPoint(x: geometry.bodyBounds.width * $0.x, y: geometry.bodyBounds.height * $0.y)
+            })
+        }
+    }
+
     func testBeamOriginsAreExactlyGlyphApertureCenters() {
         let descriptor = linearDescriptor(count: 12)
         let geometry = FixtureGlyphGeometryBuilder.build(descriptor: descriptor, baseHeight: 40, detailLevel: 2)

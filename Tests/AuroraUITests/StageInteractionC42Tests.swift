@@ -4,6 +4,31 @@ import AuroraUI
 import XCTest
 
 final class StageInteractionC42Tests: XCTestCase {
+    func testFixtureTargetSelectionPreservesParentChildAndModifierRules() {
+        let fixture = UUID()
+        let other = UUID()
+        let parent = FixtureTarget(fixtureID: fixture)
+        let childA = FixtureTarget(fixtureID: fixture, elementID: "cell-a")
+        let childB = FixtureTarget(fixtureID: fixture, elementID: "cell-b")
+        let otherParent = FixtureTarget(fixtureID: other)
+
+        XCTAssertEqual(StageFixtureTargetSelection.applying([childA], to: [parent], extending: false), [childA])
+        XCTAssertEqual(StageFixtureTargetSelection.applying([childA], to: [parent, otherParent], extending: true), [otherParent, childA])
+        XCTAssertEqual(StageFixtureTargetSelection.applying([childB], to: [childA], extending: true), [childA, childB])
+        XCTAssertEqual(StageFixtureTargetSelection.applying([parent], to: [childA, childB, otherParent], extending: true), [otherParent, parent])
+        XCTAssertEqual(StageFixtureTargetSelection.applying([childA], to: [childA, otherParent], extending: true), [otherParent])
+    }
+
+    func testGroupedPhysicalControlsRemainOrderedAndRendererIndependent() {
+        let fixture = UUID()
+        let grouped = ["cell-0", "cell-1", "cell-2", "cell-3"].map {
+            FixtureTarget(fixtureID: fixture, elementID: $0)
+        }
+        for _ in StageGlyphStyle.allCases {
+            XCTAssertEqual(StageFixtureTargetSelection.applying(grouped, to: [], extending: false), grouped)
+        }
+    }
+
     // MARK: - Aim math
 
     func testAimFromPointerQuadrants() {

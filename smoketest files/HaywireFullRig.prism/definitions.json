@@ -466,9 +466,9 @@
         "id" : "map-element-0",
         "physicalEmitterIDs" : [
           "physical-emitter-3",
-          "physical-emitter-0",
+          "physical-emitter-2",
           "physical-emitter-1",
-          "physical-emitter-2"
+          "physical-emitter-0"
         ]
       },
       {
@@ -478,10 +478,10 @@
         ],
         "id" : "map-element-1",
         "physicalEmitterIDs" : [
-          "physical-emitter-6",
           "physical-emitter-4",
-          "physical-emitter-5",
-          "physical-emitter-7"
+          "physical-emitter-7",
+          "physical-emitter-6",
+          "physical-emitter-5"
         ]
       },
       {
@@ -491,10 +491,10 @@
         ],
         "id" : "map-element-2",
         "physicalEmitterIDs" : [
+          "physical-emitter-11",
           "physical-emitter-10",
           "physical-emitter-8",
-          "physical-emitter-9",
-          "physical-emitter-11"
+          "physical-emitter-9"
         ]
       }
     ],
@@ -812,18 +812,18 @@
         ],
         "id" : "map-fixture-output",
         "physicalEmitterIDs" : [
-          "physical-emitter-11",
-          "physical-emitter-4",
-          "physical-emitter-8",
-          "physical-emitter-3",
-          "physical-emitter-1",
-          "physical-emitter-9",
           "physical-emitter-7",
           "physical-emitter-10",
           "physical-emitter-2",
+          "physical-emitter-11",
+          "physical-emitter-8",
+          "physical-emitter-0",
+          "physical-emitter-1",
+          "physical-emitter-4",
+          "physical-emitter-9",
           "physical-emitter-6",
           "physical-emitter-5",
-          "physical-emitter-0"
+          "physical-emitter-3"
         ]
       }
     ],
@@ -2322,24 +2322,24 @@
         ],
         "id" : "map-fixture-output",
         "physicalEmitterIDs" : [
-          "physical-emitter-10",
-          "physical-emitter-2",
-          "physical-emitter-15",
-          "physical-emitter-13",
-          "physical-emitter-5",
-          "physical-emitter-1",
+          "physical-emitter-16",
           "physical-emitter-11",
-          "physical-emitter-8",
-          "physical-emitter-12",
-          "physical-emitter-0",
-          "physical-emitter-3",
-          "physical-emitter-14",
-          "physical-emitter-9",
-          "physical-emitter-7",
-          "physical-emitter-17",
           "physical-emitter-6",
+          "physical-emitter-15",
+          "physical-emitter-3",
+          "physical-emitter-8",
+          "physical-emitter-0",
+          "physical-emitter-14",
+          "physical-emitter-13",
+          "physical-emitter-17",
+          "physical-emitter-5",
+          "physical-emitter-2",
+          "physical-emitter-10",
           "physical-emitter-4",
-          "physical-emitter-16"
+          "physical-emitter-9",
+          "physical-emitter-1",
+          "physical-emitter-12",
+          "physical-emitter-7"
         ]
       }
     ],

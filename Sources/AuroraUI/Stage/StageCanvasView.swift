@@ -21,6 +21,7 @@ public struct StageCanvasView: View {
     public var selectedIDs: Set<UUID>
     public var selectedTargets: Set<FixtureTarget>
     public var orderedSelectedTargets: [FixtureTarget]
+    public var glyphStyle: StageGlyphStyle
     /// Selected layout object IDs (stock/scenic/import) — C4.
     @Binding public var selectedObjectIDs: Set<UUID>
     public var onSelectFixtures: ([UUID]) -> Void
@@ -64,6 +65,7 @@ public struct StageCanvasView: View {
         selectedIDs: Set<UUID>,
         selectedTargets: Set<FixtureTarget>? = nil,
         orderedSelectedTargets: [FixtureTarget]? = nil,
+        glyphStyle: StageGlyphStyle = .legacyV1,
         selectedObjectIDs: Binding<Set<UUID>> = .constant([]),
         scale: Binding<CGFloat>,
         pan: Binding<CGSize>,
@@ -84,6 +86,7 @@ public struct StageCanvasView: View {
             if $0.fixtureID != $1.fixtureID { return $0.fixtureID.uuidString < $1.fixtureID.uuidString }
             return ($0.elementID ?? "") < ($1.elementID ?? "")
         }
+        self.glyphStyle = glyphStyle
         self._selectedObjectIDs = selectedObjectIDs
         self._scale = scale
         self._pan = pan
@@ -1353,7 +1356,8 @@ public struct StageCanvasView: View {
                 let selectedPhysicalIDs = affectedPhysicalIDs
                 let atmosphericIndicator = descriptor.indicators.first { $0.kind == .atmosphereCloud }
                 let atmosphericLevel = atmosphericIndicator.flatMap { state?.environmental[$0.attribute] } ?? 0
-                FixtureGlyphRenderer(
+                StageFixtureGlyph(
+                    style: glyphStyle,
                     descriptor: descriptor,
                     geometry: glyphGeometry,
                     liveEmitters: physicalLiveEmitters(state: state, descriptor: descriptor, definition: def),
@@ -1361,7 +1365,8 @@ public struct StageCanvasView: View {
                     affectedEmitterIDs: affectedPhysicalIDs.subtracting(selectedPhysicalIDs),
                     wholeSelected: selectedTargets.contains(FixtureTarget(fixtureID: place.fixtureID))
                         || fixtureDrag?.movableIDs.contains(place.fixtureID) == true,
-                    atmosphericLevel: atmosphericLevel
+                    atmosphericLevel: atmosphericLevel,
+                    detailLevel: detail
                 )
                 // This recognizer is intentionally attached before fixture padding,
                 // rotation, position, camera zoom, and camera pan. Its location is
@@ -1372,20 +1377,23 @@ public struct StageCanvasView: View {
                         .onEnded { value in
                             guard !spaceHeld else { return }
                             pointerClaimedByFixture = true
-                            if stageShiftModifierActive,
-                               let aperture = glyphGeometry.interactionApertures.min(by: {
-                                   hypot($0.center.x - value.location.x, $0.center.y - value.location.y)
-                                       < hypot($1.center.x - value.location.x, $1.center.y - value.location.y)
-                               }) {
+                            let modifiers: NSEvent.ModifierFlags = stageShiftModifierActive ? [.shift] : []
+                            switch glyphGeometry.hitTest(localPoint: value.location) {
+                            case .physicalElement(let emitterID):
                                 applyPhysicalEmitterClickSelection(
-                                    emitterID: aperture.id,
+                                    emitterID: emitterID,
                                     fixtureID: place.fixtureID,
                                     descriptor: descriptor,
                                     definition: def,
-                                    modifiers: [.shift]
+                                    modifiers: modifiers
                                 )
-                            } else {
-                                applyPhysicalTargets([FixtureTarget(fixtureID: place.fixtureID)])
+                            case .fixtureBody:
+                                applyPhysicalTargets(
+                                    [FixtureTarget(fixtureID: place.fixtureID)],
+                                    modifiers: modifiers
+                                )
+                            case nil:
+                                break
                             }
                             DispatchQueue.main.async { pointerClaimedByFixture = false }
                         }
@@ -2166,18 +2174,13 @@ public struct StageCanvasView: View {
     ) {
         guard !targets.isEmpty else { return }
         let flags = modifiers ?? NSEvent.modifierFlags
-        var next = orderedSelectedTargets
-        if flags.contains(.command) || flags.contains(.shift) {
-            for target in targets {
-                if target.elementID == nil {
-                    next.removeAll { $0.fixtureID == target.fixtureID }
-                } else {
-                    next.removeAll { $0 == FixtureTarget(fixtureID: target.fixtureID) }
-                }
-                if let index = next.firstIndex(of: target) { next.remove(at: index) } else { next.append(target) }
-            }
-        } else {
-            next = targets
+        let extending = flags.contains(.command) || flags.contains(.shift)
+        let next = StageFixtureTargetSelection.applying(
+            targets,
+            to: orderedSelectedTargets,
+            extending: extending
+        )
+        if !extending {
             selectedObjectIDs = []
         }
         onSelectFixtureTargets(next)

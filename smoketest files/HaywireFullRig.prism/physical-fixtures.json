@@ -183,8 +183,8 @@
     "model" : "COLORband Q3BT ILS",
     "movement" : "unknown",
     "opticalBehaviors" : [
-      "pixel",
-      "wash"
+      "wash",
+      "pixel"
     ],
     "schemaVersion" : 1,
     "source" : "imported",
@@ -515,8 +515,8 @@
     "model" : "LED Zoom PAR 18x18W RGBWA UV Lighting (A)",
     "movement" : "unknown",
     "opticalBehaviors" : [
-      "pixel",
-      "wash"
+      "wash",
+      "pixel"
     ],
     "schemaVersion" : 1,
     "source" : "imported",

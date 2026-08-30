@@ -202,7 +202,21 @@ private struct SettingsGeneralTab: View {
                 )
             }
             Section("Appearance") {
-                Text("Density customization is not applied by the shell yet.")
+                Picker(
+                    "Stage Fixture Glyphs",
+                    selection: Binding(
+                        get: { appModel.settings.stageGlyphStyle },
+                        set: {
+                            appModel.settings.stageGlyphStyle = $0
+                            appModel.settings.save()
+                        }
+                    )
+                ) {
+                    ForEach(StageGlyphStyle.allCases, id: \.self) { style in
+                        Text(style.displayName).tag(style)
+                    }
+                }
+                Text("Changes Stage Preview artwork only. Show files, patching, fixture data, and output are unchanged.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }

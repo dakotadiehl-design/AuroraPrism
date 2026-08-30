@@ -66,6 +66,7 @@
 		CF0934C23E6A2264CB664C87 /* PrismRACPModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF7CC48A6914017CFB4F5982 /* PrismRACPModels.swift */; };
 		D1D5AFEB411E7EEE10F007F2 /* AuroraCore in Frameworks */ = {isa = PBXBuildFile; productRef = 792A939B17F287A1613EEC7E /* AuroraCore */; };
 		DB76164C63E39F07973EE448 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D89FE72A7FCF544F9FE97138 /* AppModel.swift */; };
+		DF9234797B68FE18FAB8DCCF /* GlyphV3AcceptanceExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 196F425EF7ED9442C6BBFBAB /* GlyphV3AcceptanceExporter.swift */; };
 		E0B3AA7CDCC40373F83483F0 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FD8D8F2897F52396A2EF3F06 /* SwiftUI.framework */; };
 		E161C01CFBB6E7CA343C09B7 /* PerformWorkspaceShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C8D08AF1160636E19E4FDB /* PerformWorkspaceShell.swift */; };
 		E3032F189F85DAFFBB942F2E /* AuroraOutput in Frameworks */ = {isa = PBXBuildFile; productRef = B9DC2520F5554CBC727D6B1E /* AuroraOutput */; };
@@ -100,6 +101,7 @@
 		00B55091ED3E046091397B7A /* PrismRACPCommandAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrismRACPCommandAdapter.swift; sourceTree = "<group>"; };
 		07645A08673E2EF869A67CDC /* ShortcutHelpHUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutHelpHUD.swift; sourceTree = "<group>"; };
 		182910CFFF96FD38C92A41A1 /* DiagnosticsSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsSnapshot.swift; sourceTree = "<group>"; };
+		196F425EF7ED9442C6BBFBAB /* GlyphV3AcceptanceExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlyphV3AcceptanceExporter.swift; sourceTree = "<group>"; };
 		1EAD52ED9A7456D2355F6E75 /* CheckpointC1ScreenshotExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckpointC1ScreenshotExporter.swift; sourceTree = "<group>"; };
 		232F5B08C7CB2103577CD47F /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		25F1D13A45E6ACDAD06F6796 /* LightKeyFixtureImporterWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightKeyFixtureImporterWindow.swift; sourceTree = "<group>"; };
@@ -253,6 +255,7 @@
 				3A665E7AA33A07B1B5479496 /* CheckpointC2ScreenshotExporter.swift */,
 				31B5082F832535672E269A21 /* CheckpointC3ScreenshotExporter.swift */,
 				9B5DE4B4C4888D1A5E101B1F /* EffectsWindowAcceptanceCapture.swift */,
+				196F425EF7ED9442C6BBFBAB /* GlyphV3AcceptanceExporter.swift */,
 			);
 			path = Tools;
 			sourceTree = "<group>";
@@ -544,6 +547,7 @@
 				2F5A243D8178A4449395A6DD /* FixtureCreatorWindow.swift in Sources */,
 				F00643476CE33324EFB945EF /* FloatingSurfaceWindow.swift in Sources */,
 				56FD63FD798BEBC8E708F3EA /* FloatingSurfaceWindowCoordinator.swift in Sources */,
+				DF9234797B68FE18FAB8DCCF /* GlyphV3AcceptanceExporter.swift in Sources */,
 				8885BEE39D4B78623E20494A /* InputController.swift in Sources */,
 				AB90C02584422D9038335B6D /* KeyboardCommandGate.swift in Sources */,
 				5D124C456F3FBF5F9E3ADAC7 /* LaunchSplashController.swift in Sources */,

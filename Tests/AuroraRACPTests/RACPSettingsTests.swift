@@ -1,9 +1,37 @@
 import Foundation
+import AuroraModel
+import AuroraUI
 import XCTest
 @testable import Aurora
 
 @MainActor
 final class RACPSettingsTests: XCTestCase {
+    func testStageGlyphStyleDefaultsAndRoundTripsWithoutProjectState() throws {
+        let suite = "PrismGlyphSettingsTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let project = ShowProject.empty(name: "Unchanged")
+        let projectBefore = project
+        let initial = AppSettingsStore(defaults: defaults)
+        XCTAssertEqual(initial.stageGlyphStyle, .legacyV1)
+        initial.stageGlyphStyle = .prismV3
+        initial.save()
+
+        let restored = AppSettingsStore(defaults: defaults)
+        XCTAssertEqual(restored.stageGlyphStyle, .prismV3)
+        XCTAssertEqual(project, projectBefore)
+    }
+
+    func testInvalidStageGlyphStyleFallsBackToLegacy() throws {
+        let suite = "PrismGlyphSettingsTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set("futureRenderer", forKey: "prism.stage.glyphStyle.v1")
+
+        XCTAssertEqual(AppSettingsStore(defaults: defaults).stageGlyphStyle, .legacyV1)
+    }
+
     func testRemoteControlPreferenceDefaultsDisabledAndRoundTrips() throws {
         let suite = "PrismRACPSettingsTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))

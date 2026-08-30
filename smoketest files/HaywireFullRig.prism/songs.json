@@ -1,3 +1,118 @@
 [
+  {
+    "annotations" : [
 
+    ],
+    "artist" : "",
+    "entries" : [
+      {
+        "id" : "C305F7DB-3441-407D-B971-04E254140D6F",
+        "label" : "List 1",
+        "target" : {
+          "cueListId" : "A4143326-9A1D-48CF-BB86-620A5D53E574",
+          "type" : "cueList"
+        }
+      }
+    ],
+    "id" : "35C6A278-4904-49C7-B55D-7EE16FADD9D9",
+    "notes" : "",
+    "sections" : [
+      {
+        "associatedSequenceIDs" : [
+
+        ],
+        "id" : "8C6C6B76-6B1D-4BB6-BC15-7BD499A4B727",
+        "localMappingIDs" : [
+
+        ],
+        "mappingSetIDs" : [
+
+        ],
+        "name" : "Main",
+        "onEnterActions" : [
+
+        ],
+        "onExitActions" : [
+
+        ],
+        "order" : 0
+      }
+    ],
+    "title" : "Gone Haywire"
+  },
+  {
+    "annotations" : [
+
+    ],
+    "artist" : "",
+    "entries" : [
+      {
+        "id" : "3CBD68CB-2227-4350-A97F-75579B40F8D9",
+        "label" : "List 1",
+        "target" : {
+          "cueListId" : "A4143326-9A1D-48CF-BB86-620A5D53E574",
+          "type" : "cueList"
+        }
+      }
+    ],
+    "id" : "18F3B338-D569-487D-B52B-5466332BC36A",
+    "notes" : "",
+    "sections" : [
+      {
+        "associatedSequenceIDs" : [
+
+        ],
+        "id" : "82B3EECE-19CF-43CF-9769-E1ADD4DDA80C",
+        "localMappingIDs" : [
+
+        ],
+        "mappingSetIDs" : [
+
+        ],
+        "name" : "Main",
+        "onEnterActions" : [
+
+        ],
+        "onExitActions" : [
+
+        ],
+        "order" : 0
+      }
+    ],
+    "title" : "Don't Rock The Jukebox"
+  },
+  {
+    "annotations" : [
+
+    ],
+    "artist" : "Billy Bob Joe Bob",
+    "entries" : [
+
+    ],
+    "id" : "6DCC9C78-484E-4D20-AF45-0E811A8E79C3",
+    "notes" : "",
+    "sections" : [
+      {
+        "associatedSequenceIDs" : [
+
+        ],
+        "id" : "AD3D0D7F-9C96-4E41-AE79-7EB41F0BF777",
+        "localMappingIDs" : [
+
+        ],
+        "mappingSetIDs" : [
+
+        ],
+        "name" : "Main",
+        "onEnterActions" : [
+
+        ],
+        "onExitActions" : [
+
+        ],
+        "order" : 0
+      }
+    ],
+    "title" : "Time Marches On"
+  }
 ]
